@@ -16,14 +16,7 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
     window.print();
   };
 
-  const qrData = JSON.stringify({
-    id: document.id,
-    empresa: content.company.cif,
-    origen: content.origin.city,
-    destino: content.destination.city,
-    fecha: format(new Date(document.departure_date), 'yyyy-MM-dd'),
-    matricula: content.vehicle.tractor_plate,
-  });
+  const qrData = document.pdf_url || `${window.location.origin}/documento/${document.id}`;
 
   return (
     <div className="min-h-screen bg-slate-100">

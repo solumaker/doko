@@ -95,4 +95,5 @@ export interface Document {
   content: DocumentContent;
   departure_date: string;
   created_at: string;
+  pdf_url?: string;
 }

@@ -225,6 +225,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     setDocuments((prev) => [data, ...prev]);
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document-pdf`;
+
+      fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ documentId: data.id }),
+      }).catch(err => {
+        console.error('Error generating PDF:', err);
+      });
+    }
+
     return data;
   };
 
