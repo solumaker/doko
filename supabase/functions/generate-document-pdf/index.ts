@@ -57,6 +57,209 @@ interface Document {
   created_at: string;
 }
 
+async function convertToPdfA1a(pdfBytes: ArrayBuffer): Promise<ArrayBuffer> {
+  const convertApiSecret = Deno.env.get("CONVERTAPI_SECRET");
+
+  if (!convertApiSecret) {
+    throw new Error("CONVERTAPI_SECRET environment variable is not set");
+  }
+
+  const formData = new FormData();
+  const blob = new Blob([pdfBytes], { type: "application/pdf" });
+  formData.append("File", blob, "document.pdf");
+  formData.append("PdfaVersion", "pdfa1a");
+  formData.append("StoreFile", "true");
+
+  const response = await fetch("https://v2.convertapi.com/convert/pdf/to/pdfa", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${convertApiSecret}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`ConvertAPI error: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+
+  if (!result.Files || result.Files.length === 0) {
+    throw new Error("ConvertAPI returned no files");
+  }
+
+  const pdfA1aUrl = result.Files[0].Url;
+  const pdfA1aResponse = await fetch(pdfA1aUrl);
+
+  if (!pdfA1aResponse.ok) {
+    throw new Error(`Failed to download converted PDF/A-1a: ${pdfA1aResponse.status}`);
+  }
+
+  return await pdfA1aResponse.arrayBuffer();
+}
+
+function generatePdfDocument(doc: Document): ArrayBuffer {
+  const content = doc.content;
+  const pdf = new jsPDF();
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  let y = 20;
+
+  pdf.setFontSize(18);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("DOCUMENTO DE CONTROL DE TRANSPORTE", pageWidth / 2, y, {
+    align: "center",
+  });
+  y += 10;
+
+  pdf.setFontSize(10);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(
+    "Conforme a la normativa vigente de transporte por carretera",
+    pageWidth / 2,
+    y,
+    { align: "center" }
+  );
+  y += 15;
+
+  pdf.setFontSize(9);
+  pdf.text(`Documento ID: ${doc.id.substring(0, 8).toUpperCase()}`, 20, y);
+  y += 5;
+  const createdDate = new Date(doc.created_at);
+  pdf.text(
+    `Generado: ${createdDate.toLocaleDateString("es-ES")} ${createdDate.toLocaleTimeString("es-ES")}`,
+    20,
+    y
+  );
+  y += 10;
+
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("CARGADOR CONTRACTUAL / EXPEDIDOR", 20, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(content.company.name, 20, y);
+  y += 5;
+  pdf.text(`CIF: ${content.company.cif}`, 20, y);
+  y += 5;
+  pdf.text(
+    `${content.company.address}, ${content.company.postal_code} ${content.company.city} (${content.company.province})`,
+    20,
+    y
+  );
+  y += 5;
+  pdf.text(`Tel: ${content.company.phone}`, 20, y);
+  y += 10;
+
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("TRANSPORTISTA", 20, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(content.company.name, 20, y);
+  y += 5;
+  pdf.text(`CIF: ${content.company.cif}`, 20, y);
+  y += 10;
+
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("ORIGEN", 20, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(content.origin.name, 20, y);
+  y += 5;
+  pdf.text(content.origin.address, 20, y);
+  y += 5;
+  pdf.text(
+    `${content.origin.postal_code} ${content.origin.city} (${content.origin.province})`,
+    20,
+    y
+  );
+  y += 5;
+  if (content.origin.contact_name) {
+    pdf.text(`Contacto: ${content.origin.contact_name}`, 20, y);
+    y += 5;
+  }
+  if (content.origin.phone) {
+    pdf.text(`Tel: ${content.origin.phone}`, 20, y);
+    y += 5;
+  }
+  const departureDate = new Date(doc.departure_date);
+  pdf.text(
+    `Fecha salida: ${departureDate.toLocaleDateString("es-ES")} ${departureDate.toLocaleTimeString("es-ES")}`,
+    20,
+    y
+  );
+  y += 10;
+
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("DESTINO", 20, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(content.destination.name, 20, y);
+  y += 5;
+  pdf.text(content.destination.address, 20, y);
+  y += 5;
+  pdf.text(
+    `${content.destination.postal_code} ${content.destination.city} (${content.destination.province})`,
+    20,
+    y
+  );
+  y += 5;
+  if (content.destination.contact_name) {
+    pdf.text(`Contacto: ${content.destination.contact_name}`, 20, y);
+    y += 5;
+  }
+  if (content.destination.phone) {
+    pdf.text(`Tel: ${content.destination.phone}`, 20, y);
+    y += 5;
+  }
+  y += 5;
+
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("VEHICULO", 20, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(`Cabeza Tractora: ${content.vehicle.tractor_plate}`, 20, y);
+  y += 5;
+  if (content.vehicle.trailer_plate) {
+    pdf.text(`Remolque: ${content.vehicle.trailer_plate}`, 20, y);
+    y += 5;
+  }
+  y += 5;
+
+  pdf.setFontSize(11);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("MERCANCIA", 20, y);
+  y += 6;
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(10);
+  pdf.text(content.cargo.description, 20, y);
+  y += 5;
+  pdf.text(`Bultos: ${content.cargo.packages}`, 20, y);
+  y += 5;
+  pdf.text(`Peso bruto: ${content.cargo.weight_kg.toLocaleString()} kg`, 20, y);
+  y += 15;
+
+  pdf.setFontSize(8);
+  pdf.setFont("helvetica", "italic");
+  pdf.text(
+    "Este documento ha sido generado digitalmente por DOKO",
+    pageWidth / 2,
+    y,
+    { align: "center" }
+  );
+
+  return pdf.output("arraybuffer");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -99,170 +302,16 @@ Deno.serve(async (req: Request) => {
     }
 
     const doc = document as Document;
-    const content = doc.content;
 
-    const pdf = new jsPDF();
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    let y = 20;
+    const pdfBytes = generatePdfDocument(doc);
 
-    pdf.setFontSize(18);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("DOCUMENTO DE CONTROL DE TRANSPORTE", pageWidth / 2, y, {
-      align: "center",
-    });
-    y += 10;
+    const pdfA1aBytes = await convertToPdfA1a(pdfBytes);
 
-    pdf.setFontSize(10);
-    pdf.setFont("helvetica", "normal");
-    pdf.text(
-      "Conforme a la normativa vigente de transporte por carretera",
-      pageWidth / 2,
-      y,
-      { align: "center" }
-    );
-    y += 15;
-
-    pdf.setFontSize(9);
-    pdf.text(`Documento ID: ${doc.id.substring(0, 8).toUpperCase()}`, 20, y);
-    y += 5;
-    const createdDate = new Date(doc.created_at);
-    pdf.text(
-      `Generado: ${createdDate.toLocaleDateString("es-ES")} ${createdDate.toLocaleTimeString("es-ES")}`,
-      20,
-      y
-    );
-    y += 10;
-
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("CARGADOR CONTRACTUAL / EXPEDIDOR", 20, y);
-    y += 6;
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    pdf.text(content.company.name, 20, y);
-    y += 5;
-    pdf.text(`CIF: ${content.company.cif}`, 20, y);
-    y += 5;
-    pdf.text(
-      `${content.company.address}, ${content.company.postal_code} ${content.company.city} (${content.company.province})`,
-      20,
-      y
-    );
-    y += 5;
-    pdf.text(`Tel: ${content.company.phone}`, 20, y);
-    y += 10;
-
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("TRANSPORTISTA", 20, y);
-    y += 6;
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    pdf.text(content.company.name, 20, y);
-    y += 5;
-    pdf.text(`CIF: ${content.company.cif}`, 20, y);
-    y += 10;
-
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("ORIGEN", 20, y);
-    y += 6;
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    pdf.text(content.origin.name, 20, y);
-    y += 5;
-    pdf.text(content.origin.address, 20, y);
-    y += 5;
-    pdf.text(
-      `${content.origin.postal_code} ${content.origin.city} (${content.origin.province})`,
-      20,
-      y
-    );
-    y += 5;
-    if (content.origin.contact_name) {
-      pdf.text(`Contacto: ${content.origin.contact_name}`, 20, y);
-      y += 5;
-    }
-    if (content.origin.phone) {
-      pdf.text(`Tel: ${content.origin.phone}`, 20, y);
-      y += 5;
-    }
-    const departureDate = new Date(doc.departure_date);
-    pdf.text(
-      `Fecha salida: ${departureDate.toLocaleDateString("es-ES")} ${departureDate.toLocaleTimeString("es-ES")}`,
-      20,
-      y
-    );
-    y += 10;
-
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("DESTINO", 20, y);
-    y += 6;
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    pdf.text(content.destination.name, 20, y);
-    y += 5;
-    pdf.text(content.destination.address, 20, y);
-    y += 5;
-    pdf.text(
-      `${content.destination.postal_code} ${content.destination.city} (${content.destination.province})`,
-      20,
-      y
-    );
-    y += 5;
-    if (content.destination.contact_name) {
-      pdf.text(`Contacto: ${content.destination.contact_name}`, 20, y);
-      y += 5;
-    }
-    if (content.destination.phone) {
-      pdf.text(`Tel: ${content.destination.phone}`, 20, y);
-      y += 5;
-    }
-    y += 5;
-
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("VEHICULO", 20, y);
-    y += 6;
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    pdf.text(`Cabeza Tractora: ${content.vehicle.tractor_plate}`, 20, y);
-    y += 5;
-    if (content.vehicle.trailer_plate) {
-      pdf.text(`Remolque: ${content.vehicle.trailer_plate}`, 20, y);
-      y += 5;
-    }
-    y += 5;
-
-    pdf.setFontSize(11);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("MERCANCIA", 20, y);
-    y += 6;
-    pdf.setFont("helvetica", "normal");
-    pdf.setFontSize(10);
-    pdf.text(content.cargo.description, 20, y);
-    y += 5;
-    pdf.text(`Bultos: ${content.cargo.packages}`, 20, y);
-    y += 5;
-    pdf.text(`Peso bruto: ${content.cargo.weight_kg.toLocaleString()} kg`, 20, y);
-    y += 15;
-
-    pdf.setFontSize(8);
-    pdf.setFont("helvetica", "italic");
-    pdf.text(
-      "Este documento ha sido generado digitalmente por DOKO",
-      pageWidth / 2,
-      y,
-      { align: "center" }
-    );
-
-    const pdfBytes = pdf.output("arraybuffer");
     const fileName = `${doc.id}.pdf`;
 
     const { error: uploadError } = await supabase.storage
       .from("document-pdfs")
-      .upload(fileName, pdfBytes, {
+      .upload(fileName, pdfA1aBytes, {
         contentType: "application/pdf",
         upsert: true,
       });
@@ -302,7 +351,7 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, pdfUrl }),
+      JSON.stringify({ success: true, pdfUrl, format: "PDF/A-1a" }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
