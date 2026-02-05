@@ -24,6 +24,7 @@ export function Equipo({ onBack }: EquipoProps) {
     fullName: '',
     email: '',
     password: '',
+    confirmPassword: '',
   });
 
   const fetchTeamMembers = async () => {
@@ -53,6 +54,7 @@ export function Equipo({ onBack }: EquipoProps) {
       fullName: '',
       email: '',
       password: '',
+      confirmPassword: '',
     });
     setError('');
     setSuccess('');
@@ -73,6 +75,10 @@ export function Equipo({ onBack }: EquipoProps) {
     }
     if (!formData.password || formData.password.length < 6) {
       setError('La contrasena debe tener al menos 6 caracteres');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Las contrasenas no coinciden');
       return;
     }
 
@@ -263,6 +269,24 @@ export function Equipo({ onBack }: EquipoProps) {
               >
                 {showPassword ? <EyeOff size={28} /> : <Eye size={28} />}
               </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-lg font-semibold text-slate-900 mb-2">
+              Confirmar contrasena *
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={formData.confirmPassword}
+                onChange={(e) =>
+                  setFormData({ ...formData, confirmPassword: e.target.value })
+                }
+                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+                placeholder="Confirma la contrasena"
+                disabled={saving}
+              />
             </div>
             <p className="text-slate-500 text-base mt-2">
               El conductor podra cambiar su contrasena despues de iniciar sesion
