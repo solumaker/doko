@@ -9,11 +9,13 @@ interface AuthContextType {
   company: Company | null;
   loading: boolean;
   isAdmin: boolean;
+  isDriver: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (data: SignUpData) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
+  driverLogin: (accessToken: string, pin: string) => Promise<{ error: string | null }>;
 }
 
 interface SignUpData {
@@ -179,6 +181,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const driverLogin = async (accessToken: string, pin: string) => {
+    const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/driver-auth`;
+
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', access_token: accessToken, pin }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.error) {
+      return { error: result.error || 'Error de autenticacion' };
+    }
+
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: result.token_hash,
+      type: 'magiclink',
+    });
+
+    if (verifyError || !verifyData.session) {
+      return { error: verifyError?.message || 'Error al establecer sesion' };
+    }
+
+    return { error: null };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -188,11 +217,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         company,
         loading,
         isAdmin: profile?.role === 'admin',
+        isDriver: profile?.role === 'driver',
         signIn,
         signUp,
         signOut,
         resetPassword,
         refreshProfile,
+        driverLogin,
       }}
     >
       {children}

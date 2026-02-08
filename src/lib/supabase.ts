@@ -96,4 +96,14 @@ export interface Document {
   departure_date: string;
   created_at: string;
   pdf_url?: string;
+  driver_name?: string;
+}
+
+export interface DriverCompanyLink {
+  id: string;
+  driver_id: string;
+  company_id: string;
+  access_token: string;
+  is_active: boolean;
+  created_at: string;
 }

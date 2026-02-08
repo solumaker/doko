@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
@@ -6,6 +6,8 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Dashboard } from './pages/Dashboard';
+import { DriverDashboard } from './pages/DriverDashboard';
+import { DriverAccess } from './pages/DriverAccess';
 import { Lugares } from './pages/Lugares';
 import { Vehiculos } from './pages/Vehiculos';
 import { Historial } from './pages/Historial';
@@ -24,6 +26,11 @@ type AppScreen =
   | 'documento'
   | 'equipo';
 
+function getAccessTokenFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('token');
+}
+
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center">
@@ -37,15 +44,25 @@ function LoadingScreen() {
 }
 
 function AppContent() {
-  const { session, profile, loading, signOut } = useAuth();
+  const { session, profile, loading, isDriver, signOut } = useAuth();
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [driverToken, setDriverToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = getAccessTokenFromUrl();
+    if (token) {
+      setDriverToken(token);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const handleLogout = async () => {
     await signOut();
     setCurrentScreen('dashboard');
     setAuthScreen('login');
+    setDriverToken(null);
   };
 
   const handleNavigate = (screen: AppScreen) => {
@@ -66,6 +83,15 @@ function AppContent() {
     return <LoadingScreen />;
   }
 
+  if (driverToken && (!session || !profile)) {
+    return (
+      <DriverAccess
+        accessToken={driverToken}
+        onSuccess={() => setDriverToken(null)}
+      />
+    );
+  }
+
   if (!session || !profile) {
     switch (authScreen) {
       case 'register':
@@ -77,6 +103,42 @@ function AppContent() {
           <Login
             onNavigateToRegister={() => setAuthScreen('register')}
             onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
+          />
+        );
+    }
+  }
+
+  if (isDriver) {
+    switch (currentScreen) {
+      case 'crear':
+        return (
+          <CrearDocumento
+            onBack={() => handleNavigate('dashboard')}
+            onComplete={handleDocumentComplete}
+          />
+        );
+      case 'documento':
+        if (selectedDocument) {
+          return (
+            <DocumentoControl
+              document={selectedDocument}
+              onBack={() => handleNavigate('dashboard')}
+            />
+          );
+        }
+        return (
+          <DriverDashboard
+            onCreateDocument={() => handleNavigate('crear')}
+            onViewDocument={handleViewDocument}
+            onLogout={handleLogout}
+          />
+        );
+      default:
+        return (
+          <DriverDashboard
+            onCreateDocument={() => handleNavigate('crear')}
+            onViewDocument={handleViewDocument}
+            onLogout={handleLogout}
           />
         );
     }

@@ -215,6 +215,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         creator_id: user.id,
         content: fullContent,
         departure_date: departureDate.toISOString(),
+        driver_name: profile.full_name,
       })
       .select()
       .single();
