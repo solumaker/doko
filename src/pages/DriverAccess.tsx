@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Truck, Loader2, Delete, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { callEdgeFunction } from '../lib/supabase';
 
 interface DriverAccessProps {
   accessToken: string;
@@ -26,15 +27,12 @@ export function DriverAccess({ accessToken, onSuccess }: DriverAccessProps) {
 
   useEffect(() => {
     const fetchInfo = async () => {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/driver-auth`;
       try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'info', access_token: accessToken }),
+        const { data, ok } = await callEdgeFunction('driver-auth', {
+          action: 'info',
+          access_token: accessToken,
         });
-        const data = await res.json();
-        if (!res.ok || data.error) {
+        if (!ok || data.error) {
           setLinkError(data.error || 'Enlace no valido');
         } else if (!data.is_active) {
           setLinkError('Este enlace ha sido desactivado. Contacta con tu empresa.');

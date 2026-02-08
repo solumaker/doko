@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, Profile, Company } from '../lib/supabase';
+import { supabase, callEdgeFunction, Profile, Company } from '../lib/supabase';
 
 interface AuthContextType {
   session: Session | null;
@@ -182,17 +182,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const driverLogin = async (accessToken: string, pin: string) => {
-    const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/driver-auth`;
-
-    const response = await fetch(edgeFunctionUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', access_token: accessToken, pin }),
+    const { data: result, ok } = await callEdgeFunction('driver-auth', {
+      action: 'login',
+      access_token: accessToken,
+      pin,
     });
 
-    const result = await response.json();
-
-    if (!response.ok || result.error) {
+    if (!ok || result.error) {
       return { error: result.error || 'Error de autenticacion' };
     }
 

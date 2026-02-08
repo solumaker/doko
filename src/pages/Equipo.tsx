@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useAuth } from '../context/AuthContext';
-import { supabase, Profile, DriverCompanyLink } from '../lib/supabase';
+import { supabase, callEdgeFunction, Profile, DriverCompanyLink } from '../lib/supabase';
 
 interface EquipoProps {
   onBack: () => void;
@@ -128,24 +128,15 @@ export function Equipo({ onBack }: EquipoProps) {
       return;
     }
 
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/driver-auth`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        action: 'create',
-        full_name: formData.fullName.trim(),
-        pin,
-      }),
-    });
+    const { data: result, ok } = await callEdgeFunction('driver-auth', {
+      action: 'create',
+      full_name: formData.fullName.trim(),
+      pin,
+    }, session.access_token);
 
-    const result = await res.json();
     setSaving(false);
 
-    if (!res.ok || result.error) {
+    if (!ok || result.error) {
       setError(result.error || 'Error al crear conductor');
       return;
     }
@@ -164,18 +155,13 @@ export function Equipo({ onBack }: EquipoProps) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/driver-auth`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action: 'change_pin', link_id: linkId, new_pin: pin }),
-    });
+    const { data: result, ok } = await callEdgeFunction('driver-auth', {
+      action: 'change_pin',
+      link_id: linkId,
+      new_pin: pin,
+    }, session.access_token);
 
-    const result = await res.json();
-    if (res.ok && result.success) {
+    if (ok && result.success) {
       setSuccess('PIN cambiado correctamente');
       setTimeout(() => setSuccess(''), 2000);
     }
@@ -187,15 +173,11 @@ export function Equipo({ onBack }: EquipoProps) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/driver-auth`;
-    await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ action: 'toggle_access', link_id: linkId, is_active: !currentlyActive }),
-    });
+    await callEdgeFunction('driver-auth', {
+      action: 'toggle_access',
+      link_id: linkId,
+      is_active: !currentlyActive,
+    }, session.access_token);
 
     fetchDrivers();
   };
