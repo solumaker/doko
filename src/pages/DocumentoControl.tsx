@@ -1,4 +1,4 @@
-import { ArrowLeft, Printer } from 'lucide-react';
+import { ArrowLeft, Share2, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import QRCode from 'react-qr-code';
@@ -48,11 +48,24 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
 
   const trailerPlate1 = content.vehicle.trailer_plate_1 || content.vehicle.trailer_plate;
 
-  const handlePrint = () => {
-    window.print();
+  const documentUrl = document.pdf_url || `${window.location.origin}/documento/${document.id}`;
+
+  const handleShare = () => {
+    const text = encodeURIComponent(`Documento de Control de Transporte: ${documentUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
-  const qrData = document.pdf_url || `${window.location.origin}/documento/${document.id}`;
+  const handleDownload = () => {
+    if (document.pdf_url) {
+      const link = window.document.createElement('a');
+      link.href = document.pdf_url;
+      link.download = `documento-${document.id.slice(0, 8)}.pdf`;
+      link.target = '_blank';
+      link.click();
+    }
+  };
+
+  const qrData = documentUrl;
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -64,15 +77,15 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
           <h1 className="text-xl font-bold">Documento de Control</h1>
         </div>
         <button
-          onClick={handlePrint}
+          onClick={handleShare}
           className="bg-white text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2"
         >
-          <Printer size={24} />
-          Imprimir
+          <Share2 size={22} />
+          Compartir
         </button>
       </header>
 
-      <div className="p-4 print:p-0">
+      <div className="p-4 pb-40 print:p-0">
         <div className="bg-white rounded-xl shadow-lg border-2 border-slate-300 overflow-hidden print:rounded-none print:shadow-none print:border-2 print:border-black">
           <div className="bg-slate-800 text-white p-4 text-center">
             <h1 className="text-xl font-bold tracking-wide">
@@ -254,10 +267,19 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-slate-200 print:hidden">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-slate-200 print:hidden space-y-3">
+        {document.pdf_url && (
+          <button
+            onClick={handleDownload}
+            className="w-full bg-green-600 text-white text-xl font-bold py-4 rounded-xl active:bg-green-700 flex items-center justify-center gap-3"
+          >
+            <Download size={26} />
+            DESCARGAR PDF
+          </button>
+        )}
         <button
           onClick={onBack}
-          className="w-full bg-blue-600 text-white text-xl font-bold py-5 rounded-xl active:bg-blue-700"
+          className="w-full bg-blue-600 text-white text-xl font-bold py-4 rounded-xl active:bg-blue-700"
         >
           VOLVER AL INICIO
         </button>
