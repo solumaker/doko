@@ -147,7 +147,7 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
 
   pdf.setFontSize(11);
   pdf.setFont("helvetica", "bold");
-  pdf.text("CARGADOR CONTRACTUAL / EXPEDIDOR", 20, y);
+  pdf.text("CARGADOR CONTRACTUAL", 20, y);
   y += 6;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
@@ -183,7 +183,7 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
 
   pdf.setFontSize(11);
   pdf.setFont("helvetica", "bold");
-  pdf.text("TRANSPORTISTA", 20, y);
+  pdf.text("TRANSPORTISTA EFECTIVO", 20, y);
   y += 6;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
