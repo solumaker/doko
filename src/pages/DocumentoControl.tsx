@@ -106,7 +106,7 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
             <div className="space-y-4">
               <section className="border-2 border-slate-200 rounded-xl p-4">
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">
-                  Cargador Contractual / Expedidor
+                  Cargador Contractual
                 </h2>
                 <p className="text-lg font-bold text-slate-900">{shipperName}</p>
                 {shipperNif && (
@@ -120,7 +120,7 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
 
               <section className="border-2 border-slate-200 rounded-xl p-4">
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">
-                  Transportista
+                  Transportista Efectivo
                 </h2>
                 <p className="text-lg font-bold text-slate-900">{content.company.name}</p>
                 {content.company.cif && (
