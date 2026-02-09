@@ -66,32 +66,44 @@ export interface Vehicle {
 }
 
 export interface DocumentContent {
+  contractual_shipper?: {
+    nombre: string;
+    nif: string;
+    domicilio: string;
+    poblacion: string;
+  };
   origin: {
-    name: string;
-    address: string;
-    city: string;
-    province: string;
-    postal_code: string;
-    contact_name: string;
-    phone: string;
+    domicilio?: string;
+    poblacion?: string;
+    name?: string;
+    address?: string;
+    city?: string;
+    province?: string;
+    postal_code?: string;
+    contact_name?: string;
+    phone?: string;
   };
   destination: {
-    name: string;
-    address: string;
-    city: string;
-    province: string;
-    postal_code: string;
-    contact_name: string;
-    phone: string;
+    domicilio?: string;
+    poblacion?: string;
+    name?: string;
+    address?: string;
+    city?: string;
+    province?: string;
+    postal_code?: string;
+    contact_name?: string;
+    phone?: string;
   };
   vehicle: {
     tractor_plate: string;
-    trailer_plate: string;
-    alias: string;
+    trailer_plate_1?: string;
+    trailer_plate_2?: string;
+    trailer_plate?: string;
+    alias?: string;
   };
   cargo: {
     description: string;
-    packages: number;
+    packages?: number;
     weight_kg: number;
   };
   company: {

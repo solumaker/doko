@@ -9,8 +9,44 @@ interface DocumentoControlProps {
   onBack: () => void;
 }
 
+function getOriginDisplay(content: Document['content']) {
+  if (content.origin.domicilio) {
+    return {
+      primary: content.origin.domicilio,
+      secondary: content.origin.poblacion || '',
+    };
+  }
+  return {
+    primary: content.origin.name || '',
+    secondary: [content.origin.address, content.origin.postal_code, content.origin.city, content.origin.province ? `(${content.origin.province})` : ''].filter(Boolean).join(' '),
+  };
+}
+
+function getDestinationDisplay(content: Document['content']) {
+  if (content.destination.domicilio) {
+    return {
+      primary: content.destination.domicilio,
+      secondary: content.destination.poblacion || '',
+    };
+  }
+  return {
+    primary: content.destination.name || '',
+    secondary: [content.destination.address, content.destination.postal_code, content.destination.city, content.destination.province ? `(${content.destination.province})` : ''].filter(Boolean).join(' '),
+  };
+}
+
 export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
   const { content } = document;
+  const originDisplay = getOriginDisplay(content);
+  const destinationDisplay = getDestinationDisplay(content);
+
+  const shipperName = content.contractual_shipper?.nombre || content.company.name;
+  const shipperNif = content.contractual_shipper?.nif || content.company.cif;
+  const shipperAddress = content.contractual_shipper
+    ? `${content.contractual_shipper.domicilio}, ${content.contractual_shipper.poblacion}`
+    : `${content.company.address}, ${content.company.postal_code} ${content.company.city} (${content.company.province})`;
+
+  const trailerPlate1 = content.vehicle.trailer_plate_1 || content.vehicle.trailer_plate;
 
   const handlePrint = () => {
     window.print();
@@ -72,13 +108,14 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">
                   Cargador Contractual / Expedidor
                 </h2>
-                <p className="text-lg font-bold text-slate-900">{content.company.name}</p>
-                <p className="text-base text-slate-700">CIF: {content.company.cif}</p>
-                <p className="text-base text-slate-600">
-                  {content.company.address}, {content.company.postal_code} {content.company.city} (
-                  {content.company.province})
-                </p>
-                <p className="text-base text-slate-600">Tel: {content.company.phone}</p>
+                <p className="text-lg font-bold text-slate-900">{shipperName}</p>
+                {shipperNif && (
+                  <p className="text-base text-slate-700">NIF: {shipperNif}</p>
+                )}
+                <p className="text-base text-slate-600">{shipperAddress}</p>
+                {!content.contractual_shipper && content.company.phone && (
+                  <p className="text-base text-slate-600">Tel: {content.company.phone}</p>
+                )}
               </section>
 
               <section className="border-2 border-slate-200 rounded-xl p-4">
@@ -86,7 +123,9 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
                   Transportista
                 </h2>
                 <p className="text-lg font-bold text-slate-900">{content.company.name}</p>
-                <p className="text-base text-slate-700">CIF: {content.company.cif}</p>
+                {content.company.cif && (
+                  <p className="text-base text-slate-700">CIF: {content.company.cif}</p>
+                )}
               </section>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -95,15 +134,13 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
                     Origen
                   </h2>
                   <p className="text-lg font-bold text-slate-900">
-                    {content.origin.name}
+                    {originDisplay.primary}
                   </p>
-                  <p className="text-base text-slate-700">
-                    {content.origin.address}
-                  </p>
-                  <p className="text-base text-slate-600">
-                    {content.origin.postal_code} {content.origin.city} (
-                    {content.origin.province})
-                  </p>
+                  {originDisplay.secondary && (
+                    <p className="text-base text-slate-700">
+                      {originDisplay.secondary}
+                    </p>
+                  )}
                   {content.origin.contact_name && (
                     <p className="text-base text-slate-600 mt-2">
                       Contacto: {content.origin.contact_name}
@@ -129,15 +166,13 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
                     Destino
                   </h2>
                   <p className="text-lg font-bold text-slate-900">
-                    {content.destination.name}
+                    {destinationDisplay.primary}
                   </p>
-                  <p className="text-base text-slate-700">
-                    {content.destination.address}
-                  </p>
-                  <p className="text-base text-slate-600">
-                    {content.destination.postal_code} {content.destination.city} (
-                    {content.destination.province})
-                  </p>
+                  {destinationDisplay.secondary && (
+                    <p className="text-base text-slate-700">
+                      {destinationDisplay.secondary}
+                    </p>
+                  )}
                   {content.destination.contact_name && (
                     <p className="text-base text-slate-600 mt-2">
                       Contacto: {content.destination.contact_name}
@@ -162,11 +197,19 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
                       {content.vehicle.tractor_plate}
                     </p>
                   </div>
-                  {content.vehicle.trailer_plate && (
+                  {trailerPlate1 && (
                     <div>
-                      <p className="text-sm text-slate-500">Remolque</p>
+                      <p className="text-sm text-slate-500">Remolque 1</p>
                       <p className="text-xl font-bold text-slate-900 font-mono">
-                        {content.vehicle.trailer_plate}
+                        {trailerPlate1}
+                      </p>
+                    </div>
+                  )}
+                  {content.vehicle.trailer_plate_2 && (
+                    <div>
+                      <p className="text-sm text-slate-500">Remolque 2</p>
+                      <p className="text-xl font-bold text-slate-900 font-mono">
+                        {content.vehicle.trailer_plate_2}
                       </p>
                     </div>
                   )}
@@ -181,12 +224,14 @@ export function DocumentoControl({ document, onBack }: DocumentoControlProps) {
                   {content.cargo.description}
                 </p>
                 <div className="grid grid-cols-2 gap-4 mt-3">
-                  <div>
-                    <p className="text-sm text-slate-500">Bultos</p>
-                    <p className="text-xl font-bold text-slate-900">
-                      {content.cargo.packages}
-                    </p>
-                  </div>
+                  {content.cargo.packages != null && content.cargo.packages > 0 && (
+                    <div>
+                      <p className="text-sm text-slate-500">Bultos</p>
+                      <p className="text-xl font-bold text-slate-900">
+                        {content.cargo.packages}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-slate-500">Peso bruto</p>
                     <p className="text-xl font-bold text-slate-900">

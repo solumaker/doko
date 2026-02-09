@@ -9,32 +9,44 @@ const corsHeaders = {
 };
 
 interface DocumentContent {
+  contractual_shipper?: {
+    nombre: string;
+    nif: string;
+    domicilio: string;
+    poblacion: string;
+  };
   origin: {
-    name: string;
-    address: string;
-    city: string;
-    province: string;
-    postal_code: string;
-    contact_name: string;
-    phone: string;
+    domicilio?: string;
+    poblacion?: string;
+    name?: string;
+    address?: string;
+    city?: string;
+    province?: string;
+    postal_code?: string;
+    contact_name?: string;
+    phone?: string;
   };
   destination: {
-    name: string;
-    address: string;
-    city: string;
-    province: string;
-    postal_code: string;
-    contact_name: string;
-    phone: string;
+    domicilio?: string;
+    poblacion?: string;
+    name?: string;
+    address?: string;
+    city?: string;
+    province?: string;
+    postal_code?: string;
+    contact_name?: string;
+    phone?: string;
   };
   vehicle: {
     tractor_plate: string;
-    trailer_plate: string;
-    alias: string;
+    trailer_plate_1?: string;
+    trailer_plate_2?: string;
+    trailer_plate?: string;
+    alias?: string;
   };
   cargo: {
     description: string;
-    packages: number;
+    packages?: number;
     weight_kg: number;
   };
   company: {
@@ -139,18 +151,35 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
   y += 6;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
-  pdf.text(content.company.name, 20, y);
+
+  if (content.contractual_shipper) {
+    pdf.text(content.contractual_shipper.nombre, 20, y);
+    y += 5;
+    pdf.text(`NIF: ${content.contractual_shipper.nif}`, 20, y);
+    y += 5;
+    pdf.text(
+      `${content.contractual_shipper.domicilio}, ${content.contractual_shipper.poblacion}`,
+      20,
+      y
+    );
+    y += 5;
+  } else {
+    pdf.text(content.company.name, 20, y);
+    y += 5;
+    pdf.text(`CIF: ${content.company.cif}`, 20, y);
+    y += 5;
+    pdf.text(
+      `${content.company.address}, ${content.company.postal_code} ${content.company.city} (${content.company.province})`,
+      20,
+      y
+    );
+    y += 5;
+    if (content.company.phone) {
+      pdf.text(`Tel: ${content.company.phone}`, 20, y);
+      y += 5;
+    }
+  }
   y += 5;
-  pdf.text(`CIF: ${content.company.cif}`, 20, y);
-  y += 5;
-  pdf.text(
-    `${content.company.address}, ${content.company.postal_code} ${content.company.city} (${content.company.province})`,
-    20,
-    y
-  );
-  y += 5;
-  pdf.text(`Tel: ${content.company.phone}`, 20, y);
-  y += 10;
 
   pdf.setFontSize(11);
   pdf.setFont("helvetica", "bold");
@@ -160,8 +189,11 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
   pdf.setFontSize(10);
   pdf.text(content.company.name, 20, y);
   y += 5;
-  pdf.text(`CIF: ${content.company.cif}`, 20, y);
-  y += 10;
+  if (content.company.cif) {
+    pdf.text(`CIF: ${content.company.cif}`, 20, y);
+    y += 5;
+  }
+  y += 5;
 
   pdf.setFontSize(11);
   pdf.setFont("helvetica", "bold");
@@ -169,23 +201,36 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
   y += 6;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
-  pdf.text(content.origin.name, 20, y);
-  y += 5;
-  pdf.text(content.origin.address, 20, y);
-  y += 5;
-  pdf.text(
-    `${content.origin.postal_code} ${content.origin.city} (${content.origin.province})`,
-    20,
-    y
-  );
-  y += 5;
-  if (content.origin.contact_name) {
-    pdf.text(`Contacto: ${content.origin.contact_name}`, 20, y);
+
+  if (content.origin.domicilio) {
+    pdf.text(content.origin.domicilio, 20, y);
     y += 5;
-  }
-  if (content.origin.phone) {
-    pdf.text(`Tel: ${content.origin.phone}`, 20, y);
-    y += 5;
+    if (content.origin.poblacion) {
+      pdf.text(content.origin.poblacion, 20, y);
+      y += 5;
+    }
+  } else {
+    if (content.origin.name) {
+      pdf.text(content.origin.name, 20, y);
+      y += 5;
+    }
+    if (content.origin.address) {
+      pdf.text(content.origin.address, 20, y);
+      y += 5;
+    }
+    const locationParts = [content.origin.postal_code, content.origin.city, content.origin.province ? `(${content.origin.province})` : ""].filter(Boolean).join(" ");
+    if (locationParts) {
+      pdf.text(locationParts, 20, y);
+      y += 5;
+    }
+    if (content.origin.contact_name) {
+      pdf.text(`Contacto: ${content.origin.contact_name}`, 20, y);
+      y += 5;
+    }
+    if (content.origin.phone) {
+      pdf.text(`Tel: ${content.origin.phone}`, 20, y);
+      y += 5;
+    }
   }
   const departureDate = new Date(doc.departure_date);
   pdf.text(
@@ -201,23 +246,36 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
   y += 6;
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10);
-  pdf.text(content.destination.name, 20, y);
-  y += 5;
-  pdf.text(content.destination.address, 20, y);
-  y += 5;
-  pdf.text(
-    `${content.destination.postal_code} ${content.destination.city} (${content.destination.province})`,
-    20,
-    y
-  );
-  y += 5;
-  if (content.destination.contact_name) {
-    pdf.text(`Contacto: ${content.destination.contact_name}`, 20, y);
+
+  if (content.destination.domicilio) {
+    pdf.text(content.destination.domicilio, 20, y);
     y += 5;
-  }
-  if (content.destination.phone) {
-    pdf.text(`Tel: ${content.destination.phone}`, 20, y);
-    y += 5;
+    if (content.destination.poblacion) {
+      pdf.text(content.destination.poblacion, 20, y);
+      y += 5;
+    }
+  } else {
+    if (content.destination.name) {
+      pdf.text(content.destination.name, 20, y);
+      y += 5;
+    }
+    if (content.destination.address) {
+      pdf.text(content.destination.address, 20, y);
+      y += 5;
+    }
+    const locationParts = [content.destination.postal_code, content.destination.city, content.destination.province ? `(${content.destination.province})` : ""].filter(Boolean).join(" ");
+    if (locationParts) {
+      pdf.text(locationParts, 20, y);
+      y += 5;
+    }
+    if (content.destination.contact_name) {
+      pdf.text(`Contacto: ${content.destination.contact_name}`, 20, y);
+      y += 5;
+    }
+    if (content.destination.phone) {
+      pdf.text(`Tel: ${content.destination.phone}`, 20, y);
+      y += 5;
+    }
   }
   y += 5;
 
@@ -229,8 +287,13 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
   pdf.setFontSize(10);
   pdf.text(`Cabeza Tractora: ${content.vehicle.tractor_plate}`, 20, y);
   y += 5;
-  if (content.vehicle.trailer_plate) {
-    pdf.text(`Remolque: ${content.vehicle.trailer_plate}`, 20, y);
+  const trailerPlate1 = content.vehicle.trailer_plate_1 || content.vehicle.trailer_plate;
+  if (trailerPlate1) {
+    pdf.text(`Remolque 1: ${trailerPlate1}`, 20, y);
+    y += 5;
+  }
+  if (content.vehicle.trailer_plate_2) {
+    pdf.text(`Remolque 2: ${content.vehicle.trailer_plate_2}`, 20, y);
     y += 5;
   }
   y += 5;
@@ -243,8 +306,10 @@ function generatePdfDocument(doc: Document): ArrayBuffer {
   pdf.setFontSize(10);
   pdf.text(content.cargo.description, 20, y);
   y += 5;
-  pdf.text(`Bultos: ${content.cargo.packages}`, 20, y);
-  y += 5;
+  if (content.cargo.packages != null && content.cargo.packages > 0) {
+    pdf.text(`Bultos: ${content.cargo.packages}`, 20, y);
+    y += 5;
+  }
   pdf.text(`Peso bruto: ${content.cargo.weight_kg.toLocaleString()} kg`, 20, y);
   y += 15;
 

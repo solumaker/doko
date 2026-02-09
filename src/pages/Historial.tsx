@@ -54,7 +54,7 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
                     <div>
                       <p className="text-sm text-slate-500">Origen</p>
                       <p className="text-lg font-semibold text-slate-900">
-                        {doc.content.origin.name}
+                        {doc.content.origin.poblacion || doc.content.origin.name || doc.content.origin.city}
                       </p>
                     </div>
                   </div>
@@ -66,7 +66,7 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
                     <div>
                       <p className="text-sm text-slate-500">Destino</p>
                       <p className="text-lg font-semibold text-slate-900">
-                        {doc.content.destination.name}
+                        {doc.content.destination.poblacion || doc.content.destination.name || doc.content.destination.city}
                       </p>
                     </div>
                   </div>
@@ -78,7 +78,7 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
                     <div>
                       <p className="text-sm text-slate-500">Vehiculo</p>
                       <p className="text-lg font-semibold text-slate-900">
-                        {doc.content.vehicle.alias || doc.content.vehicle.tractor_plate}
+                        {doc.content.vehicle.tractor_plate}
                       </p>
                     </div>
                   </div>
@@ -88,7 +88,7 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
                   <p className="text-slate-600">
                     <span className="font-semibold">{doc.content.cargo.description}</span>
                     {' - '}
-                    {doc.content.cargo.packages} bultos, {doc.content.cargo.weight_kg.toLocaleString()} kg
+                    {doc.content.cargo.weight_kg.toLocaleString()} kg
                   </p>
                 </div>
               </button>

@@ -76,7 +76,7 @@ export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: 
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-base font-bold text-slate-900 truncate">
-                    {doc.content.origin?.name} → {doc.content.destination?.name}
+                    {doc.content.origin?.poblacion || doc.content.origin?.name || doc.content.origin?.city} → {doc.content.destination?.poblacion || doc.content.destination?.name || doc.content.destination?.city}
                   </p>
                   <p className="text-sm text-slate-500 mt-0.5">
                     {format(new Date(doc.created_at), "d MMM yyyy, HH:mm", { locale: es })}
