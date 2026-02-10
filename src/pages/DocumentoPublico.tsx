@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Truck, AlertCircle, Share2, Printer } from 'lucide-react';
+import { Loader2, Truck, AlertCircle, Share2, Printer, FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import QRCode from 'react-qr-code';
@@ -66,7 +66,21 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
     }
 
     fetchDocument();
-  }, [documentId]);
+
+    const pollInterval = setInterval(async () => {
+      const { data } = await supabase
+        .from('documents')
+        .select('pdf_url')
+        .eq('id', documentId)
+        .maybeSingle();
+
+      if (data?.pdf_url && (!document || !document.pdf_url)) {
+        setDocument((prev) => prev ? { ...prev, pdf_url: data.pdf_url } : null);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [documentId, document]);
 
   if (loading) {
     return (
@@ -119,31 +133,70 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
     window.print();
   };
 
+  const handleViewPdf = () => {
+    if (document.pdf_url) {
+      window.open(document.pdf_url, '_blank');
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (document.pdf_url) {
+      const link = document.createElement('a');
+      link.href = document.pdf_url;
+      link.download = `DOC-${document.id.toUpperCase().slice(0, 8)}.pdf`;
+      link.click();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="bg-blue-600 text-white px-4 py-4 flex items-center justify-between print:hidden">
-        <div className="flex items-center gap-3">
-          <div className="bg-white/20 p-1.5 rounded-lg">
-            <Truck size={24} />
+      <header className="bg-blue-600 text-white px-4 py-4 print:hidden">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-1.5 rounded-lg">
+              <Truck size={24} />
+            </div>
+            <h1 className="text-lg font-bold">DOKO</h1>
           </div>
-          <h1 className="text-lg font-bold">DOKO</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrint}
-            className="bg-white/20 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
-          >
-            <Printer size={18} />
-            Imprimir
-          </button>
-          <button
-            onClick={handleShare}
-            className="bg-white text-blue-600 px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
-          >
-            <Share2 size={18} />
-            Compartir
-          </button>
-        </div>
+
+        {document.pdf_url ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleViewPdf}
+              className="bg-white text-blue-600 px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+            >
+              <FileText size={18} />
+              Ver PDF
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              className="bg-white/20 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+            >
+              <Download size={18} />
+              Descargar
+            </button>
+            <button
+              onClick={handlePrint}
+              className="bg-white/20 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+            >
+              <Printer size={18} />
+              <span className="hidden sm:inline">Imprimir</span>
+            </button>
+            <button
+              onClick={handleShare}
+              className="bg-white/20 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+            >
+              <Share2 size={18} />
+              <span className="hidden sm:inline">Compartir</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm">
+            <Loader2 size={16} className="animate-spin" />
+            <span>Generando PDF/A-1b...</span>
+          </div>
+        )}
       </header>
 
       <div className="p-4 pb-8 print:p-0 max-w-2xl mx-auto">
