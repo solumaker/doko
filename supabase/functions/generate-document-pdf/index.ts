@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { INTER_LATIN_WOFF2_BASE64 } from "./fonts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -146,11 +147,23 @@ function buildHtml(doc: DocumentRecord): string {
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<title>Documento de Control DOC-${esc(docId)}</title>
+<meta name="author" content="DOKO - Sistema de Control de Transporte">
+<meta name="description" content="Documento de control de transporte de mercancias">
 <style>
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: block;
+    src: url(data:font/woff2;base64,${INTER_LATIN_WOFF2_BASE64}) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+
   @page { size: A4; margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter', sans-serif;
     color: #1e293b;
     background: #fff;
     width: 210mm;
@@ -158,6 +171,8 @@ function buildHtml(doc: DocumentRecord): string {
     padding: 18mm 16mm 14mm 16mm;
     font-size: 10.5pt;
     line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .header {
@@ -229,7 +244,7 @@ function buildHtml(doc: DocumentRecord): string {
     color: #475569;
   }
   .section-body .mono {
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'Inter', monospace;
     font-weight: 600;
     font-size: 11pt;
     letter-spacing: 1px;
@@ -297,6 +312,11 @@ function buildHtml(doc: DocumentRecord): string {
     font-size: 9pt;
     font-weight: 600;
     color: #334155;
+  }
+
+  @media print {
+    body { background: #fff; }
+    .section { break-inside: avoid; }
   }
 </style>
 </head>
@@ -409,17 +429,30 @@ function buildHtml(doc: DocumentRecord): string {
 </html>`;
 }
 
-async function convertHtmlToPdfA(html: string): Promise<ArrayBuffer> {
+function buildMetadataJson(doc: DocumentRecord): string {
+  const docId = doc.id.substring(0, 8).toUpperCase();
+  return JSON.stringify({
+    "dc:title": `Documento de Control DOC-${docId}`,
+    "dc:creator": ["DOKO - Sistema de Control de Transporte"],
+    "dc:description": "Documento de control de transporte de mercancias",
+    "pdf:Producer": "DOKO - Sistema de Control de Transporte",
+  });
+}
+
+async function convertHtmlToPdfA(html: string, doc: DocumentRecord): Promise<ArrayBuffer> {
   const gotenbergUrl = Deno.env.get("GOTENBERG_URL");
   if (!gotenbergUrl) {
     throw new Error("GOTENBERG_URL environment variable is not set");
   }
 
   const formData = new FormData();
+
   const htmlBlob = new Blob([html], { type: "text/html" });
   formData.append("files", htmlBlob, "index.html");
+
   formData.append("pdfa", "PDF/A-1b");
   formData.append("pdfua", "true");
+
   formData.append("paperWidth", "8.27");
   formData.append("paperHeight", "11.69");
   formData.append("marginTop", "0");
@@ -429,6 +462,13 @@ async function convertHtmlToPdfA(html: string): Promise<ArrayBuffer> {
   formData.append("preferCssPageSize", "false");
   formData.append("printBackground", "true");
 
+  formData.append("emulatedMediaType", "print");
+  formData.append("waitDelay", "1s");
+  formData.append("failOnConsoleExceptions", "true");
+
+  const metadataBlob = new Blob([buildMetadataJson(doc)], { type: "application/json" });
+  formData.append("metadata", metadataBlob, "metadata.json");
+
   const response = await fetch(
     `${gotenbergUrl}/forms/chromium/convert/html`,
     { method: "POST", body: formData }
@@ -436,10 +476,29 @@ async function convertHtmlToPdfA(html: string): Promise<ArrayBuffer> {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Gotenberg error: ${response.status} - ${errorText}`);
+    const contentType = response.headers.get("content-type") || "unknown";
+    throw new Error(
+      `Gotenberg error: status=${response.status} content-type=${contentType} body=${errorText.substring(0, 500)}`
+    );
   }
 
-  return await response.arrayBuffer();
+  const pdfBuffer = await response.arrayBuffer();
+
+  if (pdfBuffer.byteLength < 1024) {
+    throw new Error(
+      `Gotenberg returned suspiciously small PDF: ${pdfBuffer.byteLength} bytes`
+    );
+  }
+
+  const pdfHeader = new Uint8Array(pdfBuffer.slice(0, 5));
+  const headerStr = String.fromCharCode(...pdfHeader);
+  if (headerStr !== "%PDF-") {
+    throw new Error(
+      `Gotenberg response is not a valid PDF (header: ${headerStr})`
+    );
+  }
+
+  return pdfBuffer;
 }
 
 Deno.serve(async (req: Request) => {
@@ -465,9 +524,16 @@ Deno.serve(async (req: Request) => {
       .from("documents")
       .select("*")
       .eq("id", documentId)
-      .single();
+      .maybeSingle();
 
-    if (docError || !document) {
+    if (docError) {
+      return new Response(
+        JSON.stringify({ error: "Database error", details: docError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!document) {
       return new Response(
         JSON.stringify({ error: "Document not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -476,7 +542,21 @@ Deno.serve(async (req: Request) => {
 
     const doc = document as DocumentRecord;
     const html = buildHtml(doc);
-    const pdfBytes = await convertHtmlToPdfA(html);
+
+    let pdfBytes: ArrayBuffer;
+    try {
+      pdfBytes = await convertHtmlToPdfA(html, doc);
+    } catch (pdfError) {
+      const errorMsg = pdfError instanceof Error ? pdfError.message : String(pdfError);
+      console.error("PDF generation failed:", errorMsg);
+      return new Response(
+        JSON.stringify({
+          error: "PDF generation failed",
+          details: errorMsg,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const fileName = `${doc.id}.pdf`;
 
@@ -511,10 +591,16 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, pdfUrl: publicUrlData.publicUrl, format: "PDF/A-1b" }),
+      JSON.stringify({
+        success: true,
+        pdfUrl: publicUrlData.publicUrl,
+        format: "PDF/A-1b",
+        sizeBytes: pdfBytes.byteLength,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    console.error("Unhandled error:", error);
     return new Response(
       JSON.stringify({
         error: "Internal server error",
