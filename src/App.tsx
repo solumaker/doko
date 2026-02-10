@@ -13,8 +13,14 @@ import { Vehiculos } from './pages/Vehiculos';
 import { Historial } from './pages/Historial';
 import { CrearDocumento } from './pages/CrearDocumento';
 import { DocumentoControl } from './pages/DocumentoControl';
+import { DocumentoPublico } from './pages/DocumentoPublico';
 import { Equipo } from './pages/Equipo';
 import { Document } from './lib/supabase';
+
+function getPublicDocumentId(): string | null {
+  const match = window.location.pathname.match(/^\/documento\/([a-f0-9-]{36})$/i);
+  return match ? match[1] : null;
+}
 
 type AuthScreen = 'login' | 'register' | 'forgot-password';
 type AppScreen =
@@ -181,6 +187,12 @@ function AppContent() {
 }
 
 function App() {
+  const publicDocId = getPublicDocumentId();
+
+  if (publicDocId) {
+    return <DocumentoPublico documentId={publicDocId} />;
+  }
+
   return (
     <AuthProvider>
       <DataProvider>
