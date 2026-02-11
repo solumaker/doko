@@ -234,7 +234,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       fetch(edgeFunctionUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ documentId: data.id }),
