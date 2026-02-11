@@ -439,7 +439,7 @@ function buildMetadataJson(doc: DocumentRecord): string {
   });
 }
 
-async function convertHtmlToPdfA(html: string, doc: DocumentRecord): Promise<ArrayBuffer> {
+async function convertHtmlToPdf(html: string, doc: DocumentRecord): Promise<ArrayBuffer> {
   const gotenbergUrl = Deno.env.get("GOTENBERG_URL");
   if (!gotenbergUrl) {
     throw new Error("GOTENBERG_URL environment variable is not set");
@@ -449,9 +449,6 @@ async function convertHtmlToPdfA(html: string, doc: DocumentRecord): Promise<Arr
 
   const htmlBlob = new Blob([html], { type: "text/html" });
   formData.append("files", htmlBlob, "index.html");
-
-  formData.append("pdfa", "PDF/A-1b");
-  formData.append("pdfua", "true");
 
   formData.append("paperWidth", "8.27");
   formData.append("paperHeight", "11.69");
@@ -545,7 +542,7 @@ Deno.serve(async (req: Request) => {
 
     let pdfBytes: ArrayBuffer;
     try {
-      pdfBytes = await convertHtmlToPdfA(html, doc);
+      pdfBytes = await convertHtmlToPdf(html, doc);
     } catch (pdfError) {
       const errorMsg = pdfError instanceof Error ? pdfError.message : String(pdfError);
       console.error("PDF generation failed:", errorMsg);
@@ -558,7 +555,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const fileName = `${doc.id}.pdf`;
+    const fileName = `${doc.id}_original.pdf`;
 
     const { error: uploadError } = await supabase.storage
       .from("document-pdfs")
@@ -580,7 +577,7 @@ Deno.serve(async (req: Request) => {
 
     const { error: updateError } = await supabase
       .from("documents")
-      .update({ pdf_url: publicUrlData.publicUrl })
+      .update({ pdf_original_url: publicUrlData.publicUrl })
       .eq("id", documentId);
 
     if (updateError) {
@@ -593,8 +590,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        pdfUrl: publicUrlData.publicUrl,
-        format: "PDF/A-1b",
+        pdf_original_url: publicUrlData.publicUrl,
         sizeBytes: pdfBytes.byteLength,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

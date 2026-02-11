@@ -125,6 +125,7 @@ export interface Document {
   departure_date: string;
   created_at: string;
   pdf_url?: string;
+  pdf_original_url?: string;
   driver_name?: string;
 }
 
