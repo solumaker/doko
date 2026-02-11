@@ -227,21 +227,38 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     setDocuments((prev) => [data, ...prev]);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document-pdf`;
+    const makeWebhookUrl = 'https://hook.eu1.make.com/srnzng3f9d13tlsxy4byadu4k2xju34u';
 
-      fetch(edgeFunctionUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ documentId: data.id }),
-      }).catch(err => {
-        console.error('Error generating PDF:', err);
+    fetch(makeWebhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        documentId: data.id,
+        document: data,
+      }),
+    })
+      .then(async (response) => {
+        if (response.ok) {
+          const result = await response.json();
+          if (result.pdf_url) {
+            await supabase
+              .from('documents')
+              .update({ pdf_url: result.pdf_url })
+              .eq('id', data.id);
+
+            setDocuments((prev) =>
+              prev.map((doc) =>
+                doc.id === data.id ? { ...doc, pdf_url: result.pdf_url } : doc
+              )
+            );
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Error generating PDF via Make.com:', err);
       });
-    }
 
     return data;
   };
