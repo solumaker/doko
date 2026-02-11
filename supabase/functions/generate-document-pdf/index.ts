@@ -143,8 +143,17 @@ function buildHtml(doc: DocumentRecord): string {
 
   const trailerPlate1 = c.vehicle.trailer_plate_1 || c.vehicle.trailer_plate || "";
 
+  const vehicleRows: string[] = [];
+  vehicleRows.push(`<tr><th scope="row">Cabeza Tractora</th><td>${esc(c.vehicle.tractor_plate)}</td></tr>`);
+  if (trailerPlate1) {
+    vehicleRows.push(`<tr><th scope="row">Remolque 1</th><td>${esc(trailerPlate1)}</td></tr>`);
+  }
+  if (c.vehicle.trailer_plate_2) {
+    vehicleRows.push(`<tr><th scope="row">Remolque 2</th><td>${esc(c.vehicle.trailer_plate_2)}</td></tr>`);
+  }
+
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es-ES">
 <head>
 <meta charset="UTF-8">
 <title>Documento de Control DOC-${esc(docId)}</title>
@@ -157,7 +166,7 @@ function buildHtml(doc: DocumentRecord): string {
     font-weight: 100 900;
     font-display: block;
     src: url(data:font/woff2;base64,${INTER_LATIN_WOFF2_BASE64}) format('woff2');
-    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+    unicode-range: U+0000-024F, U+0259, U+1E00-1EFF, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
   }
 
   @page { size: A4; margin: 0; }
@@ -175,22 +184,23 @@ function buildHtml(doc: DocumentRecord): string {
     print-color-adjust: exact;
   }
 
-  .header {
+  header[role="banner"] {
     text-align: center;
     border-bottom: 3px solid #1e40af;
     padding-bottom: 10px;
     margin-bottom: 6px;
   }
-  .header h1 {
+  header h1 {
     font-size: 16pt;
     font-weight: 800;
     color: #1e40af;
     letter-spacing: 1.5px;
     margin-bottom: 2px;
   }
-  .header .subtitle {
+  header h2.subtitle {
     font-size: 8.5pt;
     color: #64748b;
+    font-weight: 400;
   }
 
   .meta-row {
@@ -214,7 +224,7 @@ function buildHtml(doc: DocumentRecord): string {
     border-radius: 6px;
     overflow: hidden;
   }
-  .section-title {
+  .section-heading {
     background: #1e40af;
     color: #fff;
     font-size: 8pt;
@@ -222,10 +232,11 @@ function buildHtml(doc: DocumentRecord): string {
     letter-spacing: 1.2px;
     text-transform: uppercase;
     padding: 5px 10px;
+    margin: 0;
   }
-  .section-title.green { background: #047857; }
-  .section-title.slate { background: #334155; }
-  .section-title.amber { background: #b45309; }
+  .section-heading.green { background: #047857; }
+  .section-heading.slate { background: #334155; }
+  .section-heading.amber { background: #b45309; }
 
   .section-body {
     padding: 8px 10px;
@@ -243,35 +254,87 @@ function buildHtml(doc: DocumentRecord): string {
   .section-body .detail {
     color: #475569;
   }
-  .section-body .mono {
+
+  .full-width { grid-column: 1 / -1; }
+
+  table.vehicle-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.vehicle-table th {
+    font-size: 8pt;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    padding: 2px 10px;
+    font-weight: 400;
+    width: 40%;
+  }
+  table.vehicle-table td {
     font-family: 'Inter', monospace;
     font-weight: 600;
     font-size: 11pt;
     letter-spacing: 1px;
     color: #0f172a;
+    padding: 2px 10px;
   }
-  .section-body .label {
+
+  table.cargo-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.cargo-table th {
     font-size: 8pt;
     color: #94a3b8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    text-align: left;
+    padding: 2px 0;
+    font-weight: 400;
   }
-  .section-body .weight {
+  table.cargo-table td {
+    padding: 2px 0;
+  }
+  table.cargo-table td.cargo-desc {
+    font-weight: 700;
+    font-size: 10.5pt;
+    color: #0f172a;
+  }
+  table.cargo-table td.cargo-weight {
     font-size: 13pt;
     font-weight: 800;
     color: #0f172a;
+    text-align: right;
   }
 
-  .full-width { grid-column: 1 / -1; }
-
-  .vehicle-plates {
-    display: flex;
-    gap: 14px;
-    flex-wrap: wrap;
+  table.sig-table {
+    width: 100%;
+    border-collapse: collapse;
   }
-  .plate-group { flex: 1; min-width: 120px; }
+  table.sig-table th {
+    font-size: 8pt;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+    padding: 10px 10px 4px;
+    font-weight: 400;
+    width: 50%;
+    border-right: 1px solid #e2e8f0;
+  }
+  table.sig-table th:last-child { border-right: none; }
+  table.sig-table td {
+    font-size: 9pt;
+    font-weight: 600;
+    color: #334155;
+    padding: 0 10px 30px;
+    vertical-align: top;
+    border-right: 1px solid #e2e8f0;
+  }
+  table.sig-table td:last-child { border-right: none; }
 
-  .footer {
+  footer[role="contentinfo"] {
     margin-top: 20px;
     text-align: center;
     font-size: 7.5pt;
@@ -279,151 +342,126 @@ function buildHtml(doc: DocumentRecord): string {
     border-top: 1px solid #e2e8f0;
     padding-top: 8px;
   }
-  .footer .brand {
+  footer .brand {
     font-weight: 700;
     color: #64748b;
     letter-spacing: 2px;
   }
 
-  .driver-section {
-    margin-top: 12px;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .signatures {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0;
-  }
-  .sig-box {
-    padding: 10px 10px 30px;
-    border-right: 1px solid #e2e8f0;
-  }
-  .sig-box:last-child { border-right: none; }
-  .sig-box .sig-label {
-    font-size: 8pt;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-  }
-  .sig-box .sig-name {
-    font-size: 9pt;
-    font-weight: 600;
-    color: #334155;
-  }
-
   @media print {
     body { background: #fff; }
-    .section { break-inside: avoid; }
+    section { break-inside: avoid; }
   }
 </style>
 </head>
-<body>
+<body role="document">
 
-<div class="header">
+<header role="banner">
   <h1>DOCUMENTO DE CONTROL</h1>
-  <div class="subtitle">Conforme a la normativa vigente de transporte de mercanc&iacute;as por carretera</div>
-</div>
+  <h2 class="subtitle">Conforme a la normativa vigente de transporte de mercanc&iacute;as por carretera</h2>
+</header>
 
-<div class="meta-row">
+<div class="meta-row" aria-label="Identificaci&oacute;n del documento">
   <span>DOC-${esc(docId)}</span>
   <span>Generado: ${esc(formatDateTime(doc.created_at))}</span>
 </div>
 
+<main role="main">
 <div class="grid">
 
-  <div class="section">
-    <div class="section-title">Cargador Contractual</div>
+  <section class="section" aria-labelledby="sec-shipper">
+    <h3 class="section-heading" id="sec-shipper">Cargador Contractual</h3>
     <div class="section-body">
       <p class="name">${esc(shipperName)}</p>
       <p class="detail">${esc(shipperNif)}</p>
       <p class="detail">${esc(shipperAddr)}</p>
       ${c.company.phone && !c.contractual_shipper ? `<p class="detail">Tel: ${esc(c.company.phone)}</p>` : ""}
     </div>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-title">Transportista Efectivo</div>
+  <section class="section" aria-labelledby="sec-carrier">
+    <h3 class="section-heading" id="sec-carrier">Transportista Efectivo</h3>
     <div class="section-body">
       <p class="name">${esc(c.company.name)}</p>
       ${c.company.cif ? `<p class="detail">CIF: ${esc(c.company.cif)}</p>` : ""}
       <p class="detail">${esc(c.company.address)}, ${esc(c.company.postal_code)} ${esc(c.company.city)}</p>
       ${c.company.phone ? `<p class="detail">Tel: ${esc(c.company.phone)}</p>` : ""}
     </div>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-title green">Origen</div>
+  <section class="section" aria-labelledby="sec-origin">
+    <h3 class="section-heading green" id="sec-origin">Origen</h3>
     <div class="section-body">
       ${buildOriginBlock(c.origin)}
       <p class="detail" style="margin-top:4px;font-weight:600;">Salida: ${esc(formatDate(doc.departure_date))}</p>
     </div>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-title green">Destino</div>
+  <section class="section" aria-labelledby="sec-dest">
+    <h3 class="section-heading green" id="sec-dest">Destino</h3>
     <div class="section-body">
       ${buildDestinationBlock(c.destination)}
     </div>
-  </div>
+  </section>
 
-  <div class="section full-width">
-    <div class="section-title slate">Veh&iacute;culo</div>
+  <section class="section full-width" aria-labelledby="sec-vehicle">
+    <h3 class="section-heading slate" id="sec-vehicle">Veh&iacute;culo</h3>
     <div class="section-body">
-      <div class="vehicle-plates">
-        <div class="plate-group">
-          <p class="label">Cabeza Tractora</p>
-          <p class="mono">${esc(c.vehicle.tractor_plate)}</p>
-        </div>
-        ${trailerPlate1 ? `
-        <div class="plate-group">
-          <p class="label">Remolque 1</p>
-          <p class="mono">${esc(trailerPlate1)}</p>
-        </div>` : ""}
-        ${c.vehicle.trailer_plate_2 ? `
-        <div class="plate-group">
-          <p class="label">Remolque 2</p>
-          <p class="mono">${esc(c.vehicle.trailer_plate_2)}</p>
-        </div>` : ""}
-      </div>
+      <table class="vehicle-table" aria-label="Matr&iacute;culas del veh&iacute;culo">
+        <tbody>
+          ${vehicleRows.join("\n          ")}
+        </tbody>
+      </table>
     </div>
-  </div>
+  </section>
 
-  <div class="section full-width">
-    <div class="section-title amber">Mercanc&iacute;a</div>
-    <div class="section-body" style="display:flex;justify-content:space-between;align-items:center;">
-      <div>
-        <p class="name">${esc(c.cargo.description)}</p>
-        ${c.cargo.packages != null && c.cargo.packages > 0 ? `<p class="detail">Bultos: ${c.cargo.packages}</p>` : ""}
-      </div>
-      <div style="text-align:right;">
-        <p class="label">Peso bruto</p>
-        <p class="weight">${formatWeight(c.cargo.weight_kg)} kg</p>
-      </div>
+  <section class="section full-width" aria-labelledby="sec-cargo">
+    <h3 class="section-heading amber" id="sec-cargo">Mercanc&iacute;a</h3>
+    <div class="section-body">
+      <table class="cargo-table" aria-label="Datos de la mercanc&iacute;a">
+        <thead>
+          <tr>
+            <th scope="col">Descripci&oacute;n</th>
+            ${c.cargo.packages != null && c.cargo.packages > 0 ? `<th scope="col">Bultos</th>` : ""}
+            <th scope="col" style="text-align:right;">Peso bruto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="cargo-desc">${esc(c.cargo.description)}</td>
+            ${c.cargo.packages != null && c.cargo.packages > 0 ? `<td>${c.cargo.packages}</td>` : ""}
+            <td class="cargo-weight">${formatWeight(c.cargo.weight_kg)} kg</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </div>
+  </section>
 
 </div>
 
-<div class="driver-section">
-  <div class="section-title slate">Firmas</div>
-  <div class="signatures">
-    <div class="sig-box">
-      <p class="sig-label">Conductor</p>
-      ${doc.driver_name ? `<p class="sig-name">${esc(doc.driver_name)}</p>` : ""}
-    </div>
-    <div class="sig-box">
-      <p class="sig-label">Cargador</p>
-    </div>
-  </div>
-</div>
+<section class="section" aria-labelledby="sec-signatures" style="margin-top:12px;">
+  <h3 class="section-heading slate" id="sec-signatures">Firmas</h3>
+  <table class="sig-table" aria-label="Firmas del documento">
+    <thead>
+      <tr>
+        <th scope="col">Conductor</th>
+        <th scope="col">Cargador</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>${doc.driver_name ? esc(doc.driver_name) : ""}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+</main>
 
-<div class="footer">
+<footer role="contentinfo">
   <p>Este documento ha sido generado digitalmente &mdash; <span class="brand">DOKO</span></p>
   <p>Formato PDF/A &middot; V&aacute;lido para archivo y cumplimiento normativo</p>
-</div>
+</footer>
 
 </body>
 </html>`;
@@ -435,7 +473,11 @@ function buildMetadataJson(doc: DocumentRecord): string {
     "dc:title": `Documento de Control DOC-${docId}`,
     "dc:creator": ["DOKO - Sistema de Control de Transporte"],
     "dc:description": "Documento de control de transporte de mercancias",
+    "dc:language": "es-ES",
+    "dc:subject": "Documento de control de transporte de mercancias por carretera",
+    "dc:date": new Date(doc.created_at).toISOString(),
     "pdf:Producer": "DOKO - Sistema de Control de Transporte",
+    "Marked": true,
   });
 }
 
@@ -462,6 +504,7 @@ async function convertHtmlToPdf(html: string, doc: DocumentRecord): Promise<Arra
   formData.append("emulatedMediaType", "print");
   formData.append("waitDelay", "1s");
   formData.append("failOnConsoleExceptions", "true");
+  formData.append("generateTaggedPDF", "true");
 
   const metadataBlob = new Blob([buildMetadataJson(doc)], { type: "application/json" });
   formData.append("metadata", metadataBlob, "metadata.json");
