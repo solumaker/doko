@@ -240,62 +240,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ documentId: data.id }),
       })
         .then(async (response) => {
-          console.log('Edge function response status:', response.status);
           if (response.ok) {
             const result = await response.json();
-            console.log('Edge function result:', result);
-            if (result.pdf_original_url) {
-              setDocuments((prev) =>
-                prev.map((doc) =>
-                  doc.id === data.id ? { ...doc, pdf_original_url: result.pdf_original_url } : doc
-                )
-              );
-
-              const makeWebhookUrl = 'https://hook.eu1.make.com/srnzng3f9d13tlsxy4byadu4k2xju34u';
-              const webhookPayload = {
-                documentId: data.id,
-                pdf_original_url: result.pdf_original_url,
-              };
-
-              console.log('Sending to Make.com webhook:', webhookPayload);
-
-              fetch(makeWebhookUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(webhookPayload),
-              })
-                .then(async (makeResponse) => {
-                  console.log('Make.com response status:', makeResponse.status);
-                  const makeResult = await makeResponse.json();
-                  console.log('Make.com result:', makeResult);
-                  if (makeResponse.ok && makeResult.pdf_url) {
-                    await supabase
-                      .from('documents')
-                      .update({ pdf_url: makeResult.pdf_url })
-                      .eq('id', data.id);
-
-                    setDocuments((prev) =>
-                      prev.map((doc) =>
-                        doc.id === data.id ? { ...doc, pdf_url: makeResult.pdf_url } : doc
-                      )
-                    );
-                  }
-                })
-                .catch((err) => {
-                  console.error('Error converting PDF to PDF/A via Make.com:', err);
-                });
-            } else {
-              console.error('No pdf_original_url in edge function result');
-            }
+            setDocuments((prev) =>
+              prev.map((doc) =>
+                doc.id === data.id
+                  ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
+                  : doc
+              )
+            );
           } else {
             const errorText = await response.text();
             console.error('Edge function error:', errorText);
           }
         })
         .catch((err) => {
-          console.error('Error generating original PDF:', err);
+          console.error('Error generating PDF:', err);
         });
     }
 

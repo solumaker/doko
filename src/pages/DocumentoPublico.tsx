@@ -194,7 +194,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
         ) : (
           <div className="flex items-center gap-2 text-sm">
             <Loader2 size={16} className="animate-spin" />
-            <span>Generando PDF/A-1b...</span>
+            <span>Generando PDF/A-1a...</span>
           </div>
         )}
       </header>

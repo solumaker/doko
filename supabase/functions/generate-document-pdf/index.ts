@@ -541,6 +541,48 @@ async function convertHtmlToPdf(html: string, doc: DocumentRecord): Promise<Arra
   return pdfBuffer;
 }
 
+async function convertToPdfA(pdfBytes: ArrayBuffer): Promise<ArrayBuffer> {
+  const convertApiToken = Deno.env.get("CONVERTAPI_TOKEN");
+  if (!convertApiToken) {
+    throw new Error("CONVERTAPI_TOKEN environment variable is not set");
+  }
+
+  const formData = new FormData();
+  const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+  formData.append("File", pdfBlob, "document.pdf");
+  formData.append("PdfaVersion", "PdfA1a");
+  formData.append("StoreFile", "true");
+
+  const response = await fetch("https://v2.convertapi.com/convert/pdf/to/pdfa", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${convertApiToken}`,
+    },
+    body: formData,
+    signal: AbortSignal.timeout(60000),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `ConvertAPI error: status=${response.status} body=${errorText.substring(0, 500)}`
+    );
+  }
+
+  const result = await response.json();
+  if (!result.Files || !result.Files[0] || !result.Files[0].FileData) {
+    throw new Error("ConvertAPI response missing FileData");
+  }
+
+  const base64 = result.Files[0].FileData;
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -598,34 +640,68 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const fileName = `${doc.id}_original.pdf`;
-
-    const { error: uploadError } = await supabase.storage
+    const originalFileName = `${doc.id}_original.pdf`;
+    const { error: origUploadError } = await supabase.storage
       .from("document-pdfs")
-      .upload(fileName, pdfBytes, {
+      .upload(originalFileName, pdfBytes, {
         contentType: "application/pdf",
         upsert: true,
       });
 
-    if (uploadError) {
+    if (origUploadError) {
       return new Response(
-        JSON.stringify({ error: "Failed to upload PDF", details: uploadError }),
+        JSON.stringify({ error: "Failed to upload original PDF", details: origUploadError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { data: publicUrlData } = supabase.storage
+    const { data: origUrlData } = supabase.storage
       .from("document-pdfs")
-      .getPublicUrl(fileName);
+      .getPublicUrl(originalFileName);
+
+    let pdfaUrl: string | null = null;
+    let pdfaError: string | null = null;
+
+    try {
+      const pdfaBytes = await convertToPdfA(pdfBytes);
+
+      const pdfaFileName = `converted/${doc.id}.pdf`;
+      const { error: pdfaUploadError } = await supabase.storage
+        .from("document-pdfs")
+        .upload(pdfaFileName, pdfaBytes, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+
+      if (pdfaUploadError) {
+        throw new Error(`Storage upload failed: ${pdfaUploadError.message}`);
+      }
+
+      const { data: pdfaUrlData } = supabase.storage
+        .from("document-pdfs")
+        .getPublicUrl(pdfaFileName);
+
+      pdfaUrl = pdfaUrlData.publicUrl;
+    } catch (convError) {
+      pdfaError = convError instanceof Error ? convError.message : String(convError);
+      console.error("PDF/A-1a conversion failed:", pdfaError);
+    }
+
+    const dbUpdate: Record<string, string> = {
+      pdf_original_url: origUrlData.publicUrl,
+    };
+    if (pdfaUrl) {
+      dbUpdate.pdf_url = pdfaUrl;
+    }
 
     const { error: updateError } = await supabase
       .from("documents")
-      .update({ pdf_original_url: publicUrlData.publicUrl })
+      .update(dbUpdate)
       .eq("id", documentId);
 
     if (updateError) {
       return new Response(
-        JSON.stringify({ error: "Failed to update document with PDF URL", details: updateError }),
+        JSON.stringify({ error: "Failed to update document with PDF URLs", details: updateError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -633,7 +709,10 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        pdf_original_url: publicUrlData.publicUrl,
+        pdf_original_url: origUrlData.publicUrl,
+        pdf_url: pdfaUrl,
+        pdfa_conversion_failed: pdfaUrl === null,
+        pdfa_error: pdfaError,
         sizeBytes: pdfBytes.byteLength,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
