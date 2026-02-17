@@ -551,7 +551,6 @@ async function convertToPdfA(pdfBytes: ArrayBuffer): Promise<ArrayBuffer> {
   const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
   formData.append("File", pdfBlob, "document.pdf");
   formData.append("PdfaVersion", "PdfA1a");
-  formData.append("StoreFile", "true");
 
   const response = await fetch("https://v2.convertapi.com/convert/pdf/to/pdfa", {
     method: "POST",
@@ -559,7 +558,7 @@ async function convertToPdfA(pdfBytes: ArrayBuffer): Promise<ArrayBuffer> {
       "Authorization": `Bearer ${convertApiToken}`,
     },
     body: formData,
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(45000),
   });
 
   if (!response.ok) {
@@ -570,17 +569,33 @@ async function convertToPdfA(pdfBytes: ArrayBuffer): Promise<ArrayBuffer> {
   }
 
   const result = await response.json();
-  if (!result.Files || !result.Files[0] || !result.Files[0].FileData) {
-    throw new Error("ConvertAPI response missing FileData");
+  const file = result.Files?.[0];
+
+  if (!file) {
+    const keys = Object.keys(result).join(", ");
+    throw new Error(`ConvertAPI response has no Files array. Keys: ${keys}`);
   }
 
-  const base64 = result.Files[0].FileData;
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
+  if (file.FileData) {
+    const binaryString = atob(file.FileData);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
   }
-  return bytes.buffer;
+
+  if (file.Url) {
+    console.log("FileData absent, downloading from ConvertAPI Url...");
+    const downloadResp = await fetch(file.Url, { signal: AbortSignal.timeout(30000) });
+    if (!downloadResp.ok) {
+      throw new Error(`Failed to download PDF/A from ConvertAPI Url: status=${downloadResp.status}`);
+    }
+    return await downloadResp.arrayBuffer();
+  }
+
+  const fileKeys = Object.keys(file).join(", ");
+  throw new Error(`ConvertAPI file has neither FileData nor Url. Keys: ${fileKeys}`);
 }
 
 Deno.serve(async (req: Request) => {
@@ -663,7 +678,15 @@ Deno.serve(async (req: Request) => {
     let pdfaError: string | null = null;
 
     try {
+      console.log("Starting PDF/A conversion...");
       const pdfaBytes = await convertToPdfA(pdfBytes);
+      console.log(`PDF/A conversion done, size: ${pdfaBytes.byteLength} bytes`);
+
+      const pdfaHeader = new Uint8Array(pdfaBytes.slice(0, 5));
+      const pdfaHeaderStr = String.fromCharCode(...pdfaHeader);
+      if (pdfaHeaderStr !== "%PDF-") {
+        throw new Error(`Converted file is not a valid PDF (header: ${pdfaHeaderStr})`);
+      }
 
       const pdfaFileName = `converted/${doc.id}.pdf`;
       const { error: pdfaUploadError } = await supabase.storage
@@ -682,6 +705,7 @@ Deno.serve(async (req: Request) => {
         .getPublicUrl(pdfaFileName);
 
       pdfaUrl = pdfaUrlData.publicUrl;
+      console.log("PDF/A uploaded successfully:", pdfaUrl);
     } catch (convError) {
       pdfaError = convError instanceof Error ? convError.message : String(convError);
       console.error("PDF/A-1a conversion failed:", pdfaError);

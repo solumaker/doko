@@ -249,6 +249,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
                   : doc
               )
             );
+            if (result.pdfa_conversion_failed) {
+              console.error('PDF/A conversion failed:', result.pdfa_error);
+            }
           } else {
             const errorText = await response.text();
             console.error('Edge function error:', errorText);
