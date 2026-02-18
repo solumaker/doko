@@ -261,125 +261,129 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
                 )}
               </section>
 
+              {(content.driver?.name || document.driver_name) && (
+                <section className="border border-slate-200 rounded-xl p-4">
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Conductor</h2>
+                  <p className="text-base font-semibold text-slate-900">{content.driver?.name || document.driver_name}</p>
+                </section>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <section className="border border-blue-200 bg-blue-50/50 rounded-xl p-4">
-                  <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">
-                    Origen
-                  </h2>
-                  <p className="text-base font-bold text-slate-900">
-                    {originDisplay.primary}
-                  </p>
-                  {originDisplay.secondary && (
-                    <p className="text-sm text-slate-600">
-                      {originDisplay.secondary}
-                    </p>
-                  )}
-                  {content.origin.contact_name && (
-                    <p className="text-sm text-slate-500 mt-2">
-                      Contacto: {content.origin.contact_name}
-                    </p>
-                  )}
-                  {content.origin.phone && (
-                    <p className="text-sm text-slate-500">
-                      Tel: {content.origin.phone}
-                    </p>
-                  )}
+                  <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Origen</h2>
+                  {content.origin.empresa && <p className="text-base font-bold text-slate-900">{content.origin.empresa}</p>}
+                  <p className={content.origin.empresa ? 'text-sm text-slate-700' : 'text-base font-bold text-slate-900'}>{originDisplay.primary}</p>
+                  {originDisplay.secondary && <p className="text-sm text-slate-600">{originDisplay.secondary}</p>}
+                  {content.origin.contact_name && <p className="text-sm text-slate-500 mt-2">Contacto: {content.origin.contact_name}</p>}
+                  {content.origin.phone && <p className="text-sm text-slate-500">Tel: {content.origin.phone}</p>}
                   <div className="mt-3 pt-3 border-t border-blue-200">
                     <p className="text-sm text-slate-700">
-                      <span className="font-semibold">Fecha salida:</span>{' '}
-                      {format(new Date(document.departure_date), "d/MM/yyyy 'a las' HH:mm", {
-                        locale: es,
-                      })}
+                      <span className="font-semibold">Salida:</span>{' '}
+                      {format(new Date(document.departure_date), "d/MM/yyyy", { locale: es })}
                     </p>
                   </div>
                 </section>
 
                 <section className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4">
-                  <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">
-                    Destino
-                  </h2>
-                  <p className="text-base font-bold text-slate-900">
-                    {destinationDisplay.primary}
-                  </p>
-                  {destinationDisplay.secondary && (
-                    <p className="text-sm text-slate-600">
-                      {destinationDisplay.secondary}
-                    </p>
-                  )}
-                  {content.destination.contact_name && (
-                    <p className="text-sm text-slate-500 mt-2">
-                      Contacto: {content.destination.contact_name}
-                    </p>
-                  )}
-                  {content.destination.phone && (
-                    <p className="text-sm text-slate-500">
-                      Tel: {content.destination.phone}
-                    </p>
+                  <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Destino</h2>
+                  {content.destination.empresa && <p className="text-base font-bold text-slate-900">{content.destination.empresa}</p>}
+                  <p className={content.destination.empresa ? 'text-sm text-slate-700' : 'text-base font-bold text-slate-900'}>{destinationDisplay.primary}</p>
+                  {destinationDisplay.secondary && <p className="text-sm text-slate-600">{destinationDisplay.secondary}</p>}
+                  {content.destination.contact_name && <p className="text-sm text-slate-500 mt-2">Contacto: {content.destination.contact_name}</p>}
+                  {content.destination.phone && <p className="text-sm text-slate-500">Tel: {content.destination.phone}</p>}
+                  {content.unloading_date && (
+                    <div className="mt-3 pt-3 border-t border-emerald-200">
+                      <p className="text-sm text-slate-700">
+                        <span className="font-semibold">Descarga:</span>{' '}
+                        {format(new Date(content.unloading_date), "d/MM/yyyy", { locale: es })}
+                      </p>
+                    </div>
                   )}
                 </section>
               </div>
 
               <section className="border border-slate-200 rounded-xl p-4">
-                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  Vehiculo
-                </h2>
-                <div className="flex flex-wrap gap-6">
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Vehiculo</h2>
+                <div className="flex flex-wrap gap-6 mb-2">
                   <div>
                     <p className="text-xs text-slate-400 uppercase">Cabeza Tractora</p>
-                    <p className="text-lg font-bold text-slate-900 font-mono tracking-wider">
-                      {content.vehicle.tractor_plate}
-                    </p>
+                    <p className="text-lg font-bold text-slate-900 font-mono tracking-wider">{content.vehicle.tractor_plate}</p>
                   </div>
                   {trailerPlate1 && (
                     <div>
                       <p className="text-xs text-slate-400 uppercase">Remolque 1</p>
-                      <p className="text-lg font-bold text-slate-900 font-mono tracking-wider">
-                        {trailerPlate1}
-                      </p>
+                      <p className="text-lg font-bold text-slate-900 font-mono tracking-wider">{trailerPlate1}</p>
                     </div>
                   )}
                   {content.vehicle.trailer_plate_2 && (
                     <div>
                       <p className="text-xs text-slate-400 uppercase">Remolque 2</p>
-                      <p className="text-lg font-bold text-slate-900 font-mono tracking-wider">
-                        {content.vehicle.trailer_plate_2}
-                      </p>
+                      <p className="text-lg font-bold text-slate-900 font-mono tracking-wider">{content.vehicle.trailer_plate_2}</p>
                     </div>
                   )}
                 </div>
+                {content.vehicle.amendments && content.vehicle.amendments.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                    <p className="text-xs font-semibold text-slate-400 uppercase">Matriculas Sucesivas</p>
+                    {content.vehicle.amendments.map((a, i) => (
+                      <div key={i} className="bg-slate-50 rounded-lg px-3 py-2 text-sm">
+                        <p className="text-xs text-slate-400 mb-1">{format(new Date(a.amended_at), "d/MM/yyyy HH:mm", { locale: es })}</p>
+                        <div className="flex flex-wrap gap-3">
+                          {a.tractor_plate && <span className="font-mono font-semibold text-slate-700">Tractora: {a.tractor_plate}</span>}
+                          {a.trailer_plate_1 && <span className="font-mono font-semibold text-slate-700">R1: {a.trailer_plate_1}</span>}
+                          {a.trailer_plate_2 && <span className="font-mono font-semibold text-slate-700">R2: {a.trailer_plate_2}</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
 
               <section className="border border-amber-200 bg-amber-50/50 rounded-xl p-4">
-                <h2 className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">
-                  Mercancia
-                </h2>
+                <h2 className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-2">Mercancia</h2>
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-base font-bold text-slate-900">
-                      {content.cargo.description}
-                    </p>
+                    <p className="text-base font-bold text-slate-900">{content.cargo.description}</p>
                     {content.cargo.packages != null && content.cargo.packages > 0 && (
-                      <p className="text-sm text-slate-500 mt-1">
-                        Bultos: {content.cargo.packages}
-                      </p>
+                      <p className="text-sm text-slate-500 mt-1">Bultos: {content.cargo.packages}</p>
                     )}
                   </div>
                   <div className="text-right ml-4">
                     <p className="text-xs text-slate-400 uppercase">Peso bruto</p>
-                    <p className="text-xl font-bold text-slate-900">
-                      {content.cargo.weight_kg.toLocaleString()} kg
-                    </p>
+                    <p className="text-xl font-bold text-slate-900">{content.cargo.weight_kg.toLocaleString()} kg</p>
                   </div>
                 </div>
               </section>
 
-              {document.driver_name && (
-                <section className="border border-slate-200 rounded-xl p-4">
-                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                    Conductor
-                  </h2>
-                  <p className="text-base font-semibold text-slate-900">{document.driver_name}</p>
-                </section>
+              {(content.signatures?.origin || content.signatures?.destination) && (
+                <div className="space-y-3">
+                  {content.signatures?.origin && (
+                    <section className="border border-blue-200 bg-blue-50/50 rounded-xl p-4">
+                      <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Firma — Origen</h2>
+                      <div className="flex gap-4 text-sm mb-2">
+                        <div><p className="text-slate-400">Firmante</p><p className="font-semibold text-slate-900">{content.signatures.origin.firmante}</p></div>
+                        <div><p className="text-slate-400">DNI</p><p className="font-semibold text-slate-900">{content.signatures.origin.dni}</p></div>
+                      </div>
+                      <div className="bg-white border border-slate-200 rounded-lg p-2">
+                        <img src={content.signatures.origin.firma_imagen} alt="Firma origen" className="max-h-16 w-full object-contain" />
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">{format(new Date(content.signatures.origin.fecha), "d/MM/yyyy HH:mm", { locale: es })}</p>
+                    </section>
+                  )}
+                  {content.signatures?.destination && (
+                    <section className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4">
+                      <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Firma — Destino</h2>
+                      <div className="flex gap-4 text-sm mb-2">
+                        <div><p className="text-slate-400">Firmante</p><p className="font-semibold text-slate-900">{content.signatures.destination.firmante}</p></div>
+                        <div><p className="text-slate-400">DNI</p><p className="font-semibold text-slate-900">{content.signatures.destination.dni}</p></div>
+                      </div>
+                      <div className="bg-white border border-slate-200 rounded-lg p-2">
+                        <img src={content.signatures.destination.firma_imagen} alt="Firma destino" className="max-h-16 w-full object-contain" />
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">{format(new Date(content.signatures.destination.fecha), "d/MM/yyyy HH:mm", { locale: es })}</p>
+                    </section>
+                  )}
+                </div>
               )}
             </div>
 

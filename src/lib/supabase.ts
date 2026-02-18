@@ -65,6 +65,20 @@ export interface Vehicle {
   created_at: string;
 }
 
+export interface SignatureData {
+  firmante: string;
+  dni: string;
+  firma_imagen: string;
+  fecha: string;
+}
+
+export interface VehicleAmendment {
+  tractor_plate?: string;
+  trailer_plate_1?: string;
+  trailer_plate_2?: string;
+  amended_at: string;
+}
+
 export interface DocumentContent {
   contractual_shipper?: {
     nombre: string;
@@ -73,6 +87,7 @@ export interface DocumentContent {
     poblacion: string;
   };
   origin: {
+    empresa?: string;
     domicilio?: string;
     poblacion?: string;
     name?: string;
@@ -84,6 +99,7 @@ export interface DocumentContent {
     phone?: string;
   };
   destination: {
+    empresa?: string;
     domicilio?: string;
     poblacion?: string;
     name?: string;
@@ -100,12 +116,14 @@ export interface DocumentContent {
     trailer_plate_2?: string;
     trailer_plate?: string;
     alias?: string;
+    amendments?: VehicleAmendment[];
   };
   cargo: {
     description: string;
     packages?: number;
     weight_kg: number;
   };
+  unloading_date?: string;
   company: {
     name: string;
     cif: string;
@@ -114,6 +132,14 @@ export interface DocumentContent {
     province: string;
     postal_code: string;
     phone: string;
+  };
+  driver?: {
+    name: string;
+    email?: string;
+  };
+  signatures?: {
+    origin?: SignatureData;
+    destination?: SignatureData;
   };
 }
 
@@ -135,5 +161,17 @@ export interface DriverCompanyLink {
   company_id: string;
   access_token: string;
   is_active: boolean;
+  created_at: string;
+}
+
+export interface ShipperHistory {
+  id: string;
+  company_id: string;
+  nombre: string;
+  nif: string;
+  domicilio: string;
+  poblacion: string;
+  use_count: number;
+  last_used: string;
   created_at: string;
 }

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import QRCode from "npm:qrcode@1.5.3";
 import { INTER_LATIN_WOFF2_BASE64 } from "./fonts.ts";
 
 const corsHeaders = {
@@ -9,6 +10,20 @@ const corsHeaders = {
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+interface SignatureData {
+  firmante: string;
+  dni: string;
+  firma_imagen: string;
+  fecha: string;
+}
+
+interface VehicleAmendment {
+  tractor_plate?: string;
+  trailer_plate_1?: string;
+  trailer_plate_2?: string;
+  amended_at: string;
+}
+
 interface DocumentContent {
   contractual_shipper?: {
     nombre: string;
@@ -17,6 +32,7 @@ interface DocumentContent {
     poblacion: string;
   };
   origin: {
+    empresa?: string;
     domicilio?: string;
     poblacion?: string;
     name?: string;
@@ -28,6 +44,7 @@ interface DocumentContent {
     phone?: string;
   };
   destination: {
+    empresa?: string;
     domicilio?: string;
     poblacion?: string;
     name?: string;
@@ -44,6 +61,7 @@ interface DocumentContent {
     trailer_plate_2?: string;
     trailer_plate?: string;
     alias?: string;
+    amendments?: VehicleAmendment[];
   };
   cargo: {
     description: string;
@@ -58,6 +76,15 @@ interface DocumentContent {
     province: string;
     postal_code: string;
     phone: string;
+  };
+  driver?: {
+    name: string;
+    email?: string;
+  };
+  unloading_date?: string;
+  signatures?: {
+    origin?: SignatureData;
+    destination?: SignatureData;
   };
 }
 
@@ -100,36 +127,54 @@ function formatWeight(kg: number): string {
 }
 
 function buildOriginBlock(origin: DocumentContent["origin"]): string {
+  const lines: string[] = [];
+  if (origin.empresa) lines.push(`<p class="name">${esc(origin.empresa)}</p>`);
   if (origin.domicilio) {
     const parts = [origin.domicilio, origin.poblacion].filter(Boolean);
-    return parts.map((p) => `<p>${esc(p)}</p>`).join("");
+    parts.forEach((p) => lines.push(`<p>${esc(p)}</p>`));
+    return lines.join("");
   }
-  const lines: string[] = [];
-  if (origin.name) lines.push(origin.name);
-  if (origin.address) lines.push(origin.address);
+  if (origin.name) lines.push(`<p>${esc(origin.name)}</p>`);
+  if (origin.address) lines.push(`<p>${esc(origin.address)}</p>`);
   const loc = [origin.postal_code, origin.city, origin.province ? `(${origin.province})` : ""].filter(Boolean).join(" ");
-  if (loc.trim()) lines.push(loc);
-  if (origin.contact_name) lines.push(`Contacto: ${origin.contact_name}`);
-  if (origin.phone) lines.push(`Tel: ${origin.phone}`);
-  return lines.map((l) => `<p>${esc(l)}</p>`).join("");
+  if (loc.trim()) lines.push(`<p>${esc(loc)}</p>`);
+  if (origin.contact_name) lines.push(`<p>Contacto: ${esc(origin.contact_name)}</p>`);
+  if (origin.phone) lines.push(`<p>Tel: ${esc(origin.phone)}</p>`);
+  return lines.join("");
 }
 
-function buildDestinationBlock(dest: DocumentContent["destination"]): string {
+function buildDestinationBlock(dest: DocumentContent["destination"], unloadingDate?: string): string {
+  const lines: string[] = [];
+  if (dest.empresa) lines.push(`<p class="name">${esc(dest.empresa)}</p>`);
   if (dest.domicilio) {
     const parts = [dest.domicilio, dest.poblacion].filter(Boolean);
-    return parts.map((p) => `<p>${esc(p)}</p>`).join("");
+    parts.forEach((p) => lines.push(`<p>${esc(p)}</p>`));
+    if (unloadingDate) lines.push(`<p class="detail" style="margin-top:4px;font-weight:600;">Descarga: ${esc(formatDate(unloadingDate))}</p>`);
+    return lines.join("");
   }
-  const lines: string[] = [];
-  if (dest.name) lines.push(dest.name);
-  if (dest.address) lines.push(dest.address);
+  if (dest.name) lines.push(`<p>${esc(dest.name)}</p>`);
+  if (dest.address) lines.push(`<p>${esc(dest.address)}</p>`);
   const loc = [dest.postal_code, dest.city, dest.province ? `(${dest.province})` : ""].filter(Boolean).join(" ");
-  if (loc.trim()) lines.push(loc);
-  if (dest.contact_name) lines.push(`Contacto: ${dest.contact_name}`);
-  if (dest.phone) lines.push(`Tel: ${dest.phone}`);
-  return lines.map((l) => `<p>${esc(l)}</p>`).join("");
+  if (loc.trim()) lines.push(`<p>${esc(loc)}</p>`);
+  if (dest.contact_name) lines.push(`<p>Contacto: ${esc(dest.contact_name)}</p>`);
+  if (dest.phone) lines.push(`<p>Tel: ${esc(dest.phone)}</p>`);
+  if (unloadingDate) lines.push(`<p class="detail" style="margin-top:4px;font-weight:600;">Descarga: ${esc(formatDate(unloadingDate))}</p>`);
+  return lines.join("");
 }
 
-function buildHtml(doc: DocumentRecord): string {
+function buildSignatureCell(sig: SignatureData | undefined, label: string): string {
+  if (!sig) {
+    return `<td><p style="color:#94a3b8;font-style:italic;font-size:8pt;">Sin firma</p></td>`;
+  }
+  return `<td>
+    <p style="font-weight:700;font-size:9.5pt;color:#0f172a;">${esc(sig.firmante)}</p>
+    <p style="font-size:8.5pt;color:#475569;">DNI: ${esc(sig.dni)}</p>
+    <p style="font-size:7.5pt;color:#94a3b8;">${esc(formatDateTime(sig.fecha))}</p>
+    ${sig.firma_imagen ? `<img src="${sig.firma_imagen}" alt="Firma ${esc(label)}" style="max-width:160px;max-height:70px;margin-top:6px;display:block;" />` : ""}
+  </td>`;
+}
+
+function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
   const c = doc.content;
   const docId = doc.id.substring(0, 8).toUpperCase();
 
@@ -151,6 +196,15 @@ function buildHtml(doc: DocumentRecord): string {
   if (c.vehicle.trailer_plate_2) {
     vehicleRows.push(`<tr><th scope="row">Remolque 2</th><td>${esc(c.vehicle.trailer_plate_2)}</td></tr>`);
   }
+
+  const amendments = c.vehicle.amendments || [];
+  const amendmentRows = amendments.map((a, i) => {
+    const parts: string[] = [];
+    if (a.tractor_plate) parts.push(`Tractora: ${a.tractor_plate}`);
+    if (a.trailer_plate_1) parts.push(`Remolque 1: ${a.trailer_plate_1}`);
+    if (a.trailer_plate_2) parts.push(`Remolque 2: ${a.trailer_plate_2}`);
+    return `<tr><th scope="row">Enmienda ${i + 1}</th><td>${esc(parts.join(" / "))} <span style="color:#94a3b8;font-size:8pt;">(${esc(formatDateTime(a.amended_at))})</span></td></tr>`;
+  });
 
   return `<!DOCTYPE html>
 <html lang="es-ES">
@@ -363,7 +417,8 @@ function buildHtml(doc: DocumentRecord): string {
 
 <div class="meta-row" aria-label="Identificaci&oacute;n del documento">
   <span>DOC-${esc(docId)}</span>
-  <span>Generado: ${esc(formatDateTime(doc.created_at))}</span>
+  <span>${c.driver?.name ? `Conductor: ${esc(c.driver.name)} &middot; ` : ""}Generado: ${esc(formatDateTime(doc.created_at))}</span>
+  ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR Documento" style="width:60px;height:60px;margin-left:auto;" />` : ""}
 </div>
 
 <main role="main">
@@ -400,7 +455,7 @@ function buildHtml(doc: DocumentRecord): string {
   <section class="section" aria-labelledby="sec-dest">
     <h3 class="section-heading green" id="sec-dest">Destino</h3>
     <div class="section-body">
-      ${buildDestinationBlock(c.destination)}
+      ${buildDestinationBlock(c.destination, c.unloading_date)}
     </div>
   </section>
 
@@ -410,6 +465,7 @@ function buildHtml(doc: DocumentRecord): string {
       <table class="vehicle-table" aria-label="Matr&iacute;culas del veh&iacute;culo">
         <tbody>
           ${vehicleRows.join("\n          ")}
+          ${amendmentRows.join("\n          ")}
         </tbody>
       </table>
     </div>
@@ -444,14 +500,14 @@ function buildHtml(doc: DocumentRecord): string {
   <table class="sig-table" aria-label="Firmas del documento">
     <thead>
       <tr>
-        <th scope="col">Conductor</th>
-        <th scope="col">Cargador</th>
+        <th scope="col">Origen</th>
+        <th scope="col">Destino</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>${doc.driver_name ? esc(doc.driver_name) : ""}</td>
-        <td></td>
+        ${buildSignatureCell(c.signatures?.origin, "Origen")}
+        ${buildSignatureCell(c.signatures?.destination, "Destino")}
       </tr>
     </tbody>
   </table>
@@ -638,7 +694,20 @@ Deno.serve(async (req: Request) => {
     }
 
     const doc = document as DocumentRecord;
-    const html = buildHtml(doc);
+
+    const originalFileName = `${doc.id}_original.pdf`;
+    const { data: origUrlData } = supabase.storage
+      .from("document-pdfs")
+      .getPublicUrl(originalFileName);
+
+    let qrDataUrl = "";
+    try {
+      qrDataUrl = await QRCode.toDataURL(origUrlData.publicUrl, { width: 120, margin: 1 });
+    } catch (qrErr) {
+      console.error("QR generation failed:", qrErr);
+    }
+
+    const html = buildHtml(doc, qrDataUrl);
 
     let pdfBytes: ArrayBuffer;
     try {
@@ -655,7 +724,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const originalFileName = `${doc.id}_original.pdf`;
     const { error: origUploadError } = await supabase.storage
       .from("document-pdfs")
       .upload(originalFileName, pdfBytes, {
@@ -669,10 +737,6 @@ Deno.serve(async (req: Request) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const { data: origUrlData } = supabase.storage
-      .from("document-pdfs")
-      .getPublicUrl(originalFileName);
 
     let pdfaUrl: string | null = null;
     let pdfaError: string | null = null;

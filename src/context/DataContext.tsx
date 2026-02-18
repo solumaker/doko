@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase, Location, Vehicle, Document, DocumentContent } from '../lib/supabase';
+import { supabase, Location, Vehicle, Document, DocumentContent, ShipperHistory, SignatureData, VehicleAmendment } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 interface DataContextType {
   locations: Location[];
   vehicles: Vehicle[];
   documents: Document[];
+  shipperHistory: ShipperHistory[];
   loadingLocations: boolean;
   loadingVehicles: boolean;
   loadingDocuments: boolean;
@@ -16,69 +17,86 @@ interface DataContextType {
   updateVehicle: (id: string, vehicle: Omit<Vehicle, 'id' | 'company_id' | 'created_at'>) => Promise<void>;
   deleteVehicle: (id: string) => Promise<void>;
   addDocument: (content: DocumentContent, departureDate: Date) => Promise<Document | null>;
+  signDocument: (id: string, side: 'origin' | 'destination', data: SignatureData) => Promise<Document | null>;
+  amendVehiclePlates: (id: string, amendment: Omit<VehicleAmendment, 'amended_at'>) => Promise<Document | null>;
   refreshData: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
+
+async function triggerPdfRegen(documentId: string, onSuccess: (result: { pdf_original_url?: string; pdf_url?: string }) => void) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+  const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document-pdf`;
+  try {
+    const response = await fetch(edgeFunctionUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ documentId }),
+    });
+    if (response.ok) {
+      const result = await response.json();
+      onSuccess(result);
+      if (result.pdfa_conversion_failed) {
+        console.error('PDF/A conversion failed:', result.pdfa_error);
+      }
+    } else {
+      const errorText = await response.text();
+      console.error('Edge function error:', errorText);
+    }
+  } catch (err) {
+    console.error('Error generating PDF:', err);
+  }
+}
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const { profile, company, user } = useAuth();
   const [locations, setLocations] = useState<Location[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [shipperHistory, setShipperHistory] = useState<ShipperHistory[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
 
   const fetchLocations = useCallback(async () => {
     if (!profile?.company_id) return;
-
     setLoadingLocations(true);
-    const { data, error } = await supabase
-      .from('locations')
-      .select('*')
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching locations:', error);
-    } else {
-      setLocations(data || []);
-    }
+    const { data, error } = await supabase.from('locations').select('*').order('name');
+    if (error) console.error('Error fetching locations:', error);
+    else setLocations(data || []);
     setLoadingLocations(false);
   }, [profile?.company_id]);
 
   const fetchVehicles = useCallback(async () => {
     if (!profile?.company_id) return;
-
     setLoadingVehicles(true);
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select('*')
-      .order('alias');
-
-    if (error) {
-      console.error('Error fetching vehicles:', error);
-    } else {
-      setVehicles(data || []);
-    }
+    const { data, error } = await supabase.from('vehicles').select('*').order('alias');
+    if (error) console.error('Error fetching vehicles:', error);
+    else setVehicles(data || []);
     setLoadingVehicles(false);
   }, [profile?.company_id]);
 
   const fetchDocuments = useCallback(async () => {
     if (!profile?.company_id) return;
-
     setLoadingDocuments(true);
-    const { data, error } = await supabase
-      .from('documents')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching documents:', error);
-    } else {
-      setDocuments(data || []);
-    }
+    const { data, error } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+    if (error) console.error('Error fetching documents:', error);
+    else setDocuments(data || []);
     setLoadingDocuments(false);
+  }, [profile?.company_id]);
+
+  const fetchShipperHistory = useCallback(async () => {
+    if (!profile?.company_id) return;
+    const { data, error } = await supabase
+      .from('shipper_history')
+      .select('*')
+      .order('last_used', { ascending: false });
+    if (error) console.error('Error fetching shipper history:', error);
+    else setShipperHistory(data || []);
   }, [profile?.company_id]);
 
   useEffect(() => {
@@ -86,109 +104,98 @@ export function DataProvider({ children }: { children: ReactNode }) {
       fetchLocations();
       fetchVehicles();
       fetchDocuments();
+      fetchShipperHistory();
     } else {
       setLocations([]);
       setVehicles([]);
       setDocuments([]);
+      setShipperHistory([]);
       setLoadingLocations(false);
       setLoadingVehicles(false);
       setLoadingDocuments(false);
     }
-  }, [profile?.company_id, fetchLocations, fetchVehicles, fetchDocuments]);
+  }, [profile?.company_id, fetchLocations, fetchVehicles, fetchDocuments, fetchShipperHistory]);
+
+  const upsertShipperToHistory = async (shipper: { nombre: string; nif: string; domicilio: string; poblacion: string }) => {
+    if (!profile?.company_id || !shipper.nif.trim()) return;
+    const { data, error } = await supabase
+      .from('shipper_history')
+      .upsert(
+        {
+          company_id: profile.company_id,
+          nombre: shipper.nombre,
+          nif: shipper.nif,
+          domicilio: shipper.domicilio,
+          poblacion: shipper.poblacion,
+          use_count: 1,
+          last_used: new Date().toISOString(),
+        },
+        {
+          onConflict: 'company_id,nif',
+          ignoreDuplicates: false,
+        }
+      )
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      setShipperHistory((prev) => {
+        const existing = prev.findIndex((s) => s.nif === shipper.nif);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = data;
+          return updated.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
+        }
+        return [data, ...prev];
+      });
+    }
+  };
 
   const addLocation = async (location: Omit<Location, 'id' | 'company_id' | 'created_at'>) => {
     if (!profile?.company_id) return null;
-
     const { data, error } = await supabase
       .from('locations')
-      .insert({
-        ...location,
-        company_id: profile.company_id,
-      })
+      .insert({ ...location, company_id: profile.company_id })
       .select()
       .single();
-
-    if (error) {
-      console.error('Error adding location:', error);
-      return null;
-    }
-
+    if (error) { console.error('Error adding location:', error); return null; }
     setLocations((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
     return data;
   };
 
   const updateLocation = async (id: string, location: Omit<Location, 'id' | 'company_id' | 'created_at'>) => {
-    const { error } = await supabase
-      .from('locations')
-      .update(location)
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating location:', error);
-      return;
-    }
-
-    setLocations((prev) =>
-      prev.map((loc) => (loc.id === id ? { ...loc, ...location } : loc))
-    );
+    const { error } = await supabase.from('locations').update(location).eq('id', id);
+    if (error) { console.error('Error updating location:', error); return; }
+    setLocations((prev) => prev.map((loc) => (loc.id === id ? { ...loc, ...location } : loc)));
   };
 
   const deleteLocation = async (id: string) => {
     const { error } = await supabase.from('locations').delete().eq('id', id);
-
-    if (error) {
-      console.error('Error deleting location:', error);
-      return;
-    }
-
+    if (error) { console.error('Error deleting location:', error); return; }
     setLocations((prev) => prev.filter((loc) => loc.id !== id));
   };
 
   const addVehicle = async (vehicle: Omit<Vehicle, 'id' | 'company_id' | 'created_at'>) => {
     if (!profile?.company_id) return null;
-
     const { data, error } = await supabase
       .from('vehicles')
-      .insert({
-        ...vehicle,
-        company_id: profile.company_id,
-      })
+      .insert({ ...vehicle, company_id: profile.company_id })
       .select()
       .single();
-
-    if (error) {
-      console.error('Error adding vehicle:', error);
-      return null;
-    }
-
+    if (error) { console.error('Error adding vehicle:', error); return null; }
     setVehicles((prev) => [...prev, data].sort((a, b) => (a.alias || '').localeCompare(b.alias || '')));
     return data;
   };
 
   const updateVehicle = async (id: string, vehicle: Omit<Vehicle, 'id' | 'company_id' | 'created_at'>) => {
-    const { error } = await supabase
-      .from('vehicles')
-      .update(vehicle)
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error updating vehicle:', error);
-      return;
-    }
-
-    setVehicles((prev) =>
-      prev.map((veh) => (veh.id === id ? { ...veh, ...vehicle } : veh))
-    );
+    const { error } = await supabase.from('vehicles').update(vehicle).eq('id', id);
+    if (error) { console.error('Error updating vehicle:', error); return; }
+    setVehicles((prev) => prev.map((veh) => (veh.id === id ? { ...veh, ...vehicle } : veh)));
   };
 
   const deleteVehicle = async (id: string) => {
     const { error } = await supabase.from('vehicles').delete().eq('id', id);
-
-    if (error) {
-      console.error('Error deleting vehicle:', error);
-      return;
-    }
-
+    if (error) { console.error('Error deleting vehicle:', error); return; }
     setVehicles((prev) => prev.filter((veh) => veh.id !== id));
   };
 
@@ -206,6 +213,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         postal_code: company.postal_code,
         phone: company.phone,
       },
+      driver: {
+        name: profile.full_name,
+        email: profile.email,
+      },
     };
 
     const { data, error } = await supabase
@@ -220,53 +231,107 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .select()
       .single();
 
-    if (error) {
-      console.error('Error adding document:', error);
-      return null;
-    }
+    if (error) { console.error('Error adding document:', error); return null; }
 
     setDocuments((prev) => [data, ...prev]);
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const edgeFunctionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document-pdf`;
-
-      fetch(edgeFunctionUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ documentId: data.id }),
-      })
-        .then(async (response) => {
-          if (response.ok) {
-            const result = await response.json();
-            setDocuments((prev) =>
-              prev.map((doc) =>
-                doc.id === data.id
-                  ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
-                  : doc
-              )
-            );
-            if (result.pdfa_conversion_failed) {
-              console.error('PDF/A conversion failed:', result.pdfa_error);
-            }
-          } else {
-            const errorText = await response.text();
-            console.error('Edge function error:', errorText);
-          }
-        })
-        .catch((err) => {
-          console.error('Error generating PDF:', err);
-        });
+    if (content.contractual_shipper) {
+      upsertShipperToHistory(content.contractual_shipper);
     }
+
+    triggerPdfRegen(data.id, (result) => {
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === data.id
+            ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
+            : doc
+        )
+      );
+    });
+
+    return data;
+  };
+
+  const signDocument = async (id: string, side: 'origin' | 'destination', sigData: SignatureData): Promise<Document | null> => {
+    const current = documents.find((d) => d.id === id);
+    if (!current) return null;
+
+    const newContent: DocumentContent = {
+      ...current.content,
+      signatures: {
+        ...current.content.signatures,
+        [side]: sigData,
+      },
+    };
+
+    const { data, error } = await supabase
+      .from('documents')
+      .update({ content: newContent })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) { console.error('Error signing document:', error); return null; }
+
+    setDocuments((prev) => prev.map((d) => (d.id === id ? data : d)));
+
+    triggerPdfRegen(id, (result) => {
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === id
+            ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
+            : doc
+        )
+      );
+    });
+
+    return data;
+  };
+
+  const amendVehiclePlates = async (id: string, amendment: Omit<VehicleAmendment, 'amended_at'>): Promise<Document | null> => {
+    const current = documents.find((d) => d.id === id);
+    if (!current) return null;
+
+    const newAmendment: VehicleAmendment = {
+      ...amendment,
+      amended_at: new Date().toISOString(),
+    };
+
+    const existingAmendments = current.content.vehicle.amendments || [];
+    const newContent: DocumentContent = {
+      ...current.content,
+      vehicle: {
+        ...current.content.vehicle,
+        amendments: [...existingAmendments, newAmendment],
+      },
+    };
+
+    const { data, error } = await supabase
+      .from('documents')
+      .update({ content: newContent })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) { console.error('Error amending vehicle:', error); return null; }
+
+    setDocuments((prev) => prev.map((d) => (d.id === id ? data : d)));
+
+    triggerPdfRegen(id, (result) => {
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === id
+            ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
+            : doc
+        )
+      );
+    });
 
     return data;
   };
 
   const refreshData = async () => {
-    await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments()]);
+    await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments(), fetchShipperHistory()]);
   };
 
   return (
@@ -275,6 +340,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         locations,
         vehicles,
         documents,
+        shipperHistory,
         loadingLocations,
         loadingVehicles,
         loadingDocuments,
@@ -285,6 +351,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updateVehicle,
         deleteVehicle,
         addDocument,
+        signDocument,
+        amendVehiclePlates,
         refreshData,
       }}
     >
