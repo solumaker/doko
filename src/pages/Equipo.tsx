@@ -13,6 +13,9 @@ import {
   ToggleRight,
   Check,
   X,
+  Pencil,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useAuth } from '../context/AuthContext';
@@ -40,6 +43,15 @@ export function Equipo({ onBack }: EquipoProps) {
   const [newPinDigits, setNewPinDigits] = useState(['', '', '', '']);
   const [copied, setCopied] = useState<string | null>(null);
   const [createdLink, setCreatedLink] = useState<{ name: string; url: string } | null>(null);
+
+  const [editingDriver, setEditingDriver] = useState<DriverWithLink | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDni, setEditDni] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+
+  const [deleteTarget, setDeleteTarget] = useState<DriverWithLink | null>(null);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -148,6 +160,58 @@ export function Equipo({ onBack }: EquipoProps) {
     resetForm();
     fetchDrivers();
     setView('created');
+  };
+
+  const handleEditDriver = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingDriver) return;
+    setEditError('');
+
+    if (!editName.trim()) {
+      setEditError('El nombre no puede estar vacio');
+      return;
+    }
+
+    setEditSaving(true);
+    const { error: err } = await supabase
+      .from('profiles')
+      .update({ full_name: editName.trim(), dni: editDni.trim() || null })
+      .eq('id', editingDriver.id);
+
+    setEditSaving(false);
+
+    if (err) {
+      setEditError('Error al guardar los cambios');
+      return;
+    }
+
+    setEditingDriver(null);
+    setSuccess('Conductor actualizado correctamente');
+    setTimeout(() => setSuccess(''), 2500);
+    fetchDrivers();
+  };
+
+  const handleDeleteDriver = async () => {
+    if (!deleteTarget) return;
+    setDeleteConfirming(true);
+
+    if (deleteTarget.link) {
+      await supabase
+        .from('driver_company_links')
+        .delete()
+        .eq('id', deleteTarget.link.id);
+    }
+
+    await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', deleteTarget.id);
+
+    setDeleteConfirming(false);
+    setDeleteTarget(null);
+    setSuccess('Conductor eliminado');
+    setTimeout(() => setSuccess(''), 2500);
+    fetchDrivers();
   };
 
   const handleChangePin = async (linkId: string) => {
@@ -421,6 +485,106 @@ export function Equipo({ onBack }: EquipoProps) {
         <h1 className="text-2xl font-bold">Mi Equipo</h1>
       </header>
 
+      {editingDriver && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-slate-900">Editar conductor</h2>
+              <button onClick={() => setEditingDriver(null)} className="p-2 text-slate-400 active:text-slate-700">
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditDriver} className="space-y-4">
+              {editError && (
+                <div className="bg-red-100 border-2 border-red-400 text-red-700 px-4 py-3 rounded-xl text-base">
+                  {editError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-base font-semibold text-slate-700 mb-1.5">Nombre completo</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full p-3.5 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+                  disabled={editSaving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-base font-semibold text-slate-700 mb-1.5">
+                  DNI / NIE <span className="text-slate-400 font-normal text-sm">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editDni}
+                  onChange={(e) => setEditDni(e.target.value.toUpperCase())}
+                  className="w-full p-3.5 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+                  placeholder="Ej: 12345678A"
+                  disabled={editSaving}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  className="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 disabled:bg-blue-300 active:bg-blue-700"
+                >
+                  {editSaving ? <Loader2 size={20} className="animate-spin" /> : <Check size={20} />}
+                  Guardar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingDriver(null)}
+                  className="flex-1 bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold text-base active:bg-slate-300"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl">
+            <div className="flex items-start gap-4 mb-5">
+              <div className="p-3 bg-red-100 rounded-xl shrink-0">
+                <AlertTriangle size={28} className="text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 mb-1">Eliminar conductor</h2>
+                <p className="text-slate-600 text-base">
+                  Vas a eliminar a <span className="font-semibold text-slate-900">{deleteTarget.full_name}</span>. Esta accion no se puede deshacer.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteDriver}
+                disabled={deleteConfirming}
+                className="flex-1 bg-red-600 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 disabled:bg-red-300 active:bg-red-700"
+              >
+                {deleteConfirming ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+                Eliminar
+              </button>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleteConfirming}
+                className="flex-1 bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold text-base active:bg-slate-300"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="p-4">
         {success && (
           <div className="bg-green-100 border-2 border-green-500 text-green-700 px-4 py-3 rounded-xl text-lg mb-4">
@@ -456,7 +620,7 @@ export function Equipo({ onBack }: EquipoProps) {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-xl font-bold text-slate-900 truncate">
                         {member.full_name}
                       </h3>
@@ -473,8 +637,32 @@ export function Equipo({ onBack }: EquipoProps) {
                     </div>
                     <p className="text-slate-500 text-sm mt-1">
                       {member.role === 'admin' ? 'Administrador' : 'Conductor'}
+                      {member.dni ? ` · ${member.dni}` : ''}
                     </p>
                   </div>
+                  {member.role === 'driver' && (
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingDriver(member);
+                          setEditName(member.full_name);
+                          setEditDni(member.dni || '');
+                          setEditError('');
+                        }}
+                        className="p-2.5 bg-slate-100 text-slate-600 rounded-xl active:bg-slate-200 border border-slate-200"
+                        title="Editar"
+                      >
+                        <Pencil size={18} />
+                      </button>
+                      <button
+                        onClick={() => setDeleteTarget(member)}
+                        className="p-2.5 bg-red-50 text-red-600 rounded-xl active:bg-red-100 border border-red-200"
+                        title="Eliminar"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {member.role === 'driver' && member.link && (
