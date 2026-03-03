@@ -43,6 +43,7 @@ export function Equipo({ onBack }: EquipoProps) {
 
   const [formData, setFormData] = useState({
     fullName: '',
+    dni: '',
     pin: ['', '', '', ''],
   });
 
@@ -82,7 +83,7 @@ export function Equipo({ onBack }: EquipoProps) {
   }, [profile?.company_id]);
 
   const resetForm = () => {
-    setFormData({ fullName: '', pin: ['', '', '', ''] });
+    setFormData({ fullName: '', dni: '', pin: ['', '', '', ''] });
     setError('');
     setSuccess('');
   };
@@ -131,6 +132,7 @@ export function Equipo({ onBack }: EquipoProps) {
     const { data: result, ok } = await callEdgeFunction('driver-auth', {
       action: 'create',
       full_name: formData.fullName.trim(),
+      dni: formData.dni.trim() || undefined,
       pin,
     }, session.access_token);
 
@@ -343,6 +345,20 @@ export function Equipo({ onBack }: EquipoProps) {
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
               className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
               placeholder="Nombre del conductor"
+              disabled={saving}
+            />
+          </div>
+
+          <div>
+            <label className="block text-lg font-semibold text-slate-900 mb-2">
+              DNI / NIE <span className="text-slate-400 font-normal text-base">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={formData.dni}
+              onChange={(e) => setFormData({ ...formData, dni: e.target.value.toUpperCase() })}
+              className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+              placeholder="Ej: 12345678A"
               disabled={saving}
             />
           </div>

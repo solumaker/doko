@@ -134,14 +134,14 @@ async function handleLogin(
 async function handleCreate(
   adminClient: ReturnType<typeof createClient>,
   req: Request,
-  body: { full_name: string; pin: string }
+  body: { full_name: string; pin: string; dni?: string }
 ) {
   const adminProfile = await getAdminProfile(adminClient, req);
   if (!adminProfile) {
     return jsonResponse({ error: "No autorizado" }, 401);
   }
 
-  const { full_name, pin } = body;
+  const { full_name, pin, dni } = body;
   if (!full_name || !pin || pin.length !== 4 || !/^\d{4}$/.test(pin)) {
     return jsonResponse(
       { error: "Se requiere nombre y PIN de 4 digitos" },
@@ -169,13 +169,16 @@ async function handleCreate(
     );
   }
 
-  const { error: profileError } = await adminClient.from("profiles").insert({
+  const profileInsert: Record<string, unknown> = {
     id: authData.user.id,
     company_id: adminProfile.company_id,
     role: "driver",
     full_name,
     email: internalEmail,
-  });
+  };
+  if (dni) profileInsert.dni = dni;
+
+  const { error: profileError } = await adminClient.from("profiles").insert(profileInsert);
 
   if (profileError) {
     await adminClient.auth.admin.deleteUser(authData.user.id);

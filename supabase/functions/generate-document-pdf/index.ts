@@ -80,6 +80,7 @@ interface DocumentContent {
   driver?: {
     name: string;
     email?: string;
+    dni?: string;
   };
   unloading_date?: string;
   signatures?: {
@@ -197,14 +198,8 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
     vehicleRows.push(`<tr><th scope="row">Remolque 2</th><td>${esc(c.vehicle.trailer_plate_2)}</td></tr>`);
   }
 
-  const amendments = c.vehicle.amendments || [];
-  const amendmentRows = amendments.map((a, i) => {
-    const parts: string[] = [];
-    if (a.tractor_plate) parts.push(`Tractora: ${a.tractor_plate}`);
-    if (a.trailer_plate_1) parts.push(`Remolque 1: ${a.trailer_plate_1}`);
-    if (a.trailer_plate_2) parts.push(`Remolque 2: ${a.trailer_plate_2}`);
-    return `<tr><th scope="row">Enmienda ${i + 1}</th><td>${esc(parts.join(" / "))} <span style="color:#94a3b8;font-size:8pt;">(${esc(formatDateTime(a.amended_at))})</span></td></tr>`;
-  });
+  const driverName = c.driver?.name || doc.driver_name || "";
+  const driverDni = c.driver?.dni || "";
 
   return `<!DOCTYPE html>
 <html lang="es-ES">
@@ -465,11 +460,22 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
       <table class="vehicle-table" aria-label="Matr&iacute;culas del veh&iacute;culo">
         <tbody>
           ${vehicleRows.join("\n          ")}
-          ${amendmentRows.join("\n          ")}
         </tbody>
       </table>
     </div>
   </section>
+
+  ${driverName ? `<section class="section full-width" aria-labelledby="sec-driver">
+    <h3 class="section-heading slate" id="sec-driver">Conductor</h3>
+    <div class="section-body">
+      <table class="vehicle-table" aria-label="Datos del conductor">
+        <tbody>
+          <tr><th scope="row">Nombre</th><td>${esc(driverName)}</td></tr>
+          ${driverDni ? `<tr><th scope="row">DNI</th><td>${esc(driverDni)}</td></tr>` : ""}
+        </tbody>
+      </table>
+    </div>
+  </section>` : ""}
 
   <section class="section full-width" aria-labelledby="sec-cargo">
     <h3 class="section-heading amber" id="sec-cargo">Mercanc&iacute;a</h3>
@@ -506,8 +512,8 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
     </thead>
     <tbody>
       <tr>
-        ${buildSignatureCell(c.signatures?.origin, "Origen")}
-        ${buildSignatureCell(c.signatures?.destination, "Destino")}
+        <td style="height:60px;"></td>
+        <td style="height:60px;"></td>
       </tr>
     </tbody>
   </table>

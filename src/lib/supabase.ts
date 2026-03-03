@@ -40,7 +40,15 @@ export interface Profile {
   role: 'admin' | 'driver';
   full_name: string;
   email: string;
+  dni?: string;
   created_at: string;
+}
+
+export interface DocumentVisibility {
+  id: string;
+  document_id: string;
+  profile_id: string;
+  hidden_at: string;
 }
 
 export interface Location {
@@ -136,6 +144,7 @@ export interface DocumentContent {
   driver?: {
     name: string;
     email?: string;
+    dni?: string;
   };
   signatures?: {
     origin?: SignatureData;

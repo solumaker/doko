@@ -15,7 +15,7 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
-import { Document, DocumentContent, ShipperHistory } from '../lib/supabase';
+import { Document, DocumentContent, ShipperHistory, Location } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
 
 interface CrearDocumentoProps {
@@ -58,8 +58,120 @@ interface CargoForm {
 const inputClass =
   'w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900 placeholder:text-slate-400';
 
+function DateDropdown({ selected, onChange, label }: { selected: Date; onChange: (d: Date) => void; label: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900 bg-white active:bg-slate-50"
+      >
+        <span className="flex items-center gap-3">
+          <Calendar size={22} className="text-blue-600 flex-shrink-0" />
+          <span className="font-semibold">{format(selected, "d 'de' MMMM, yyyy", { locale: es })}</span>
+        </span>
+        <ChevronDown size={22} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border-2 border-blue-200 rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-3">
+            <MonthCalendar selected={selected} onChange={(d) => { onChange(d); setOpen(false); }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LocationAutocomplete({
+  value,
+  onChange,
+  locations,
+  placeholder,
+}: {
+  value: string;
+  onChange: (val: string, loc?: Location) => void;
+  locations: Location[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<Location[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleChange = (v: string) => {
+    onChange(v);
+    if (v.trim().length >= 1) {
+      const q = v.toLowerCase();
+      const matches = locations.filter(
+        (l) =>
+          l.name.toLowerCase().includes(q) ||
+          l.city.toLowerCase().includes(q) ||
+          l.address.toLowerCase().includes(q)
+      );
+      setSuggestions(matches.slice(0, 5));
+      setOpen(matches.length > 0);
+    } else {
+      setSuggestions([]);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => { if (value.trim().length >= 1) setOpen(suggestions.length > 0); }}
+        className={inputClass}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border-2 border-blue-200 rounded-xl shadow-xl overflow-hidden">
+          {suggestions.map((loc) => (
+            <button
+              key={loc.id}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); onChange(loc.name, loc); setOpen(false); }}
+              className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-slate-100 last:border-0 flex items-center gap-3"
+            >
+              <div className="bg-blue-100 p-1.5 rounded-lg flex-shrink-0">
+                <MapPin size={16} className="text-blue-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-slate-900 text-base truncate">{loc.name}</p>
+                <p className="text-sm text-slate-500 truncate">{loc.address}, {loc.city}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
-  const { addDocument, shipperHistory } = useData();
+  const { addDocument, shipperHistory, locations } = useData();
 
   const [step, setStep] = useState<Step>(1);
   const [generating, setGenerating] = useState(false);
@@ -112,6 +224,30 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
     setShowSuggestions(false);
   };
 
+  const applyOriginLocation = (locName: string, loc?: Location) => {
+    if (loc) {
+      setOrigin({
+        empresa: loc.name,
+        domicilio: loc.address,
+        poblacion: loc.city,
+      });
+    } else {
+      setOrigin((o) => ({ ...o, empresa: locName }));
+    }
+  };
+
+  const applyDestinationLocation = (locName: string, loc?: Location) => {
+    if (loc) {
+      setDestination({
+        empresa: loc.name,
+        domicilio: loc.address,
+        poblacion: loc.city,
+      });
+    } else {
+      setDestination((d) => ({ ...d, empresa: locName }));
+    }
+  };
+
   const effectiveOrigin: OriginForm = originSameAsShipper
     ? { empresa: shipper.nombre, domicilio: shipper.domicilio, poblacion: shipper.poblacion }
     : origin;
@@ -130,7 +266,7 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
       case 2:
         return destination.domicilio.trim() !== '' && destination.poblacion.trim() !== '';
       case 3:
-        return vehicle.tractor_plate.trim() !== '' && vehicle.trailer_plate_1.trim() !== '';
+        return vehicle.tractor_plate.trim() !== '';
       case 4:
         return cargo.description.trim() !== '' && cargo.weight_kg > 0;
       case 5:
@@ -164,7 +300,7 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
       },
       vehicle: {
         tractor_plate: vehicle.tractor_plate,
-        trailer_plate_1: vehicle.trailer_plate_1,
+        trailer_plate_1: vehicle.trailer_plate_1 || undefined,
         trailer_plate_2: vehicle.trailer_plate_2 || undefined,
       },
       cargo: {
@@ -264,7 +400,12 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
           </div>
         ) : (
           <div className="space-y-3">
-            <input type="text" value={origin.empresa} onChange={(e) => setOrigin({ ...origin, empresa: e.target.value })} className={inputClass} placeholder="Nombre de empresa (opcional)" />
+            <LocationAutocomplete
+              value={origin.empresa}
+              onChange={applyOriginLocation}
+              locations={locations}
+              placeholder="Nombre de empresa (buscar en Mis Lugares...)"
+            />
             <input type="text" value={origin.domicilio} onChange={(e) => setOrigin({ ...origin, domicilio: e.target.value })} className={inputClass} placeholder="Domicilio" />
             <input type="text" value={origin.poblacion} onChange={(e) => setOrigin({ ...origin, poblacion: e.target.value })} className={inputClass} placeholder="Poblacion" />
           </div>
@@ -280,7 +421,12 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
         <label className="text-xl font-bold text-slate-900">DESTINO</label>
       </div>
       <div className="space-y-3">
-        <input type="text" value={destination.empresa} onChange={(e) => setDestination({ ...destination, empresa: e.target.value })} className={inputClass} placeholder="Nombre de empresa (opcional)" />
+        <LocationAutocomplete
+          value={destination.empresa}
+          onChange={applyDestinationLocation}
+          locations={locations}
+          placeholder="Nombre de empresa (buscar en Mis Lugares...)"
+        />
         <input type="text" value={destination.domicilio} onChange={(e) => setDestination({ ...destination, domicilio: e.target.value })} className={inputClass} placeholder="Domicilio" />
         <input type="text" value={destination.poblacion} onChange={(e) => setDestination({ ...destination, poblacion: e.target.value })} className={inputClass} placeholder="Poblacion" />
       </div>
@@ -299,8 +445,8 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
           <input type="text" value={vehicle.tractor_plate} onChange={(e) => setVehicle({ ...vehicle, tractor_plate: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ej: 1234 ABC" />
         </div>
         <div>
-          <label className="block text-base font-semibold text-slate-700 mb-1.5">Matricula del Remolque 1 *</label>
-          <input type="text" value={vehicle.trailer_plate_1} onChange={(e) => setVehicle({ ...vehicle, trailer_plate_1: e.target.value.toUpperCase() })} className={inputClass} placeholder="Ej: R-5678 XYZ" />
+          <label className="block text-base font-semibold text-slate-700 mb-1.5">Matricula del Remolque 1</label>
+          <input type="text" value={vehicle.trailer_plate_1} onChange={(e) => setVehicle({ ...vehicle, trailer_plate_1: e.target.value.toUpperCase() })} className={inputClass} placeholder="Opcional" />
         </div>
         <div>
           <label className="block text-base font-semibold text-slate-700 mb-1.5">Matricula del Remolque 2</label>
@@ -330,14 +476,11 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
       </div>
 
       <div>
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           <div className="bg-blue-100 p-2 rounded-lg"><Calendar size={24} className="text-blue-600" /></div>
           <label className="text-xl font-bold text-slate-900">FECHA DE SALIDA</label>
         </div>
-        <MonthCalendar selected={departureDate} onChange={setDepartureDate} />
-        <p className="text-slate-600 mt-3 text-base text-center">
-          Seleccionada: <span className="font-semibold text-slate-900">{format(departureDate, "d 'de' MMMM, yyyy", { locale: es })}</span>
-        </p>
+        <DateDropdown selected={departureDate} onChange={setDepartureDate} label="Fecha de salida" />
       </div>
 
       <div>
@@ -357,12 +500,7 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
           </span>
         </label>
         {hasUnloadingDate && (
-          <>
-            <MonthCalendar selected={unloadingDate} onChange={setUnloadingDate} />
-            <p className="text-slate-600 mt-3 text-base text-center">
-              Descarga: <span className="font-semibold text-slate-900">{format(unloadingDate, "d 'de' MMMM, yyyy", { locale: es })}</span>
-            </p>
-          </>
+          <DateDropdown selected={unloadingDate} onChange={setUnloadingDate} label="Fecha de descarga" />
         )}
       </div>
     </div>
@@ -397,7 +535,7 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
         <div className="border-b border-slate-200 pb-4">
           <div className="flex items-center gap-2 text-slate-600 mb-2"><Truck size={20} /><span className="font-semibold">Vehiculo</span></div>
           <p className="text-base text-slate-900"><span className="font-semibold">Tractora:</span> <span className="font-mono">{vehicle.tractor_plate}</span></p>
-          <p className="text-base text-slate-900"><span className="font-semibold">Remolque 1:</span> <span className="font-mono">{vehicle.trailer_plate_1}</span></p>
+          {vehicle.trailer_plate_1 && <p className="text-base text-slate-900"><span className="font-semibold">Remolque 1:</span> <span className="font-mono">{vehicle.trailer_plate_1}</span></p>}
           {vehicle.trailer_plate_2 && <p className="text-base text-slate-900"><span className="font-semibold">Remolque 2:</span> <span className="font-mono">{vehicle.trailer_plate_2}</span></p>}
         </div>
 

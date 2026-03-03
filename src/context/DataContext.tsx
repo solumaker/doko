@@ -2,10 +2,17 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { supabase, Location, Vehicle, Document, DocumentContent, ShipperHistory, SignatureData, VehicleAmendment } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
+export interface HiddenDocEntry {
+  document_id: string;
+  profile_id: string;
+}
+
 interface DataContextType {
   locations: Location[];
   vehicles: Vehicle[];
   documents: Document[];
+  allDocuments: Document[];
+  hiddenDocIds: string[];
   shipperHistory: ShipperHistory[];
   loadingLocations: boolean;
   loadingVehicles: boolean;
@@ -19,6 +26,8 @@ interface DataContextType {
   addDocument: (content: DocumentContent, departureDate: Date) => Promise<Document | null>;
   signDocument: (id: string, side: 'origin' | 'destination', data: SignatureData) => Promise<Document | null>;
   amendVehiclePlates: (id: string, amendment: Omit<VehicleAmendment, 'amended_at'>) => Promise<Document | null>;
+  hideDocumentForProfile: (documentId: string, profileId: string) => Promise<void>;
+  showDocumentForProfile: (documentId: string, profileId: string) => Promise<void>;
   refreshData: () => Promise<void>;
 }
 
@@ -56,7 +65,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const { profile, company, user } = useAuth();
   const [locations, setLocations] = useState<Location[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [allDocuments, setAllDocuments] = useState<Document[]>([]);
+  const [hiddenDocIds, setHiddenDocIds] = useState<string[]>([]);
   const [shipperHistory, setShipperHistory] = useState<ShipperHistory[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
@@ -81,13 +91,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [profile?.company_id]);
 
   const fetchDocuments = useCallback(async () => {
-    if (!profile?.company_id) return;
+    if (!profile?.company_id || !profile?.id) return;
     setLoadingDocuments(true);
-    const { data, error } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+
+    let query = supabase.from('documents').select('*').order('created_at', { ascending: false });
+    if (profile.role !== 'admin') {
+      query = query.eq('creator_id', profile.id);
+    }
+    const { data, error } = await query;
     if (error) console.error('Error fetching documents:', error);
-    else setDocuments(data || []);
+    else setAllDocuments(data || []);
+
+    if (profile.role !== 'admin') {
+      const { data: hiddenData } = await supabase
+        .from('document_visibility')
+        .select('document_id')
+        .eq('profile_id', profile.id);
+      setHiddenDocIds((hiddenData || []).map((r: { document_id: string }) => r.document_id));
+    } else {
+      setHiddenDocIds([]);
+    }
+
     setLoadingDocuments(false);
-  }, [profile?.company_id]);
+  }, [profile?.company_id, profile?.id, profile?.role]);
 
   const fetchShipperHistory = useCallback(async () => {
     if (!profile?.company_id) return;
@@ -108,7 +134,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     } else {
       setLocations([]);
       setVehicles([]);
-      setDocuments([]);
+      setAllDocuments([]);
+      setHiddenDocIds([]);
       setShipperHistory([]);
       setLoadingLocations(false);
       setLoadingVehicles(false);
@@ -216,6 +243,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       driver: {
         name: profile.full_name,
         email: profile.email,
+        dni: profile.dni || undefined,
       },
     };
 
@@ -233,14 +261,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     if (error) { console.error('Error adding document:', error); return null; }
 
-    setDocuments((prev) => [data, ...prev]);
+    setAllDocuments((prev) => [data, ...prev]);
 
     if (content.contractual_shipper) {
       upsertShipperToHistory(content.contractual_shipper);
     }
 
     triggerPdfRegen(data.id, (result) => {
-      setDocuments((prev) =>
+      setAllDocuments((prev) =>
         prev.map((doc) =>
           doc.id === data.id
             ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
@@ -253,7 +281,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const signDocument = async (id: string, side: 'origin' | 'destination', sigData: SignatureData): Promise<Document | null> => {
-    const current = documents.find((d) => d.id === id);
+    const current = allDocuments.find((d) => d.id === id);
     if (!current) return null;
 
     const newContent: DocumentContent = {
@@ -273,10 +301,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     if (error) { console.error('Error signing document:', error); return null; }
 
-    setDocuments((prev) => prev.map((d) => (d.id === id ? data : d)));
+    setAllDocuments((prev) => prev.map((d) => (d.id === id ? data : d)));
 
     triggerPdfRegen(id, (result) => {
-      setDocuments((prev) =>
+      setAllDocuments((prev) =>
         prev.map((doc) =>
           doc.id === id
             ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
@@ -289,7 +317,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const amendVehiclePlates = async (id: string, amendment: Omit<VehicleAmendment, 'amended_at'>): Promise<Document | null> => {
-    const current = documents.find((d) => d.id === id);
+    const current = allDocuments.find((d) => d.id === id);
     if (!current) return null;
 
     const newAmendment: VehicleAmendment = {
@@ -315,10 +343,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     if (error) { console.error('Error amending vehicle:', error); return null; }
 
-    setDocuments((prev) => prev.map((d) => (d.id === id ? data : d)));
+    setAllDocuments((prev) => prev.map((d) => (d.id === id ? data : d)));
 
     triggerPdfRegen(id, (result) => {
-      setDocuments((prev) =>
+      setAllDocuments((prev) =>
         prev.map((doc) =>
           doc.id === id
             ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
@@ -330,9 +358,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return data;
   };
 
+  const hideDocumentForProfile = async (documentId: string, profileId: string) => {
+    await supabase.from('document_visibility').upsert(
+      { document_id: documentId, profile_id: profileId },
+      { onConflict: 'document_id,profile_id', ignoreDuplicates: true }
+    );
+    setHiddenDocIds((prev) => (prev.includes(documentId) ? prev : [...prev, documentId]));
+  };
+
+  const showDocumentForProfile = async (documentId: string, profileId: string) => {
+    await supabase.from('document_visibility')
+      .delete()
+      .eq('document_id', documentId)
+      .eq('profile_id', profileId);
+    setHiddenDocIds((prev) => prev.filter((id) => id !== documentId));
+  };
+
   const refreshData = async () => {
     await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments(), fetchShipperHistory()]);
   };
+
+  const documents = allDocuments.filter((d) => !hiddenDocIds.includes(d.id));
 
   return (
     <DataContext.Provider
@@ -340,6 +386,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         locations,
         vehicles,
         documents,
+        allDocuments,
+        hiddenDocIds,
         shipperHistory,
         loadingLocations,
         loadingVehicles,
@@ -353,6 +401,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addDocument,
         signDocument,
         amendVehiclePlates,
+        hideDocumentForProfile,
+        showDocumentForProfile,
         refreshData,
       }}
     >
