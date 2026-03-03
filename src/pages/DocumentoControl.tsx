@@ -343,12 +343,6 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
               <section className="border-2 border-slate-200 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">Vehiculo</h2>
-                  <button
-                    onClick={() => { setAmendTractor(''); setAmendTrailer1(''); setAmendTrailer2(''); setShowAmendModal(true); }}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 active:opacity-70"
-                  >
-                    <PenLine size={14} />Editar Matriculas
-                  </button>
                 </div>
                 <div className="flex flex-wrap gap-4 mb-2">
                   <div><p className="text-sm text-slate-500">Cabeza Tractora</p><p className="text-xl font-bold text-slate-900 font-mono">{content.vehicle.tractor_plate}</p></div>
