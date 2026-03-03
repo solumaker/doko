@@ -46,34 +46,62 @@ function getDestinationLabel(content: Document['content']) {
   };
 }
 
-const PDF_STEPS = [
-  { label: 'Preparando documento', pct: 15 },
-  { label: 'Generando estructura PDF', pct: 35 },
-  { label: 'Aplicando formato legal', pct: 55 },
-  { label: 'Convirtiendo a PDF/A', pct: 75 },
-  { label: 'Subiendo archivo', pct: 90 },
+const PDF_PHASES = [
+  { label: 'Preparando documento', threshold: 0 },
+  { label: 'Generando estructura PDF', threshold: 20 },
+  { label: 'Aplicando formato legal', threshold: 40 },
+  { label: 'Convirtiendo a PDF/A', threshold: 60 },
+  { label: 'Subiendo archivo', threshold: 78 },
 ];
+
+function getPdfPhaseLabel(pct: number) {
+  for (let i = PDF_PHASES.length - 1; i >= 0; i--) {
+    if (pct >= PDF_PHASES[i].threshold) return PDF_PHASES[i].label;
+  }
+  return PDF_PHASES[0].label;
+}
 
 export function DocumentoControl({ document: initialDoc, onBack }: DocumentoControlProps) {
   const { signDocument, amendVehiclePlates } = useData();
   const [doc, setDoc] = useState<Document>(initialDoc);
-  const [pdfProgress, setPdfProgress] = useState(() => (initialDoc.pdf_url || initialDoc.pdf_original_url) ? 100 : 5);
-  const [pdfStepIdx, setPdfStepIdx] = useState(0);
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pdfProgress, setPdfProgress] = useState(() =>
+    (initialDoc.pdf_url || initialDoc.pdf_original_url) ? 100 : 3
+  );
+  const resolvedRef = useRef(false);
+
+  const resolvePdf = (updatedDoc: Partial<Document>) => {
+    if (resolvedRef.current) return;
+    resolvedRef.current = true;
+    setPdfProgress(100);
+    setDoc((prev) => ({ ...prev, ...updatedDoc }));
+  };
 
   useEffect(() => {
-    const alreadyDone = doc.pdf_url || doc.pdf_original_url;
-    if (alreadyDone) {
-      setPdfProgress(100);
+    if (initialDoc.pdf_url || initialDoc.pdf_original_url) {
+      resolvedRef.current = true;
       return;
     }
 
-    let stepIdx = 0;
-    progressIntervalRef.current = setInterval(() => {
-      stepIdx = Math.min(stepIdx + 1, PDF_STEPS.length - 1);
-      setPdfStepIdx(stepIdx);
-      setPdfProgress(PDF_STEPS[stepIdx].pct);
-    }, 3500);
+    let animFrameId: ReturnType<typeof setTimeout>;
+    let currentPct = 3;
+
+    const animateTo = (target: number, duration: number) => {
+      const start = currentPct;
+      const diff = target - start;
+      const startTime = Date.now();
+      const step = () => {
+        if (resolvedRef.current) return;
+        const elapsed = Date.now() - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        currentPct = start + diff * eased;
+        setPdfProgress(Math.round(currentPct));
+        if (t < 1) animFrameId = setTimeout(step, 30);
+      };
+      step();
+    };
+
+    animateTo(88, 20000);
 
     const channel = supabase
       .channel(`doc-pdf-${doc.id}`)
@@ -83,20 +111,30 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
         (payload) => {
           const updated = payload.new as Document;
           if (updated.pdf_url || updated.pdf_original_url) {
-            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-            setPdfProgress(100);
-            setDoc((prev) => ({
-              ...prev,
-              pdf_url: updated.pdf_url,
-              pdf_original_url: updated.pdf_original_url,
-            }));
+            clearTimeout(animFrameId);
+            resolvePdf({ pdf_url: updated.pdf_url, pdf_original_url: updated.pdf_original_url });
           }
         }
       )
       .subscribe();
 
+    const pollInterval = setInterval(async () => {
+      if (resolvedRef.current) { clearInterval(pollInterval); return; }
+      const { data } = await supabase
+        .from('documents')
+        .select('pdf_url, pdf_original_url')
+        .eq('id', doc.id)
+        .maybeSingle();
+      if (data && (data.pdf_url || data.pdf_original_url)) {
+        clearInterval(pollInterval);
+        clearTimeout(animFrameId);
+        resolvePdf({ pdf_url: data.pdf_url, pdf_original_url: data.pdf_original_url });
+      }
+    }, 4000);
+
     return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      clearTimeout(animFrameId);
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [doc.id]);
@@ -374,14 +412,14 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-blue-600 shrink-0" />
                 <span className="text-sm font-semibold text-slate-700">
-                  {pdfProgress < 100 ? PDF_STEPS[pdfStepIdx].label : 'Finalizando...'}
+                  {getPdfPhaseLabel(pdfProgress)}
                 </span>
               </div>
               <span className="text-sm font-bold text-blue-600 tabular-nums">{pdfProgress}%</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-1000 ease-out"
+                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
                 style={{ width: `${pdfProgress}%` }}
               />
             </div>
