@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   Share2,
@@ -12,11 +12,13 @@ import {
   CreditCard,
   AlertCircle,
   Clock,
+  FileText,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import QRCode from 'react-qr-code';
 import { Document, SignatureData } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useData } from '../context/DataContext';
 import { SignatureCanvas, SignatureCanvasRef } from '../components/SignatureCanvas';
 
@@ -44,9 +46,61 @@ function getDestinationLabel(content: Document['content']) {
   };
 }
 
+const PDF_STEPS = [
+  { label: 'Preparando documento', pct: 15 },
+  { label: 'Generando estructura PDF', pct: 35 },
+  { label: 'Aplicando formato legal', pct: 55 },
+  { label: 'Convirtiendo a PDF/A', pct: 75 },
+  { label: 'Subiendo archivo', pct: 90 },
+];
+
 export function DocumentoControl({ document: initialDoc, onBack }: DocumentoControlProps) {
   const { signDocument, amendVehiclePlates } = useData();
   const [doc, setDoc] = useState<Document>(initialDoc);
+  const [pdfProgress, setPdfProgress] = useState(() => (initialDoc.pdf_url || initialDoc.pdf_original_url) ? 100 : 5);
+  const [pdfStepIdx, setPdfStepIdx] = useState(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const alreadyDone = doc.pdf_url || doc.pdf_original_url;
+    if (alreadyDone) {
+      setPdfProgress(100);
+      return;
+    }
+
+    let stepIdx = 0;
+    progressIntervalRef.current = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, PDF_STEPS.length - 1);
+      setPdfStepIdx(stepIdx);
+      setPdfProgress(PDF_STEPS[stepIdx].pct);
+    }, 3500);
+
+    const channel = supabase
+      .channel(`doc-pdf-${doc.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'documents', filter: `id=eq.${doc.id}` },
+        (payload) => {
+          const updated = payload.new as Document;
+          if (updated.pdf_url || updated.pdf_original_url) {
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+            setPdfProgress(100);
+            setDoc((prev) => ({
+              ...prev,
+              pdf_url: updated.pdf_url,
+              pdf_original_url: updated.pdf_original_url,
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [doc.id]);
+
 
   const [showSignModal, setShowSignModal] = useState<'origin' | 'destination' | null>(null);
   const [signFirmante, setSignFirmante] = useState('');
@@ -307,12 +361,34 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
 
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-slate-200 print:hidden space-y-3">
         {downloadUrl ? (
-          <button onClick={handleDownload} className="w-full bg-green-600 text-white text-xl font-bold py-4 rounded-xl active:bg-green-700 flex items-center justify-center gap-3">
-            <Download size={26} />DESCARGAR PDF{!doc.pdf_url && doc.pdf_original_url ? ' (Original)' : ''}
+          <button
+            onClick={handleDownload}
+            className="w-full bg-green-600 text-white text-xl font-bold py-4 rounded-xl active:bg-green-700 flex items-center justify-center gap-3"
+          >
+            <Download size={26} />
+            DESCARGAR PDF{!doc.pdf_url && doc.pdf_original_url ? ' (Original)' : ''}
           </button>
         ) : (
-          <div className="w-full bg-slate-100 text-slate-500 text-base py-4 rounded-xl flex items-center justify-center gap-2">
-            <Loader2 size={20} className="animate-spin" />Generando PDF...
+          <div className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-blue-600 shrink-0" />
+                <span className="text-sm font-semibold text-slate-700">
+                  {pdfProgress < 100 ? PDF_STEPS[pdfStepIdx].label : 'Finalizando...'}
+                </span>
+              </div>
+              <span className="text-sm font-bold text-blue-600 tabular-nums">{pdfProgress}%</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-1000 ease-out"
+                style={{ width: `${pdfProgress}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-400 flex items-center gap-1">
+              <Loader2 size={11} className="animate-spin shrink-0" />
+              Puedes navegar libremente — el PDF se seguira generando
+            </p>
           </div>
         )}
         <button onClick={onBack} className="w-full bg-blue-600 text-white text-xl font-bold py-4 rounded-xl active:bg-blue-700">
