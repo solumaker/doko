@@ -55,6 +55,7 @@ export interface Location {
   id: string;
   company_id: string;
   name: string;
+  nif: string;
   address: string;
   city: string;
   province: string;

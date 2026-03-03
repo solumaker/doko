@@ -16,6 +16,7 @@ export function Lugares({ onBack }: LugaresProps) {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
+    nif: '',
     address: '',
     city: '',
     province: '',
@@ -28,6 +29,7 @@ export function Lugares({ onBack }: LugaresProps) {
   const resetForm = () => {
     setFormData({
       name: '',
+      nif: '',
       address: '',
       city: '',
       province: '',
@@ -41,6 +43,7 @@ export function Lugares({ onBack }: LugaresProps) {
   const handleEdit = (location: Location) => {
     setFormData({
       name: location.name,
+      nif: location.nif || '',
       address: location.address,
       city: location.city,
       province: location.province,
@@ -93,7 +96,7 @@ export function Lugares({ onBack }: LugaresProps) {
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
             <label className="block text-lg font-semibold text-slate-900 mb-2">
-              Nombre (alias)
+              Nombre de empresa
             </label>
             <input
               type="text"
@@ -102,8 +105,24 @@ export function Lugares({ onBack }: LugaresProps) {
                 setFormData({ ...formData, name: e.target.value })
               }
               className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-              placeholder="Ej: Almacen Barcelona"
+              placeholder="Ej: Railsider S.L."
               required
+              disabled={saving}
+            />
+          </div>
+
+          <div>
+            <label className="block text-lg font-semibold text-slate-900 mb-2">
+              DNI / NIF
+            </label>
+            <input
+              type="text"
+              value={formData.nif}
+              onChange={(e) =>
+                setFormData({ ...formData, nif: e.target.value })
+              }
+              className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+              placeholder="Ej: B12345678"
               disabled={saving}
             />
           </div>

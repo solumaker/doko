@@ -222,7 +222,7 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
         .map((l) => ({
           id: `loc-${l.id}`,
           nombre: l.name,
-          nif: '',
+          nif: l.nif || '',
           domicilio: l.address,
           poblacion: l.city,
           company_id: '',
