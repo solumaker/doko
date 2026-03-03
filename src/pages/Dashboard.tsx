@@ -54,14 +54,6 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
           </button>
 
           <button
-            onClick={() => onNavigate('vehiculos')}
-            className="bg-white rounded-xl py-8 px-4 flex flex-col items-center justify-center gap-3 active:bg-slate-50 transition-colors shadow-lg border-2 border-slate-200"
-          >
-            <Truck size={64} className="text-blue-600" strokeWidth={1.5} />
-            <h3 className="text-lg font-bold text-slate-900">Mis Vehiculos</h3>
-          </button>
-
-          <button
             onClick={() => onNavigate('historial')}
             className="bg-white rounded-xl py-8 px-4 flex flex-col items-center justify-center gap-3 active:bg-slate-50 transition-colors shadow-lg border-2 border-slate-200"
           >
