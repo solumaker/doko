@@ -205,14 +205,32 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
     setShipper((s) => ({ ...s, nombre: value }));
     if (value.trim().length >= 1) {
       const q = value.toLowerCase();
-      const matches = shipperHistory.filter(
+      const historyMatches = shipperHistory.filter(
         (h) =>
           h.nombre.toLowerCase().includes(q) ||
           h.nif.toLowerCase().includes(q) ||
           h.poblacion.toLowerCase().includes(q)
       );
-      setSuggestions(matches.slice(0, 5));
-      setShowSuggestions(matches.length > 0);
+      const locationMatches = locations
+        .filter(
+          (l) =>
+            l.name.toLowerCase().includes(q) ||
+            l.city.toLowerCase().includes(q) ||
+            l.address.toLowerCase().includes(q)
+        )
+        .filter((l) => !historyMatches.some((h) => h.nombre.toLowerCase() === l.name.toLowerCase()))
+        .map((l) => ({
+          id: `loc-${l.id}`,
+          nombre: l.name,
+          nif: '',
+          domicilio: l.address,
+          poblacion: l.city,
+          company_id: '',
+          created_at: '',
+        } as ShipperHistory));
+      const combined = [...historyMatches, ...locationMatches].slice(0, 6);
+      setSuggestions(combined);
+      setShowSuggestions(combined.length > 0);
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
