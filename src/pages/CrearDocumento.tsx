@@ -11,6 +11,7 @@ import {
   Loader2,
   Clock,
   ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -175,6 +176,7 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
 
   const [step, setStep] = useState<Step>(1);
   const [generating, setGenerating] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [shipper, setShipper] = useState<ShipperForm>({ nombre: '', nif: '', domicilio: '', poblacion: '' });
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -603,7 +605,7 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
           </button>
         ) : (
           <button
-            onClick={handleGenerate}
+            onClick={() => setShowConfirmModal(true)}
             disabled={generating}
             className="w-full bg-green-600 text-white text-xl font-bold py-5 rounded-xl flex items-center justify-center gap-3 active:bg-green-700 disabled:bg-green-400"
           >
@@ -611,6 +613,93 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
           </button>
         )}
       </div>
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="bg-slate-800 px-5 py-4 flex items-center gap-3">
+              <div className="bg-white/10 p-2 rounded-xl">
+                <FileText size={24} className="text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Confirmar documento</h2>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <p className="text-base text-slate-600">Revisa el resumen antes de generar el documento oficial.</p>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl divide-y divide-slate-200 text-sm">
+                <div className="px-4 py-3 flex gap-3">
+                  <Building2 size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Cargador</p>
+                    <p className="font-semibold text-slate-900">{shipper.nombre}</p>
+                    <p className="text-slate-600">{shipper.poblacion}</p>
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex gap-3">
+                  <MapPin size={16} className="text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Origen</p>
+                    <p className="font-semibold text-slate-900">{effectiveOrigin.empresa || effectiveOrigin.domicilio}</p>
+                    <p className="text-slate-600">{effectiveOrigin.poblacion}</p>
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex gap-3">
+                  <MapPin size={16} className="text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Destino</p>
+                    <p className="font-semibold text-slate-900">{destination.empresa || destination.domicilio}</p>
+                    <p className="text-slate-600">{destination.poblacion}</p>
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex gap-3">
+                  <Truck size={16} className="text-slate-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Vehiculo</p>
+                    <p className="font-semibold text-slate-900 font-mono">{vehicle.tractor_plate}</p>
+                    {vehicle.trailer_plate_1 && <p className="text-slate-600 font-mono">R1: {vehicle.trailer_plate_1}</p>}
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex gap-3">
+                  <Package size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Carga</p>
+                    <p className="font-semibold text-slate-900">{cargo.description}</p>
+                    <p className="text-slate-600">{cargo.weight_kg.toLocaleString()} kg</p>
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex gap-3">
+                  <Calendar size={16} className="text-slate-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mb-0.5">Salida</p>
+                    <p className="font-semibold text-slate-900">{format(departureDate, "d/MM/yyyy", { locale: es })}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    handleGenerate();
+                  }}
+                  disabled={generating}
+                  className="flex-1 bg-green-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 active:bg-green-700 disabled:bg-green-400"
+                >
+                  {generating ? <Loader2 size={22} className="animate-spin" /> : <Check size={22} />}
+                  Generar
+                </button>
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 bg-slate-200 text-slate-700 py-4 rounded-xl font-bold text-lg active:bg-slate-300"
+                >
+                  Revisar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
