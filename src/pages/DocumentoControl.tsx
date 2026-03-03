@@ -383,10 +383,6 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
                 </div>
               </section>
 
-              <div className="space-y-3">
-                <SignatureBlock side="origin" label="Origen" />
-                <SignatureBlock side="destination" label="Destino" />
-              </div>
             </div>
 
             <div className="mt-6 pt-4 border-t-2 border-slate-200 text-center">
