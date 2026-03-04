@@ -80,18 +80,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     await fetchUsage();
   }, [fetchUsage]);
 
-  const getAccessToken = useCallback(async (): Promise<string | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) return session.access_token;
-    const { data: refreshed } = await supabase.auth.refreshSession();
-    return refreshed.session?.access_token ?? null;
-  }, []);
-
   const createCheckoutSession = useCallback(async (plan: PlanId) => {
-    const token = await getAccessToken();
-    if (!token) return;
     const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-      headers: { Authorization: `Bearer ${token}` },
       body: {
         plan,
         mode: 'subscription',
@@ -100,16 +90,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       },
     });
 
+    if (error) console.error('stripe-checkout error:', error);
     if (!error && data?.url) {
       window.location.href = data.url;
     }
-  }, [getAccessToken]);
+  }, []);
 
   const purchaseDocumentPack = useCallback(async () => {
-    const token = await getAccessToken();
-    if (!token) return;
     const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-      headers: { Authorization: `Bearer ${token}` },
       body: {
         mode: 'payment',
         pack: true,
@@ -118,23 +106,22 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       },
     });
 
+    if (error) console.error('stripe-checkout error:', error);
     if (!error && data?.url) {
       window.location.href = data.url;
     }
-  }, [getAccessToken]);
+  }, []);
 
   const openCustomerPortal = useCallback(async () => {
-    const token = await getAccessToken();
-    if (!token) return;
     const { data, error } = await supabase.functions.invoke('stripe-portal', {
-      headers: { Authorization: `Bearer ${token}` },
       body: { return_url: window.location.origin },
     });
 
+    if (error) console.error('stripe-portal error:', error);
     if (!error && data?.url) {
       window.location.href = data.url;
     }
-  }, [getAccessToken]);
+  }, []);
 
   return (
     <SubscriptionContext.Provider
