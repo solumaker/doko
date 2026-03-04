@@ -19,7 +19,7 @@ interface SubscriptionContextType {
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { profile, company, session } = useAuth();
+  const { profile, company } = useAuth();
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -80,44 +80,52 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     await fetchUsage();
   }, [fetchUsage]);
 
+  const getToken = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }, []);
+
   const createCheckoutSession = useCallback(async (plan: PlanId) => {
-    if (!session?.access_token) return;
+    const token = await getToken();
+    if (!token) return;
     const { data, ok } = await callEdgeFunction('stripe-checkout', {
       plan,
       mode: 'subscription',
       success_url: `${window.location.origin}?checkout_success=true`,
       cancel_url: `${window.location.origin}?checkout_cancel=true`,
-    }, session.access_token);
+    }, token);
 
     if (ok && data.url) {
       window.location.href = data.url;
     }
-  }, [session?.access_token]);
+  }, [getToken]);
 
   const purchaseDocumentPack = useCallback(async () => {
-    if (!session?.access_token) return;
+    const token = await getToken();
+    if (!token) return;
     const { data, ok } = await callEdgeFunction('stripe-checkout', {
       mode: 'payment',
       pack: true,
       success_url: `${window.location.origin}?checkout_success=true&type=pack`,
       cancel_url: `${window.location.origin}?checkout_cancel=true`,
-    }, session.access_token);
+    }, token);
 
     if (ok && data.url) {
       window.location.href = data.url;
     }
-  }, [session?.access_token]);
+  }, [getToken]);
 
   const openCustomerPortal = useCallback(async () => {
-    if (!session?.access_token) return;
+    const token = await getToken();
+    if (!token) return;
     const { data, ok } = await callEdgeFunction('stripe-portal', {
       return_url: window.location.origin,
-    }, session.access_token);
+    }, token);
 
     if (ok && data.url) {
       window.location.href = data.url;
     }
-  }, [session?.access_token]);
+  }, [getToken]);
 
   return (
     <SubscriptionContext.Provider
