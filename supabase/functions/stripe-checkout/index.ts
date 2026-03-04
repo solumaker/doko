@@ -9,10 +9,10 @@ const corsHeaders = {
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const PLAN_PRICES: Record<string, { price_lookup: string; doc_limit: number; user_limit: number }> = {
-  autonomo: { price_lookup: "autonomo_monthly", doc_limit: 100, user_limit: 1 },
-  pyme: { price_lookup: "pyme_monthly", doc_limit: 500, user_limit: 3 },
-  flotas: { price_lookup: "flotas_monthly", doc_limit: 2500, user_limit: 10 },
+const PLAN_PRICES: Record<string, { price_id: string; doc_limit: number; user_limit: number }> = {
+  autonomo: { price_id: "price_1T7HOQBnbfHLJ2lEWtdSMHiR", doc_limit: 100, user_limit: 1 },
+  pyme: { price_id: "price_1T7HOaBnbfHLJ2lE0ks9Mm3O", doc_limit: 500, user_limit: 3 },
+  flotas: { price_id: "price_1T7HOiBnbfHLJ2lEBqyi2aGL", doc_limit: 2500, user_limit: 10 },
 };
 
 Deno.serve(async (req: Request) => {
@@ -133,34 +133,10 @@ Deno.serve(async (req: Request) => {
     if (mode === "subscription" && plan && PLAN_PRICES[plan]) {
       const planConfig = PLAN_PRICES[plan];
 
-      const prices = await stripe.prices.list({
-        lookup_keys: [planConfig.price_lookup],
-        active: true,
-        limit: 1,
-      });
-
-      let priceId: string;
-      if (prices.data.length > 0) {
-        priceId = prices.data[0].id;
-      } else {
-        const product = await stripe.products.create({
-          name: `DOKO ${plan.charAt(0).toUpperCase() + plan.slice(1)}`,
-          metadata: { plan },
-        });
-        const price = await stripe.prices.create({
-          product: product.id,
-          currency: "eur",
-          unit_amount: plan === "autonomo" ? 4000 : plan === "pyme" ? 9900 : 20000,
-          recurring: { interval: "month" },
-          lookup_key: planConfig.price_lookup,
-        });
-        priceId = price.id;
-      }
-
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "subscription",
-        line_items: [{ price: priceId, quantity: 1 }],
+        line_items: [{ price: planConfig.price_id, quantity: 1 }],
         subscription_data: {
           trial_period_days: 7,
           metadata: {
