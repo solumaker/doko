@@ -1,4 +1,5 @@
 import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings } from 'lucide-react';
+import { format } from 'date-fns';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
 import { useSubscription } from '../context/SubscriptionContext';
 import { useState } from 'react';
@@ -55,6 +56,16 @@ export function Planes({ onBack }: PlanesProps) {
   const planLabel = currentPlan ? PLAN_CONFIG[currentPlan]?.name : 'Gratuito (prueba)';
   const statusLabel = usage?.status === 'trialing' ? 'Periodo de prueba' : usage?.status === 'active' ? 'Activa' : usage?.is_trial_active ? 'Periodo de prueba' : 'Sin suscripcion';
 
+  const dateLabel = (() => {
+    if (hasActiveSubscription && usage?.current_period_end) {
+      return `Se renueva el ${format(new Date(usage.current_period_end), 'dd/MM/yyyy')}`;
+    }
+    if (!hasActiveSubscription && usage?.trial_ends_at) {
+      return `Vence el ${format(new Date(usage.trial_ends_at), 'dd/MM/yyyy')}`;
+    }
+    return null;
+  })();
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
@@ -93,6 +104,9 @@ export function Planes({ onBack }: PlanesProps) {
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${hasActiveSubscription ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                 {statusLabel}
               </span>
+              {dateLabel && (
+                <p className="text-xs text-slate-400 mt-1">{dateLabel}</p>
+              )}
             </div>
           </div>
 

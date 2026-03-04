@@ -59,7 +59,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const hasActiveSubscription = usage?.status === 'active' || usage?.status === 'trialing';
 
-  const isTrialExpired = !isTrialActive && !hasActiveSubscription && !!profile;
+  const isTrialExpired = !loading && usage !== null && !isTrialActive && !hasActiveSubscription && !!profile;
 
   const trialDaysLeft = (() => {
     if (!company?.trial_ends_at) return 0;

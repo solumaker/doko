@@ -1,6 +1,5 @@
 import { MapPin, Clock, FileText, LogOut, Users, CreditCard, ArrowUpCircle, Package, Settings } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { PLAN_CONFIG } from '../lib/supabase';
@@ -24,12 +23,18 @@ function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => vo
   } = useSubscription();
 
   if (isTrialActive) {
+    const trialEndDate = usage?.trial_ends_at
+      ? format(new Date(usage.trial_ends_at), 'dd/MM/yyyy')
+      : null;
     return (
       <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-3">
         <div className="flex items-center justify-between">
           <div>
             <p className="font-bold text-base">Prueba gratuita</p>
             <p className="text-green-100 text-sm">{trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'} restantes</p>
+            {trialEndDate && (
+              <p className="text-green-200 text-xs mt-0.5">Vence el {trialEndDate}</p>
+            )}
           </div>
           <button
             onClick={() => onNavigate('planes')}
@@ -103,7 +108,7 @@ function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => vo
 
           {usage.current_period_end && (
             <p className="text-xs text-slate-400">
-              Se renueva el {format(new Date(usage.current_period_end), "d 'de' MMMM, yyyy", { locale: es })}
+              Se renueva el {format(new Date(usage.current_period_end), 'dd/MM/yyyy')}
             </p>
           )}
 
