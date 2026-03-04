@@ -81,8 +81,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [fetchUsage]);
 
   const getToken = useCallback(async () => {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      return sessionData.session?.access_token ?? null;
+    }
+    return data.session.access_token;
   }, []);
 
   const createCheckoutSession = useCallback(async (plan: PlanId) => {
