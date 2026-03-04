@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase, SubscriptionUsage, PlanId, callEdgeFunction } from '../lib/supabase';
+import { supabase, SubscriptionUsage, PlanId } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 interface SubscriptionContextType {
@@ -80,56 +80,45 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     await fetchUsage();
   }, [fetchUsage]);
 
-  const getToken = useCallback(async () => {
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error || !data.session) {
-      const { data: sessionData } = await supabase.auth.getSession();
-      return sessionData.session?.access_token ?? null;
+  const createCheckoutSession = useCallback(async (plan: PlanId) => {
+    const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+      body: {
+        plan,
+        mode: 'subscription',
+        success_url: `${window.location.origin}?checkout_success=true`,
+        cancel_url: `${window.location.origin}?checkout_cancel=true`,
+      },
+    });
+
+    if (!error && data?.url) {
+      window.location.href = data.url;
     }
-    return data.session.access_token;
   }, []);
 
-  const createCheckoutSession = useCallback(async (plan: PlanId) => {
-    const token = await getToken();
-    if (!token) return;
-    const { data, ok } = await callEdgeFunction('stripe-checkout', {
-      plan,
-      mode: 'subscription',
-      success_url: `${window.location.origin}?checkout_success=true`,
-      cancel_url: `${window.location.origin}?checkout_cancel=true`,
-    }, token);
-
-    if (ok && data.url) {
-      window.location.href = data.url;
-    }
-  }, [getToken]);
-
   const purchaseDocumentPack = useCallback(async () => {
-    const token = await getToken();
-    if (!token) return;
-    const { data, ok } = await callEdgeFunction('stripe-checkout', {
-      mode: 'payment',
-      pack: true,
-      success_url: `${window.location.origin}?checkout_success=true&type=pack`,
-      cancel_url: `${window.location.origin}?checkout_cancel=true`,
-    }, token);
+    const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+      body: {
+        mode: 'payment',
+        pack: true,
+        success_url: `${window.location.origin}?checkout_success=true&type=pack`,
+        cancel_url: `${window.location.origin}?checkout_cancel=true`,
+      },
+    });
 
-    if (ok && data.url) {
+    if (!error && data?.url) {
       window.location.href = data.url;
     }
-  }, [getToken]);
+  }, []);
 
   const openCustomerPortal = useCallback(async () => {
-    const token = await getToken();
-    if (!token) return;
-    const { data, ok } = await callEdgeFunction('stripe-portal', {
-      return_url: window.location.origin,
-    }, token);
+    const { data, error } = await supabase.functions.invoke('stripe-portal', {
+      body: { return_url: window.location.origin },
+    });
 
-    if (ok && data.url) {
+    if (!error && data?.url) {
       window.location.href = data.url;
     }
-  }, [getToken]);
+  }, []);
 
   return (
     <SubscriptionContext.Provider
