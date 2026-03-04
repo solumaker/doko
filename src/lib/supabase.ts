@@ -31,7 +31,62 @@ export interface Company {
   province: string;
   postal_code: string;
   phone: string;
+  stripe_customer_id?: string;
+  trial_ends_at?: string;
   created_at: string;
+}
+
+export type PlanId = 'autonomo' | 'pyme' | 'flotas';
+
+export interface PlanConfig {
+  id: PlanId;
+  name: string;
+  price: number;
+  document_limit: number;
+  user_limit: number;
+  support: string;
+}
+
+export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
+  autonomo: { id: 'autonomo', name: 'Autonomo', price: 40, document_limit: 100, user_limit: 1, support: 'Email' },
+  pyme: { id: 'pyme', name: 'Pyme', price: 99, document_limit: 500, user_limit: 3, support: 'Email prioritario' },
+  flotas: { id: 'flotas', name: 'Flotas', price: 200, document_limit: 2500, user_limit: 10, support: 'Telefono y email' },
+};
+
+export interface Subscription {
+  id: string;
+  company_id: string;
+  stripe_subscription_id: string | null;
+  plan: PlanId;
+  status: 'active' | 'past_due' | 'canceled' | 'trialing' | 'incomplete';
+  document_limit: number;
+  user_limit: number;
+  current_period_start: string;
+  current_period_end: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentPack {
+  id: string;
+  company_id: string;
+  stripe_payment_intent_id: string | null;
+  documents_purchased: number;
+  documents_remaining: number;
+  purchased_at: string;
+}
+
+export interface SubscriptionUsage {
+  documents_used: number;
+  document_limit: number;
+  documents_extra_remaining: number;
+  users_count: number;
+  user_limit: number;
+  plan: PlanId | null;
+  status: string | null;
+  current_period_end: string | null;
+  trial_ends_at: string | null;
+  is_trial_active: boolean;
 }
 
 export interface Profile {

@@ -1,11 +1,134 @@
-import { MapPin, Truck, Clock, FileText, LogOut, Users } from 'lucide-react';
+import { MapPin, Clock, FileText, LogOut, Users, CreditCard, ArrowUpCircle, Package, Settings } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
+import { PLAN_CONFIG } from '../lib/supabase';
 
-type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo';
+type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes';
 
 interface DashboardProps {
   onNavigate: (screen: Screen) => void;
   onLogout: () => void;
+}
+
+function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
+  const {
+    usage,
+    isTrialActive,
+    isTrialExpired,
+    hasActiveSubscription,
+    trialDaysLeft,
+    openCustomerPortal,
+    purchaseDocumentPack,
+  } = useSubscription();
+
+  if (isTrialActive) {
+    return (
+      <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-bold text-base">Prueba gratuita</p>
+            <p className="text-green-100 text-sm">{trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'} restantes</p>
+          </div>
+          <button
+            onClick={() => onNavigate('planes')}
+            className="bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold active:bg-white/30 transition-colors"
+          >
+            Elegir plan
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTrialExpired && !hasActiveSubscription) {
+    return (
+      <div className="bg-red-600 text-white px-4 py-3">
+        <div className="flex items-center justify-between">
+          <p className="font-bold text-base">Prueba finalizada</p>
+          <button
+            onClick={() => onNavigate('planes')}
+            className="bg-white text-red-600 px-4 py-2 rounded-lg text-sm font-bold active:bg-red-50 transition-colors"
+          >
+            Elegir plan
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasActiveSubscription && usage) {
+    const plan = usage.plan ? PLAN_CONFIG[usage.plan] : null;
+    const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
+    const usagePercent = totalAvailable > 0 ? Math.min(100, (usage.documents_used / totalAvailable) * 100) : 0;
+    const barColor = usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-green-500';
+
+    return (
+      <div className="mx-4 mt-4 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CreditCard size={18} className="text-blue-600" />
+            <span className="font-bold text-slate-900">Plan {plan?.name}</span>
+            <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">Activo</span>
+          </div>
+          <button
+            onClick={openCustomerPortal}
+            className="text-slate-400 active:text-slate-600"
+          >
+            <Settings size={18} />
+          </button>
+        </div>
+
+        <div className="px-4 py-3 space-y-3">
+          <div>
+            <div className="flex items-baseline justify-between mb-1.5">
+              <span className="text-sm font-medium text-slate-600">Documentos este mes</span>
+              <span className="text-sm font-bold text-slate-900">{usage.documents_used} / {usage.document_limit}</span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${usagePercent}%` }} />
+            </div>
+            {usage.documents_extra_remaining > 0 && (
+              <p className="text-xs text-blue-600 font-medium mt-1">
+                +{usage.documents_extra_remaining} documentos extra disponibles
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">Usuarios</span>
+            <span className="font-bold text-slate-900">{usage.users_count} / {usage.user_limit}</span>
+          </div>
+
+          {usage.current_period_end && (
+            <p className="text-xs text-slate-400">
+              Se renueva el {format(new Date(usage.current_period_end), "d 'de' MMMM, yyyy", { locale: es })}
+            </p>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={purchaseDocumentPack}
+              className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 active:bg-slate-200 transition-colors"
+            >
+              <Package size={14} />
+              +10 docs
+            </button>
+            <button
+              onClick={() => onNavigate('planes')}
+              className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 active:bg-slate-200 transition-colors"
+            >
+              <ArrowUpCircle size={14} />
+              Cambiar plan
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
@@ -29,9 +152,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
         <p className="text-blue-100 mt-2 text-base">{company?.name || 'Empresa'}</p>
       </header>
 
-      <div className="bg-green-600 text-white text-center py-2 px-4">
-        <p className="text-base font-semibold">Prueba gratis 7 dias activa</p>
-      </div>
+      {isAdmin && <SubscriptionBanner onNavigate={onNavigate} />}
 
       <main className="flex-1 px-4 py-6">
         <button

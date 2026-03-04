@@ -1,0 +1,70 @@
+import { useEffect } from 'react';
+import { CheckCircle2, XCircle } from 'lucide-react';
+import { useSubscription } from '../context/SubscriptionContext';
+
+interface StripeReturnProps {
+  success: boolean;
+  isPack: boolean;
+  onContinue: () => void;
+}
+
+export function StripeReturn({ success, isPack, onContinue }: StripeReturnProps) {
+  const { refreshSubscription } = useSubscription();
+
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        refreshSubscription();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [success, refreshSubscription]);
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+      <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full overflow-hidden">
+        {success ? (
+          <>
+            <div className="bg-gradient-to-br from-green-500 to-green-600 px-6 py-10 text-center">
+              <CheckCircle2 size={56} className="text-white mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white">
+                {isPack ? 'Documentos adquiridos' : 'Suscripcion activada'}
+              </h2>
+            </div>
+            <div className="p-6 text-center space-y-4">
+              <p className="text-base text-slate-600">
+                {isPack
+                  ? 'Se han anadido +10 documentos a tu saldo.'
+                  : 'Tu plan ya esta activo. Puedes empezar a crear documentos.'}
+              </p>
+              <button
+                onClick={onContinue}
+                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg active:bg-blue-700 transition-colors"
+              >
+                Ir al Dashboard
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="bg-slate-800 px-6 py-10 text-center">
+              <XCircle size={56} className="text-slate-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white">Pago cancelado</h2>
+            </div>
+            <div className="p-6 text-center space-y-4">
+              <p className="text-base text-slate-600">
+                No se ha realizado ningun cargo. Puedes intentarlo de nuevo cuando quieras.
+              </p>
+              <button
+                onClick={onContinue}
+                className="w-full bg-slate-800 text-white py-4 rounded-xl font-bold text-lg active:bg-slate-900 transition-colors"
+              >
+                Volver
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

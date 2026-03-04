@@ -16,12 +16,16 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { Document, DocumentContent, ShipperHistory, Location } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
+import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
 interface CrearDocumentoProps {
   onBack: () => void;
   onComplete: (document: Document) => void;
+  onNavigatePlanes?: () => void;
 }
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -171,12 +175,15 @@ function LocationAutocomplete({
   );
 }
 
-export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
+export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDocumentoProps) {
   const { addDocument, shipperHistory, locations } = useData();
+  const { isAdmin } = useAuth();
+  const { canCreateDocument, purchaseDocumentPack } = useSubscription();
 
   const [step, setStep] = useState<Step>(1);
   const [generating, setGenerating] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   const [shipper, setShipper] = useState<ShipperForm>({ nombre: '', nif: '', domicilio: '', poblacion: '' });
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -300,6 +307,10 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
   const handleBack = () => { if (step > 1) setStep((step - 1) as Step); else onBack(); };
 
   const handleGenerate = async () => {
+    if (!canCreateDocument()) {
+      setShowLimitModal(true);
+      return;
+    }
     setGenerating(true);
     const content: DocumentContent = {
       contractual_shipper: {
@@ -699,6 +710,15 @@ export function CrearDocumento({ onBack, onComplete }: CrearDocumentoProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {showLimitModal && (
+        <DocumentLimitModal
+          isAdmin={isAdmin}
+          onClose={() => setShowLimitModal(false)}
+          onBuyPack={() => { setShowLimitModal(false); purchaseDocumentPack(); }}
+          onUpgradePlan={() => { setShowLimitModal(false); onNavigatePlanes?.(); }}
+        />
       )}
     </div>
   );

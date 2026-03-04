@@ -1,9 +1,12 @@
-import { FileText, LogOut, Clock, Loader2, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { FileText, LogOut, Clock, Loader2, ChevronRight, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { Document } from '../lib/supabase';
+import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
 interface DriverDashboardProps {
   onCreateDocument: () => void;
@@ -14,8 +17,19 @@ interface DriverDashboardProps {
 export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: DriverDashboardProps) {
   const { profile, company } = useAuth();
   const { documents, loadingDocuments } = useData();
+  const { canCreateDocument } = useSubscription();
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   const recentDocs = documents.slice(0, 10);
+  const limitReached = !canCreateDocument();
+
+  const handleCreateDocument = () => {
+    if (limitReached) {
+      setShowLimitModal(true);
+      return;
+    }
+    onCreateDocument();
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -37,12 +51,28 @@ export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: 
 
       <main className="flex-1 px-4 py-5">
         <button
-          onClick={onCreateDocument}
-          className="w-full bg-green-600 text-white rounded-2xl py-7 px-6 mb-6 active:bg-green-700 transition-colors shadow-lg"
+          onClick={handleCreateDocument}
+          className={`w-full rounded-2xl py-7 px-6 mb-6 transition-colors shadow-lg ${
+            limitReached
+              ? 'bg-slate-400 text-white'
+              : 'bg-green-600 text-white active:bg-green-700'
+          }`}
         >
           <div className="flex items-center justify-center gap-4">
-            <FileText size={44} strokeWidth={2.5} />
-            <span className="text-2xl font-bold">NUEVO DOCUMENTO</span>
+            {limitReached ? (
+              <>
+                <AlertTriangle size={44} strokeWidth={2.5} />
+                <div className="text-left">
+                  <span className="text-2xl font-bold block">NUEVO DOCUMENTO</span>
+                  <span className="text-sm opacity-80">Limite alcanzado</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <FileText size={44} strokeWidth={2.5} />
+                <span className="text-2xl font-bold">NUEVO DOCUMENTO</span>
+              </>
+            )}
           </div>
         </button>
 
@@ -88,6 +118,13 @@ export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: 
           </div>
         )}
       </main>
+
+      {showLimitModal && (
+        <DocumentLimitModal
+          isAdmin={false}
+          onClose={() => setShowLimitModal(false)}
+        />
+      )}
     </div>
   );
 }
