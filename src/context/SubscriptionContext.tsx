@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase, SubscriptionUsage, PlanId } from '../lib/supabase';
+import { supabase, callEdgeFunction, SubscriptionUsage, PlanId } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 interface SubscriptionContextType {
@@ -80,48 +80,57 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     await fetchUsage();
   }, [fetchUsage]);
 
-  const createCheckoutSession = useCallback(async (plan: PlanId) => {
-    const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-      body: {
-        plan,
-        mode: 'subscription',
-        success_url: `${window.location.origin}?checkout_success=true`,
-        cancel_url: `${window.location.origin}?checkout_cancel=true`,
-      },
-    });
+  const getToken = useCallback(async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) return session.access_token;
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    return refreshed.session?.access_token ?? null;
+  }, []);
 
-    if (error) console.error('stripe-checkout error:', error);
-    if (!error && data?.url) {
+  const createCheckoutSession = useCallback(async (plan: PlanId) => {
+    const token = await getToken();
+    if (!token) { console.error('stripe-checkout: no auth token'); return; }
+    const { data, ok } = await callEdgeFunction('stripe-checkout', {
+      plan,
+      mode: 'subscription',
+      success_url: `${window.location.origin}?checkout_success=true`,
+      cancel_url: `${window.location.origin}?checkout_cancel=true`,
+    }, token);
+
+    if (!ok) console.error('stripe-checkout error:', data);
+    if (ok && data?.url) {
       window.location.href = data.url;
     }
-  }, []);
+  }, [getToken]);
 
   const purchaseDocumentPack = useCallback(async () => {
-    const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-      body: {
-        mode: 'payment',
-        pack: true,
-        success_url: `${window.location.origin}?checkout_success=true&type=pack`,
-        cancel_url: `${window.location.origin}?checkout_cancel=true`,
-      },
-    });
+    const token = await getToken();
+    if (!token) { console.error('stripe-checkout: no auth token'); return; }
+    const { data, ok } = await callEdgeFunction('stripe-checkout', {
+      mode: 'payment',
+      pack: true,
+      success_url: `${window.location.origin}?checkout_success=true&type=pack`,
+      cancel_url: `${window.location.origin}?checkout_cancel=true`,
+    }, token);
 
-    if (error) console.error('stripe-checkout error:', error);
-    if (!error && data?.url) {
+    if (!ok) console.error('stripe-checkout error:', data);
+    if (ok && data?.url) {
       window.location.href = data.url;
     }
-  }, []);
+  }, [getToken]);
 
   const openCustomerPortal = useCallback(async () => {
-    const { data, error } = await supabase.functions.invoke('stripe-portal', {
-      body: { return_url: window.location.origin },
-    });
+    const token = await getToken();
+    if (!token) { console.error('stripe-portal: no auth token'); return; }
+    const { data, ok } = await callEdgeFunction('stripe-portal', {
+      return_url: window.location.origin,
+    }, token);
 
-    if (error) console.error('stripe-portal error:', error);
-    if (!error && data?.url) {
+    if (!ok) console.error('stripe-portal error:', data);
+    if (ok && data?.url) {
       window.location.href = data.url;
     }
-  }, []);
+  }, [getToken]);
 
   return (
     <SubscriptionContext.Provider
