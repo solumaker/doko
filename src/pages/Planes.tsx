@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Star, CreditCard, Package, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings } from 'lucide-react';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
 import { useSubscription } from '../context/SubscriptionContext';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ export function Planes({ onBack }: PlanesProps) {
   const { usage, hasActiveSubscription, createCheckoutSession, purchaseDocumentPack, openCustomerPortal } = useSubscription();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [loadingPack, setLoadingPack] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
 
   const currentPlan = usage?.plan;
 
@@ -39,6 +40,21 @@ export function Planes({ onBack }: PlanesProps) {
     setLoadingPack(false);
   };
 
+  const handleOpenPortal = async () => {
+    setLoadingPortal(true);
+    await openCustomerPortal();
+    setLoadingPortal(false);
+  };
+
+  const docsUsed = usage?.documents_used ?? 0;
+  const docsLimit = usage?.document_limit ?? 0;
+  const docsExtra = usage?.documents_extra_remaining ?? 0;
+  const totalLimit = docsLimit + docsExtra;
+  const docsPct = totalLimit > 0 ? Math.min(100, Math.round((docsUsed / totalLimit) * 100)) : 0;
+
+  const planLabel = currentPlan ? PLAN_CONFIG[currentPlan]?.name : 'Gratuito (prueba)';
+  const statusLabel = usage?.status === 'trialing' ? 'Periodo de prueba' : usage?.status === 'active' ? 'Activa' : usage?.is_trial_active ? 'Periodo de prueba' : 'Sin suscripcion';
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
@@ -49,6 +65,63 @@ export function Planes({ onBack }: PlanesProps) {
       </header>
 
       <main className="flex-1 px-4 py-6 space-y-4 pb-8">
+
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-700 uppercase tracking-wide">Mi Suscripcion</h2>
+            {hasActiveSubscription && (
+              <button
+                onClick={handleOpenPortal}
+                disabled={loadingPortal}
+                className="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2 rounded-lg active:bg-slate-900 transition-colors disabled:opacity-60"
+              >
+                {loadingPortal ? <Loader2 size={15} className="animate-spin" /> : <Settings size={15} />}
+                Gestionar
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`p-2.5 rounded-xl ${hasActiveSubscription ? 'bg-green-100' : 'bg-amber-100'}`}>
+              {hasActiveSubscription
+                ? <ShieldCheck size={22} className="text-green-600" />
+                : <Clock size={22} className="text-amber-600" />
+              }
+            </div>
+            <div>
+              <p className="text-lg font-bold text-slate-900">{planLabel}</p>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${hasActiveSubscription ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                {statusLabel}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-baseline mb-1.5">
+              <span className="text-sm font-medium text-slate-600">Documentos utilizados</span>
+              <span className="text-sm font-bold text-slate-800">
+                {docsUsed} / {totalLimit > 0 ? totalLimit : '—'}
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+              <div
+                className={`h-3 rounded-full transition-all duration-500 ${
+                  docsPct >= 90 ? 'bg-red-500' : docsPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'
+                }`}
+                style={{ width: totalLimit > 0 ? `${docsPct}%` : '0%' }}
+              />
+            </div>
+            {docsExtra > 0 && (
+              <p className="text-xs text-slate-500 mt-1.5">
+                Incluye <span className="font-semibold text-amber-600">{docsExtra} extra</span> sin caducidad
+              </p>
+            )}
+            {totalLimit === 0 && (
+              <p className="text-xs text-slate-400 mt-1.5">Sin limite asignado en periodo de prueba</p>
+            )}
+          </div>
+        </div>
+
         {planOrder.map((planId) => {
           const plan = PLAN_CONFIG[planId];
           const isCurrentPlan = hasActiveSubscription && currentPlan === planId;
