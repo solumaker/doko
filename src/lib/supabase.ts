@@ -98,6 +98,8 @@ export interface SubscriptionUsage {
   current_period_end: string | null;
   trial_ends_at: string | null;
   is_trial_active: boolean;
+  trial_docs_used: number;
+  trial_doc_limit: number;
 }
 
 export interface Profile {

@@ -1,7 +1,7 @@
 import { MapPin, Clock, FileText, LogOut, Users, CreditCard, ArrowUpCircle, Package, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuth } from '../context/AuthContext';
-import { useSubscription } from '../context/SubscriptionContext';
+import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
 import { PLAN_CONFIG } from '../lib/supabase';
 
 type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes';
@@ -18,6 +18,8 @@ function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => vo
     isTrialExpired,
     hasActiveSubscription,
     trialDaysLeft,
+    trialDocsUsed,
+    trialDocsLeft,
     openCustomerPortal,
     purchaseDocumentPack,
   } = useSubscription();
@@ -26,19 +28,33 @@ function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => vo
     const trialEndDate = usage?.trial_ends_at
       ? format(new Date(usage.trial_ends_at), 'dd/MM/yyyy')
       : null;
+    const docsPct = Math.min(100, Math.round((trialDocsUsed / TRIAL_DOC_LIMIT) * 100));
+    const docsBarColor = docsPct >= 80 ? 'bg-red-300' : docsPct >= 60 ? 'bg-yellow-300' : 'bg-white/60';
+
     return (
       <div className="bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
             <p className="font-bold text-base">Prueba gratuita</p>
-            <p className="text-green-100 text-sm">{trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'} restantes</p>
+            <p className="text-green-100 text-sm mt-0.5">
+              Tu prueba termina cuando pasen <span className="font-bold text-white">{trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'}</span> o uses <span className="font-bold text-white">{trialDocsLeft} {trialDocsLeft === 1 ? 'documento' : 'documentos'}</span> mas
+            </p>
             {trialEndDate && (
-              <p className="text-green-200 text-xs mt-0.5">Vence el {trialEndDate}</p>
+              <p className="text-green-200 text-xs mt-1">Vence el {trialEndDate}</p>
             )}
+            <div className="mt-2.5">
+              <div className="flex justify-between text-xs text-green-100 mb-1">
+                <span>Documentos usados</span>
+                <span className="font-bold text-white">{trialDocsUsed} / {TRIAL_DOC_LIMIT}</span>
+              </div>
+              <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${docsBarColor}`} style={{ width: `${docsPct}%` }} />
+              </div>
+            </div>
           </div>
           <button
             onClick={() => onNavigate('planes')}
-            className="bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold active:bg-white/30 transition-colors"
+            className="bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold active:bg-white/30 transition-colors shrink-0 mt-0.5"
           >
             Elegir plan
           </button>
@@ -51,10 +67,13 @@ function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => vo
     return (
       <div className="bg-red-600 text-white px-4 py-3">
         <div className="flex items-center justify-between">
-          <p className="font-bold text-base">Prueba finalizada</p>
+          <div>
+            <p className="font-bold text-base">Prueba finalizada</p>
+            <p className="text-red-100 text-sm mt-0.5">Has alcanzado el limite de tu prueba gratuita</p>
+          </div>
           <button
             onClick={() => onNavigate('planes')}
-            className="bg-white text-red-600 px-4 py-2 rounded-lg text-sm font-bold active:bg-red-50 transition-colors"
+            className="bg-white text-red-600 px-4 py-2 rounded-lg text-sm font-bold active:bg-red-50 transition-colors shrink-0"
           >
             Elegir plan
           </button>

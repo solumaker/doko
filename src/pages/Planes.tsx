@@ -1,7 +1,7 @@
 import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
-import { useSubscription } from '../context/SubscriptionContext';
+import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
 import { useState } from 'react';
 
 interface PlanesProps {
@@ -17,7 +17,7 @@ const planFeatures: Record<PlanId, string[]> = {
 };
 
 export function Planes({ onBack }: PlanesProps) {
-  const { usage, hasActiveSubscription, createCheckoutSession, purchaseDocumentPack, openCustomerPortal } = useSubscription();
+  const { usage, hasActiveSubscription, trialDocsUsed, trialDaysLeft, createCheckoutSession, purchaseDocumentPack, openCustomerPortal } = useSubscription();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [loadingPack, setLoadingPack] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
@@ -110,30 +110,47 @@ export function Planes({ onBack }: PlanesProps) {
             </div>
           </div>
 
-          <div>
-            <div className="flex justify-between items-baseline mb-1.5">
-              <span className="text-sm font-medium text-slate-600">Documentos utilizados</span>
-              <span className="text-sm font-bold text-slate-800">
-                {docsUsed} / {totalLimit > 0 ? totalLimit : '—'}
-              </span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-              <div
-                className={`h-3 rounded-full transition-all duration-500 ${
-                  docsPct >= 90 ? 'bg-red-500' : docsPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'
-                }`}
-                style={{ width: totalLimit > 0 ? `${docsPct}%` : '0%' }}
-              />
-            </div>
-            {docsExtra > 0 && (
-              <p className="text-xs text-slate-500 mt-1.5">
-                Incluye <span className="font-semibold text-amber-600">{docsExtra} extra</span> sin caducidad
+          {!hasActiveSubscription ? (
+            <div>
+              <div className="flex justify-between items-baseline mb-1.5">
+                <span className="text-sm font-medium text-slate-600">Documentos de prueba</span>
+                <span className="text-sm font-bold text-slate-800">{trialDocsUsed} / {TRIAL_DOC_LIMIT}</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    trialDocsUsed / TRIAL_DOC_LIMIT >= 0.9 ? 'bg-red-500' : trialDocsUsed / TRIAL_DOC_LIMIT >= 0.7 ? 'bg-amber-500' : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${Math.min(100, Math.round((trialDocsUsed / TRIAL_DOC_LIMIT) * 100))}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">
+                {trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'} restantes &middot; {TRIAL_DOC_LIMIT - trialDocsUsed} documentos disponibles
               </p>
-            )}
-            {totalLimit === 0 && (
-              <p className="text-xs text-slate-400 mt-1.5">Sin limite asignado en periodo de prueba</p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div>
+              <div className="flex justify-between items-baseline mb-1.5">
+                <span className="text-sm font-medium text-slate-600">Documentos utilizados</span>
+                <span className="text-sm font-bold text-slate-800">
+                  {docsUsed} / {totalLimit > 0 ? totalLimit : '—'}
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    docsPct >= 90 ? 'bg-red-500' : docsPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'
+                  }`}
+                  style={{ width: totalLimit > 0 ? `${docsPct}%` : '0%' }}
+                />
+              </div>
+              {docsExtra > 0 && (
+                <p className="text-xs text-slate-500 mt-1.5">
+                  Incluye <span className="font-semibold text-amber-600">{docsExtra} extra</span> sin caducidad
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {planOrder.map((planId) => {

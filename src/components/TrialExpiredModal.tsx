@@ -1,4 +1,5 @@
 import { Clock, CreditCard, FileText } from 'lucide-react';
+import { TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
 
 interface TrialExpiredModalProps {
   onSelectPlan: () => void;
@@ -17,7 +18,7 @@ export function TrialExpiredModal({ onSelectPlan, onViewHistory }: TrialExpiredM
             Tu prueba gratuita ha finalizado
           </h2>
           <p className="text-slate-300 text-base">
-            Han pasado 7 dias desde tu registro
+            La prueba incluye 7 dias o {TRIAL_DOC_LIMIT} documentos, lo que ocurra primero
           </p>
         </div>
 

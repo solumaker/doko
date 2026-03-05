@@ -2,6 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase, callEdgeFunction, SubscriptionUsage, PlanId } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
+export const TRIAL_DOC_LIMIT = 50;
+
 interface SubscriptionContextType {
   usage: SubscriptionUsage | null;
   loading: boolean;
@@ -9,6 +11,8 @@ interface SubscriptionContextType {
   isTrialExpired: boolean;
   hasActiveSubscription: boolean;
   trialDaysLeft: number;
+  trialDocsUsed: number;
+  trialDocsLeft: number;
   canCreateDocument: () => boolean;
   refreshSubscription: () => Promise<void>;
   createCheckoutSession: (plan: PlanId) => Promise<void>;
@@ -67,13 +71,18 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   })();
 
+  const trialDocsUsed = usage?.trial_docs_used ?? 0;
+  const trialDocsLeft = Math.max(0, TRIAL_DOC_LIMIT - trialDocsUsed);
+
   const canCreateDocument = useCallback(() => {
     if (!usage) return false;
-    if (isTrialActive) return true;
+    if (isTrialActive) {
+      return trialDocsUsed < TRIAL_DOC_LIMIT;
+    }
     if (!hasActiveSubscription) return false;
     const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
     return usage.documents_used < totalAvailable;
-  }, [usage, isTrialActive, hasActiveSubscription]);
+  }, [usage, isTrialActive, hasActiveSubscription, trialDocsUsed]);
 
   const refreshSubscription = useCallback(async () => {
     setLoading(true);
@@ -161,6 +170,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         isTrialExpired,
         hasActiveSubscription,
         trialDaysLeft,
+        trialDocsUsed,
+        trialDocsLeft,
         canCreateDocument,
         refreshSubscription,
         createCheckoutSession,
