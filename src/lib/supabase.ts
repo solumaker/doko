@@ -54,14 +54,13 @@ export interface PlanConfig {
   name: string;
   price: number;
   document_limit: number;
-  user_limit: number;
   support: string;
 }
 
 export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
-  autonomo: { id: 'autonomo', name: 'Autonomo', price: 39, document_limit: 100, user_limit: 1, support: 'Email' },
-  pyme: { id: 'pyme', name: 'Pyme', price: 99, document_limit: 500, user_limit: 3, support: 'Email prioritario' },
-  flotas: { id: 'flotas', name: 'Flotas', price: 249, document_limit: 2500, user_limit: 10, support: 'Telefono y email' },
+  autonomo: { id: 'autonomo', name: 'Autonomo', price: 39, document_limit: 100, support: 'Email' },
+  pyme: { id: 'pyme', name: 'Pyme', price: 99, document_limit: 500, support: 'Email prioritario' },
+  flotas: { id: 'flotas', name: 'Flotas', price: 249, document_limit: 2500, support: 'Telefono y email' },
 };
 
 export interface Subscription {

@@ -20,7 +20,7 @@ import {
 import QRCode from 'react-qr-code';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { supabase, callEdgeFunction, Profile, DriverCompanyLink, PLAN_CONFIG } from '../lib/supabase';
+import { supabase, callEdgeFunction, Profile, DriverCompanyLink } from '../lib/supabase';
 
 type View = 'list' | 'form' | 'created';
 
@@ -595,56 +595,13 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
           </div>
         )}
 
-        {(() => {
-          const currentDriverCount = drivers.length;
-          const planLimit = hasActiveSubscription && usage?.plan ? PLAN_CONFIG[usage.plan]?.user_limit ?? null : null;
-          const atLimit = planLimit !== null && currentDriverCount >= planLimit;
-
-          if (atLimit) {
-            return (
-              <div className="mb-6 space-y-3">
-                <div className="bg-red-50 border border-red-200/80 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="bg-red-100 p-2 rounded-xl shrink-0 mt-0.5">
-                    <AlertTriangle size={18} className="text-red-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-red-800 mb-0.5">Limite de conductores alcanzado</p>
-                    <p className="text-xs text-red-700">
-                      Tu plan <span className="font-bold">{PLAN_CONFIG[usage!.plan!].name}</span> permite hasta{' '}
-                      <span className="font-bold">{planLimit} {planLimit === 1 ? 'usuario' : 'usuarios'}</span>.
-                      Para agregar mas conductores, actualiza tu plan.
-                    </p>
-                    {onGoToPlanes && (
-                      <button
-                        onClick={onGoToPlanes}
-                        className="mt-2 text-xs font-semibold text-red-700 underline underline-offset-2"
-                      >
-                        Ver planes disponibles
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <button
-                  disabled
-                  className="w-full bg-slate-200 text-slate-400 rounded-xl py-4 px-6 flex items-center justify-center gap-3 cursor-not-allowed"
-                >
-                  <Plus size={24} strokeWidth={2.5} />
-                  <span className="text-base font-semibold">Agregar Conductor</span>
-                </button>
-              </div>
-            );
-          }
-
-          return (
-            <button
-              onClick={() => setView('form')}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-4 px-6 mb-6 flex items-center justify-center gap-3 transition-colors shadow-sm"
-            >
-              <Plus size={24} strokeWidth={2.5} />
-              <span className="text-base font-semibold">Agregar Conductor</span>
-            </button>
-          );
-        })()}
+        <button
+          onClick={() => setView('form')}
+          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-4 px-6 mb-6 flex items-center justify-center gap-3 transition-colors shadow-sm"
+        >
+          <Plus size={24} strokeWidth={2.5} />
+          <span className="text-base font-semibold">Agregar Conductor</span>
+        </button>
 
         {loading ? (
           <div className="flex items-center justify-center py-12">

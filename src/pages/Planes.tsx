@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings, ArrowRight, Users, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
 import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
@@ -12,34 +12,18 @@ interface PlanesProps {
 const planOrder: PlanId[] = ['autonomo', 'pyme', 'flotas'];
 
 const planFeatures: Record<PlanId, string[]> = {
-  autonomo: ['100 documentos/mes', '1 usuario', 'Soporte por email'],
-  pyme: ['500 documentos/mes', '3 usuarios', 'Soporte email prioritario'],
-  flotas: ['2.500 documentos/mes', '10 usuarios', 'Soporte telefono y email'],
+  autonomo: ['100 documentos/mes', 'Usuarios ilimitados', 'Soporte por email'],
+  pyme: ['500 documentos/mes', 'Usuarios ilimitados', 'Soporte email prioritario'],
+  flotas: ['2.500 documentos/mes', 'Usuarios ilimitados', 'Soporte telefono y email'],
 };
 
-export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
+export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
   const { usage, hasActiveSubscription, trialDocsUsed, trialDaysLeft, createCheckoutSession, purchaseDocumentPack, openCustomerPortal } = useSubscription();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [loadingPack, setLoadingPack] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
 
   const currentPlan = usage?.plan;
-  const driverCount = usage?.users_count ?? 0;
-
-  const getMinPlanForDrivers = (count: number): PlanId | null => {
-    for (const planId of planOrder) {
-      if (PLAN_CONFIG[planId].user_limit >= count) return planId;
-    }
-    return null;
-  };
-
-  const isPlanCompatibleWithDrivers = (planId: PlanId): boolean => {
-    return PLAN_CONFIG[planId].user_limit >= driverCount;
-  };
-
-  const minRequiredPlan = getMinPlanForDrivers(driverCount);
-  const hasDriversExceedingMinPlan = driverCount > PLAN_CONFIG['autonomo'].user_limit;
-  const driversExceedAllPlans = driverCount > PLAN_CONFIG['flotas'].user_limit;
 
   const handleSelectPlan = async (planId: PlanId) => {
     if (hasActiveSubscription && currentPlan === planId) return;
@@ -47,7 +31,6 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
       await openCustomerPortal();
       return;
     }
-    if (!isPlanCompatibleWithDrivers(planId)) return;
     setLoadingPlan(planId);
     await createCheckoutSession(planId);
     setLoadingPlan(null);
@@ -84,8 +67,6 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
     return null;
   })();
 
-  const showDriversBanner = !hasActiveSubscription && hasDriversExceedingMinPlan;
-
   return (
     <div className="min-h-screen bg-[#f0f4f8] flex flex-col">
       <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
@@ -96,41 +77,6 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
       </header>
 
       <main className="flex-1 px-4 py-6 space-y-4 pb-8">
-
-        {showDriversBanner && (
-          <div className="bg-white rounded-2xl border border-amber-300 p-5">
-            <div className="flex items-start gap-3">
-              <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
-                <Users size={20} className="text-amber-700" />
-              </div>
-              <div className="flex-1">
-                <p className="text-base font-bold text-amber-900 mb-1">
-                  Tienes {driverCount} {driverCount === 1 ? 'usuario' : 'usuarios'} registrados
-                </p>
-                {driversExceedAllPlans ? (
-                  <p className="text-sm text-amber-800">
-                    Ningun plan cubre {driverCount} usuarios. Debes eliminar conductores antes de suscribirte.
-                  </p>
-                ) : (
-                  <p className="text-sm text-amber-800">
-                    Solo puedes contratar el plan{' '}
-                    <span className="font-bold">{minRequiredPlan ? PLAN_CONFIG[minRequiredPlan].name : '—'}</span>
-                    {minRequiredPlan && minRequiredPlan !== 'flotas' ? ' o superior' : ''}.
-                    Los planes con menos usuarios no estan disponibles hasta que reduzcas tu equipo.
-                  </p>
-                )}
-                {onGoToEquipo && (
-                  <button
-                    onClick={onGoToEquipo}
-                    className="mt-2.5 text-sm font-semibold text-amber-800 underline underline-offset-2"
-                  >
-                    Gestionar equipo
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
           <div className="flex items-center justify-between mb-4">
@@ -250,34 +196,22 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
           const plan = PLAN_CONFIG[planId];
           const isCurrentPlan = hasActiveSubscription && currentPlan === planId;
           const isRecommended = planId === 'pyme';
-          const compatible = isPlanCompatibleWithDrivers(planId);
-          const isBlocked = !hasActiveSubscription && !compatible;
-          const driversToRemove = isBlocked ? driverCount - plan.user_limit : 0;
 
           return (
             <div
               key={planId}
               className={`bg-white rounded-2xl overflow-hidden border transition-colors ${
-                isBlocked
-                  ? 'border-slate-200/80 opacity-60'
-                  : isRecommended
-                    ? 'border-blue-500'
-                    : isCurrentPlan
-                      ? 'border-emerald-500'
-                      : 'border-slate-200/80'
+                isRecommended
+                  ? 'border-blue-500'
+                  : isCurrentPlan
+                    ? 'border-emerald-500'
+                    : 'border-slate-200/80'
               }`}
             >
-              {isRecommended && !isBlocked && (
+              {isRecommended && (
                 <div className="bg-blue-600 text-white text-center py-2 px-4 flex items-center justify-center gap-1.5">
                   <Star size={14} fill="currentColor" />
                   <span className="text-sm font-bold tracking-wide uppercase">Recomendado</span>
-                </div>
-              )}
-
-              {isBlocked && (
-                <div className="bg-slate-100 text-slate-500 text-center py-2 px-4 flex items-center justify-center gap-1.5">
-                  <AlertTriangle size={14} />
-                  <span className="text-sm font-semibold">No disponible con tu equipo actual</span>
                 </div>
               )}
 
@@ -302,35 +236,9 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
                   ))}
                 </div>
 
-                {isBlocked && (
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-3 mb-4 flex items-start gap-2.5">
-                    <Users size={16} className="text-slate-500 mt-0.5 shrink-0" />
-                    <p className="text-sm text-slate-600">
-                      Debes eliminar{' '}
-                      <span className="font-bold text-slate-800">
-                        {driversToRemove} {driversToRemove === 1 ? 'conductor' : 'conductores'}
-                      </span>{' '}
-                      para poder contratar este plan.
-                      {onGoToEquipo && (
-                        <button
-                          onClick={onGoToEquipo}
-                          className="ml-1 font-semibold text-blue-600 underline underline-offset-1"
-                        >
-                          Gestionar equipo
-                        </button>
-                      )}
-                    </p>
-                  </div>
-                )}
-
                 {isCurrentPlan ? (
                   <div className="w-full bg-emerald-50 text-emerald-700 py-3.5 rounded-xl font-bold text-center text-base">
                     Plan actual
-                  </div>
-                ) : isBlocked ? (
-                  <div className="w-full bg-slate-100 text-slate-400 py-3.5 rounded-xl font-bold text-center text-base cursor-not-allowed flex items-center justify-center gap-2">
-                    <AlertTriangle size={16} />
-                    No disponible
                   </div>
                 ) : (
                   <button
