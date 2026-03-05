@@ -1,11 +1,12 @@
-import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText } from 'lucide-react';
+import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Check, Loader2, Zap } from 'lucide-react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AppLayout } from '../components/AppLayout';
-import { Document, PLAN_CONFIG } from '../lib/supabase';
+import { Document, PLAN_CONFIG, PlanId } from '../lib/supabase';
 
 type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes';
 
@@ -15,38 +16,41 @@ interface DashboardProps {
   onViewDocument?: (doc: Document) => void;
 }
 
-function CircularProgress({ value, max, label }: { value: number; max: number; label: string }) {
+const planOrder: PlanId[] = ['autonomo', 'pyme', 'flotas'];
+
+const planFeatures: Record<PlanId, string[]> = {
+  autonomo: ['100 documentos/mes', 'Usuarios ilimitados', 'Soporte por email'],
+  pyme: ['500 documentos/mes', 'Usuarios ilimitados', 'Soporte email prioritario'],
+  flotas: ['2.500 documentos/mes', 'Usuarios ilimitados', 'Soporte telefono y email'],
+};
+
+function CircularProgress({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min(1, value / max) : 0;
   const r = 52;
   const circ = 2 * Math.PI * r;
   const dashOffset = circ * (1 - pct);
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative w-36 h-36 flex items-center justify-center">
-        <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
-          <circle
-            cx="60"
-            cy="60"
-            r={r}
-            fill="none"
-            stroke="#1d4ed8"
-            strokeWidth="10"
-            strokeLinecap="round"
-            strokeDasharray={circ}
-            strokeDashoffset={dashOffset}
-            className="transition-all duration-700"
-          />
-        </svg>
-        <div className="relative text-center">
-          <p className="text-3xl font-extrabold text-slate-800 leading-none">{value}</p>
-          <p className="text-xs font-semibold text-slate-400 uppercase mt-1">DE {max}</p>
-        </div>
+    <div className="relative w-36 h-36 flex items-center justify-center">
+      <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+        <circle
+          cx="60"
+          cy="60"
+          r={r}
+          fill="none"
+          stroke="#1d4ed8"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          strokeDashoffset={dashOffset}
+          className="transition-all duration-700"
+        />
+      </svg>
+      <div className="relative text-center">
+        <p className="text-3xl font-extrabold text-slate-800 leading-none">{value}</p>
+        <p className="text-xs font-semibold text-slate-400 uppercase mt-1">DE {max}</p>
       </div>
-      <p className="text-sm text-slate-600 text-center">
-        {label}
-      </p>
     </div>
   );
 }
@@ -58,18 +62,14 @@ function DocumentUsageCard() {
     const trialLimit = usage?.trial_doc_limit ?? 50;
     const pct = trialLimit > 0 ? Math.round((trialDocsUsed / trialLimit) * 100) : 0;
     return (
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center gap-2">
-        <div className="flex items-center gap-2 self-start mb-2">
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center">
+        <div className="flex items-center gap-2 self-start mb-4">
           <BarChart2 size={18} className="text-blue-700" />
-          <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
+          <h3 className="text-base font-bold text-slate-800">Documentos de Control generados</h3>
         </div>
-        <CircularProgress
-          value={trialDocsUsed}
-          max={trialLimit}
-          label={`Has utilizado el `}
-        />
-        <p className="text-sm text-slate-600 text-center">
-          Has utilizado el{' '}
+        <CircularProgress value={trialDocsUsed} max={trialLimit} />
+        <p className="text-sm text-slate-600 text-center mt-4">
+          Haz utilizado el{' '}
           <span className="font-bold text-blue-700">{pct}%</span>{' '}
           de tu limite de prueba.
         </p>
@@ -87,8 +87,8 @@ function DocumentUsageCard() {
           <BarChart2 size={18} className="text-blue-700" />
           <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
         </div>
-        <CircularProgress value={used} max={limit} label="" />
-        <p className="text-sm text-slate-600 text-center mt-2">
+        <CircularProgress value={used} max={limit} />
+        <p className="text-sm text-slate-600 text-center mt-4">
           Has utilizado el{' '}
           <span className="font-bold text-blue-700">{pct}%</span>{' '}
           de tu limite mensual.
@@ -108,7 +108,7 @@ function DocumentUsageCard() {
   );
 }
 
-function RenewalCard({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+function RenewalCard() {
   const { usage, hasActiveSubscription, isTrialActive } = useSubscription();
 
   const renewalDate = (() => {
@@ -148,18 +148,11 @@ function RenewalCard({ onNavigate }: { onNavigate: (s: Screen) => void }) {
           <CheckCircle size={18} className="text-emerald-500" />
           <span>Tu plan se renovara automaticamente</span>
         </div>
-      ) : isTrialActive ? (
-        <button
-          onClick={() => onNavigate('planes')}
-          className="mt-auto text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors text-left"
-        >
-          Elegir un plan &rarr;
-        </button>
-      ) : (
+      ) : !isTrialActive ? (
         <div className="flex items-center gap-2 text-sm text-amber-600">
           <span>Renovacion no activa</span>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -240,26 +233,101 @@ function RecentActivityTable({ documents, onViewDocument, onNavigate }: {
   );
 }
 
+function TrialPricingCards() {
+  const { createCheckoutSession } = useSubscription();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleSelect = async (planId: PlanId) => {
+    setLoadingPlan(planId);
+    await createCheckoutSession(planId);
+    setLoadingPlan(null);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Zap size={18} className="text-amber-500" />
+        <h3 className="text-base font-bold text-slate-800">Elige tu plan</h3>
+      </div>
+      <p className="text-sm text-slate-500 mb-6">Tu periodo de prueba esta activo. Suscribete ahora para continuar sin interrupciones.</p>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {planOrder.map((planId, idx) => {
+          const plan = PLAN_CONFIG[planId];
+          const isPopular = idx === 1;
+          const isLoading = loadingPlan === planId;
+
+          return (
+            <div
+              key={planId}
+              className={`relative rounded-2xl border-2 p-6 flex flex-col transition-all ${
+                isPopular
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-xl shadow-blue-600/20'
+                  : 'border-slate-200 bg-white text-slate-800 hover:border-blue-300'
+              }`}
+            >
+              {isPopular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-amber-400 text-amber-900 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wide">
+                    Mas popular
+                  </span>
+                </div>
+              )}
+
+              <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isPopular ? 'text-blue-200' : 'text-slate-400'}`}>
+                {plan.name}
+              </p>
+              <div className="flex items-end gap-1 mb-4">
+                <span className={`text-4xl font-extrabold leading-none ${isPopular ? 'text-white' : 'text-slate-900'}`}>
+                  {plan.price}€
+                </span>
+                <span className={`text-sm mb-1 ${isPopular ? 'text-blue-200' : 'text-slate-400'}`}>/mes</span>
+              </div>
+
+              <ul className="space-y-2 mb-6 flex-1">
+                {planFeatures[planId].map((feat) => (
+                  <li key={feat} className="flex items-center gap-2 text-sm">
+                    <Check size={15} className={isPopular ? 'text-blue-200 shrink-0' : 'text-emerald-500 shrink-0'} />
+                    <span className={isPopular ? 'text-blue-100' : 'text-slate-600'}>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => handleSelect(planId)}
+                disabled={isLoading}
+                className={`w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wide transition-all flex items-center justify-center gap-2 ${
+                  isPopular
+                    ? 'bg-white text-blue-700 hover:bg-blue-50 active:scale-[0.98]'
+                    : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]'
+                } disabled:opacity-60`}
+              >
+                {isLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                Suscribirme
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SubscriptionBanner() {
-  const { usage, hasActiveSubscription, isTrialActive, openCustomerPortal } = useSubscription();
+  const { usage, hasActiveSubscription, openCustomerPortal } = useSubscription();
 
-  const planName = hasActiveSubscription && usage?.plan
-    ? PLAN_CONFIG[usage.plan]?.name ?? usage.plan
-    : isTrialActive
-    ? 'Prueba gratuita'
-    : null;
+  if (!hasActiveSubscription) return null;
 
+  const planName = usage?.plan ? PLAN_CONFIG[usage.plan]?.name ?? usage.plan : null;
   if (!planName) return null;
-
-  const description = hasActiveSubscription
-    ? `Tu plan ${planName} esta activo. Puedes cambiar tu metodo de pago o mejorar tu plan aqui.`
-    : `Tu periodo de prueba esta activo. Elige un plan para continuar.`;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
         <h3 className="text-base font-bold text-slate-800">Gestionar mi suscripcion</h3>
-        <p className="text-sm text-slate-500 mt-1">{description}</p>
+        <p className="text-sm text-slate-500 mt-1">
+          Tu plan {planName} esta activo. Puedes cambiar tu metodo de pago o mejorar tu plan aqui.
+        </p>
       </div>
       <button
         onClick={openCustomerPortal}
@@ -274,6 +342,7 @@ function SubscriptionBanner() {
 export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardProps) {
   const { isAdmin } = useAuth();
   const { documents } = useData();
+  const { isTrialActive } = useSubscription();
 
   const recentDocs = documents.slice(0, 5);
 
@@ -316,7 +385,7 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
         {isAdmin && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <DocumentUsageCard />
-            <RenewalCard onNavigate={onNavigate} />
+            <RenewalCard />
           </div>
         )}
 
@@ -326,7 +395,8 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
           onNavigate={onNavigate}
         />
 
-        {isAdmin && <SubscriptionBanner />}
+        {isAdmin && isTrialActive && <TrialPricingCards />}
+        {isAdmin && !isTrialActive && <SubscriptionBanner />}
       </div>
     </AppLayout>
   );
