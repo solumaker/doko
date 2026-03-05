@@ -6,15 +6,31 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export async function callEdgeFunction(functionName: string, body: Record<string, unknown>, authToken?: string) {
-  const headers: Record<string, string> = {};
+  const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${functionName}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+  };
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
-  const { data, error } = await supabase.functions.invoke(functionName, { body, headers });
-  if (error) {
-    return { data: { message: error.message }, ok: false, status: 401 };
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error(`callEdgeFunction [${functionName}] error ${response.status}:`, data);
+      return { data, ok: false, status: response.status };
+    }
+    return { data, ok: true, status: response.status };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`callEdgeFunction [${functionName}] fetch error:`, message);
+    return { data: { message }, ok: false, status: 0 };
   }
-  return { data, ok: true, status: 200 };
 }
 
 export interface Company {
