@@ -5,21 +5,12 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export async function callEdgeFunction(functionName: string, body: Record<string, unknown>, authToken?: string) {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'apikey': supabaseAnonKey,
-  };
-  if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`;
+export async function callEdgeFunction(functionName: string, body: Record<string, unknown>, _authToken?: string) {
+  const { data, error } = await supabase.functions.invoke(functionName, { body });
+  if (error) {
+    return { data: { message: error.message }, ok: false, status: 401 };
   }
-  const res = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  return { data, ok: res.ok, status: res.status };
+  return { data, ok: true, status: 200 };
 }
 
 export interface Company {
