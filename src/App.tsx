@@ -204,7 +204,7 @@ function AppContent() {
   const renderScreen = () => {
     switch (currentScreen) {
       case 'planes':
-        return <Planes onBack={() => handleNavigate('dashboard')} />;
+        return <Planes onBack={() => handleNavigate('dashboard')} onGoToEquipo={() => handleNavigate('equipo')} />;
       case 'lugares':
         if (trialBlocksNavigation) { handleNavigate('dashboard'); return null; }
         return <Lugares onBack={() => handleNavigate('dashboard')} />;
@@ -238,7 +238,7 @@ function AppContent() {
         }
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} />;
       case 'equipo':
-        return <Equipo onBack={() => handleNavigate('dashboard')} />;
+        return <Equipo onBack={() => handleNavigate('dashboard')} onGoToPlanes={() => handleNavigate('planes')} />;
       default:
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} />;
     }

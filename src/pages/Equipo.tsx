@@ -19,11 +19,8 @@ import {
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useAuth } from '../context/AuthContext';
-import { supabase, callEdgeFunction, Profile, DriverCompanyLink } from '../lib/supabase';
-
-interface EquipoProps {
-  onBack: () => void;
-}
+import { useSubscription } from '../context/SubscriptionContext';
+import { supabase, callEdgeFunction, Profile, DriverCompanyLink, PLAN_CONFIG } from '../lib/supabase';
 
 type View = 'list' | 'form' | 'created';
 
@@ -31,8 +28,14 @@ interface DriverWithLink extends Profile {
   link?: DriverCompanyLink;
 }
 
-export function Equipo({ onBack }: EquipoProps) {
+interface EquipoProps {
+  onBack: () => void;
+  onGoToPlanes?: () => void;
+}
+
+export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
   const { profile, isAdmin } = useAuth();
+  const { usage, hasActiveSubscription } = useSubscription();
   const [view, setView] = useState<View>('list');
   const [drivers, setDrivers] = useState<DriverWithLink[]>([]);
   const [loading, setLoading] = useState(true);
@@ -592,13 +595,56 @@ export function Equipo({ onBack }: EquipoProps) {
           </div>
         )}
 
-        <button
-          onClick={() => setView('form')}
-          className="w-full bg-green-600 text-white rounded-xl py-5 px-6 mb-6 flex items-center justify-center gap-3 active:bg-green-700 transition-colors shadow"
-        >
-          <Plus size={32} strokeWidth={2.5} />
-          <span className="text-xl font-bold">AGREGAR CONDUCTOR</span>
-        </button>
+        {(() => {
+          const currentDriverCount = drivers.length;
+          const planLimit = hasActiveSubscription && usage?.plan ? PLAN_CONFIG[usage.plan]?.user_limit ?? null : null;
+          const atLimit = planLimit !== null && currentDriverCount >= planLimit;
+
+          if (atLimit) {
+            return (
+              <div className="mb-6 space-y-3">
+                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex items-start gap-3">
+                  <div className="bg-red-100 p-2 rounded-xl shrink-0 mt-0.5">
+                    <AlertTriangle size={20} className="text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-base font-bold text-red-800 mb-0.5">Limite de conductores alcanzado</p>
+                    <p className="text-sm text-red-700">
+                      Tu plan <span className="font-bold">{PLAN_CONFIG[usage!.plan!].name}</span> permite hasta{' '}
+                      <span className="font-bold">{planLimit} {planLimit === 1 ? 'usuario' : 'usuarios'}</span>.
+                      Para agregar mas conductores, actualiza tu plan.
+                    </p>
+                    {onGoToPlanes && (
+                      <button
+                        onClick={onGoToPlanes}
+                        className="mt-2.5 text-sm font-semibold text-red-700 underline underline-offset-2"
+                      >
+                        Ver planes disponibles
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <button
+                  disabled
+                  className="w-full bg-slate-200 text-slate-400 rounded-xl py-5 px-6 flex items-center justify-center gap-3 cursor-not-allowed"
+                >
+                  <Plus size={32} strokeWidth={2.5} />
+                  <span className="text-xl font-bold">AGREGAR CONDUCTOR</span>
+                </button>
+              </div>
+            );
+          }
+
+          return (
+            <button
+              onClick={() => setView('form')}
+              className="w-full bg-green-600 text-white rounded-xl py-5 px-6 mb-6 flex items-center justify-center gap-3 active:bg-green-700 transition-colors shadow"
+            >
+              <Plus size={32} strokeWidth={2.5} />
+              <span className="text-xl font-bold">AGREGAR CONDUCTOR</span>
+            </button>
+          );
+        })()}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
