@@ -104,7 +104,15 @@ Deno.serve(async (req: Request) => {
 
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
-        const companyId = subscription.metadata?.company_id;
+        let companyId = subscription.metadata?.company_id;
+        if (!companyId) {
+          const { data: subRow } = await supabase
+            .from("subscriptions")
+            .select("company_id")
+            .eq("stripe_subscription_id", subscription.id)
+            .maybeSingle();
+          companyId = subRow?.company_id ?? null;
+        }
         if (!companyId) break;
 
         const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
@@ -178,7 +186,15 @@ Deno.serve(async (req: Request) => {
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-        const companyId = subscription.metadata?.company_id;
+        let companyId = subscription.metadata?.company_id;
+        if (!companyId) {
+          const { data: subRow } = await supabase
+            .from("subscriptions")
+            .select("company_id")
+            .eq("stripe_subscription_id", subscription.id)
+            .maybeSingle();
+          companyId = subRow?.company_id ?? null;
+        }
         if (!companyId) break;
 
         await supabase
