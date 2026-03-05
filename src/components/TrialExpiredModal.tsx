@@ -10,48 +10,48 @@ interface TrialExpiredModalProps {
 
 export function TrialExpiredModal({ onSelectPlan, onViewHistory, onManageUsers, hasDrivers }: TrialExpiredModalProps) {
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-5">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-5">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-scaleIn">
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 px-6 py-8 text-center">
-          <div className="bg-white/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Clock size={32} className="text-white" />
+          <div className="bg-white/10 w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock size={28} className="text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">
+          <h2 className="text-xl font-bold text-white mb-2">
             Tu prueba gratuita ha finalizado
           </h2>
-          <p className="text-slate-300 text-base">
+          <p className="text-slate-300 text-sm">
             La prueba incluye 7 dias o {TRIAL_DOC_LIMIT} documentos, lo que ocurra primero
           </p>
         </div>
 
         <div className="p-6 space-y-3">
-          <p className="text-base text-slate-600 text-center mb-4">
+          <p className="text-sm text-slate-600 text-center mb-4">
             Para seguir creando documentos de control, elige un plan que se adapte a tu negocio.
           </p>
 
           <button
             onClick={onSelectPlan}
-            className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-3 active:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-3 active:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20"
           >
-            <CreditCard size={22} />
+            <CreditCard size={20} />
             Elegir un plan
           </button>
 
           {hasDrivers && (
             <button
               onClick={onManageUsers}
-              className="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-semibold text-base flex items-center justify-center gap-2.5 active:bg-slate-200 transition-colors"
+              className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2.5 active:bg-slate-200 transition-colors"
             >
-              <Users size={18} />
+              <Users size={16} />
               Gestionar usuarios
             </button>
           )}
 
           <button
             onClick={onViewHistory}
-            className="w-full text-slate-500 py-3 text-base font-medium flex items-center justify-center gap-2 active:text-slate-700 transition-colors"
+            className="w-full text-slate-500 py-2.5 text-sm font-medium flex items-center justify-center gap-2 active:text-slate-700 transition-colors"
           >
-            <FileText size={18} />
+            <FileText size={16} />
             Ver historial de documentos generados
           </button>
         </div>

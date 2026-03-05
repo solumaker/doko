@@ -87,20 +87,20 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
   const showDriversBanner = !hasActiveSubscription && hasDriversExceedingMinPlan;
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
-      <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-[#f0f4f8] flex flex-col">
+      <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
         <button onClick={onBack} className="p-2">
-          <ArrowLeft size={28} />
+          <ArrowLeft size={24} className="text-slate-800" />
         </button>
-        <h1 className="text-xl font-bold">{hasActiveSubscription ? 'Mi Suscripcion' : 'Elige tu plan'}</h1>
+        <h1 className="text-lg font-bold text-slate-800">{hasActiveSubscription ? 'Mi Suscripcion' : 'Elige tu plan'}</h1>
       </header>
 
       <main className="flex-1 px-4 py-6 space-y-4 pb-8">
 
         {showDriversBanner && (
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4">
+          <div className="bg-white rounded-2xl border border-amber-300 p-5">
             <div className="flex items-start gap-3">
-              <div className="bg-amber-100 p-2 rounded-xl shrink-0">
+              <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
                 <Users size={20} className="text-amber-700" />
               </div>
               <div className="flex-1">
@@ -132,14 +132,14 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold text-slate-700 uppercase tracking-wide">Mi Suscripcion</h2>
             {hasActiveSubscription && (
               <button
                 onClick={handleOpenPortal}
                 disabled={loadingPortal}
-                className="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2 rounded-lg active:bg-slate-900 transition-colors disabled:opacity-60"
+                className="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2 rounded-xl active:bg-slate-900 transition-colors disabled:opacity-60"
               >
                 {loadingPortal ? <Loader2 size={15} className="animate-spin" /> : <Settings size={15} />}
                 Gestionar
@@ -148,15 +148,15 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
           </div>
 
           <div className="flex items-center gap-3 mb-4">
-            <div className={`p-2.5 rounded-xl ${hasActiveSubscription ? 'bg-green-100' : 'bg-amber-100'}`}>
+            <div className={`p-2.5 rounded-full ${hasActiveSubscription ? 'bg-emerald-50' : 'bg-amber-50'}`}>
               {hasActiveSubscription
-                ? <ShieldCheck size={22} className="text-green-600" />
-                : <Clock size={22} className="text-amber-600" />
+                ? <ShieldCheck size={22} className="text-emerald-500" />
+                : <Clock size={22} className="text-amber-500" />
               }
             </div>
             <div>
               <p className="text-lg font-bold text-slate-900">{planLabel}</p>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${hasActiveSubscription ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${hasActiveSubscription ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                 {statusLabel}
               </span>
               {dateLabel && (
@@ -212,7 +212,7 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
               <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                 <div
                   className={`h-3 rounded-full transition-all duration-500 ${
-                    trialDocsUsed / TRIAL_DOC_LIMIT >= 0.9 ? 'bg-red-500' : trialDocsUsed / TRIAL_DOC_LIMIT >= 0.7 ? 'bg-amber-500' : 'bg-blue-500'
+                    trialDocsUsed / TRIAL_DOC_LIMIT >= 0.9 ? 'bg-red-500' : trialDocsUsed / TRIAL_DOC_LIMIT >= 0.7 ? 'bg-amber-500' : 'bg-blue-600'
                   }`}
                   style={{ width: `${Math.min(100, Math.round((trialDocsUsed / TRIAL_DOC_LIMIT) * 100))}%` }}
                 />
@@ -232,7 +232,7 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
               <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                 <div
                   className={`h-3 rounded-full transition-all duration-500 ${
-                    docsPct >= 90 ? 'bg-red-500' : docsPct >= 70 ? 'bg-amber-500' : 'bg-blue-500'
+                    docsPct >= 90 ? 'bg-red-500' : docsPct >= 70 ? 'bg-amber-500' : 'bg-blue-600'
                   }`}
                   style={{ width: totalLimit > 0 ? `${docsPct}%` : '0%' }}
                 />
@@ -257,25 +257,25 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
           return (
             <div
               key={planId}
-              className={`bg-white rounded-2xl shadow-lg overflow-hidden border-2 transition-colors ${
+              className={`bg-white rounded-2xl overflow-hidden border transition-colors ${
                 isBlocked
-                  ? 'border-slate-200 opacity-60'
+                  ? 'border-slate-200/80 opacity-60'
                   : isRecommended
-                    ? 'border-blue-600'
+                    ? 'border-blue-500'
                     : isCurrentPlan
-                      ? 'border-green-500'
-                      : 'border-slate-200'
+                      ? 'border-emerald-500'
+                      : 'border-slate-200/80'
               }`}
             >
               {isRecommended && !isBlocked && (
-                <div className="bg-blue-600 text-white text-center py-1.5 px-4 flex items-center justify-center gap-1.5">
+                <div className="bg-blue-600 text-white text-center py-2 px-4 flex items-center justify-center gap-1.5">
                   <Star size={14} fill="currentColor" />
                   <span className="text-sm font-bold tracking-wide uppercase">Recomendado</span>
                 </div>
               )}
 
               {isBlocked && (
-                <div className="bg-slate-100 text-slate-500 text-center py-1.5 px-4 flex items-center justify-center gap-1.5">
+                <div className="bg-slate-100 text-slate-500 text-center py-2 px-4 flex items-center justify-center gap-1.5">
                   <AlertTriangle size={14} />
                   <span className="text-sm font-semibold">No disponible con tu equipo actual</span>
                 </div>
@@ -294,8 +294,8 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
                 <div className="space-y-2.5 mb-5">
                   {planFeatures[planId].map((feature) => (
                     <div key={feature} className="flex items-center gap-3">
-                      <div className="bg-green-100 rounded-full p-0.5 shrink-0">
-                        <Check size={14} className="text-green-600" strokeWidth={3} />
+                      <div className="bg-emerald-50 rounded-full p-1 shrink-0">
+                        <Check size={14} className="text-emerald-500" strokeWidth={3} />
                       </div>
                       <span className="text-base text-slate-700">{feature}</span>
                     </div>
@@ -324,7 +324,7 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
                 )}
 
                 {isCurrentPlan ? (
-                  <div className="w-full bg-green-100 text-green-700 py-3.5 rounded-xl font-bold text-center text-base">
+                  <div className="w-full bg-emerald-50 text-emerald-700 py-3.5 rounded-xl font-bold text-center text-base">
                     Plan actual
                   </div>
                 ) : isBlocked ? (
@@ -338,7 +338,7 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
                     disabled={loadingPlan === planId}
                     className={`w-full py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-colors ${
                       isRecommended
-                        ? 'bg-blue-600 text-white active:bg-blue-700 shadow-lg shadow-blue-600/20'
+                        ? 'bg-blue-600 text-white active:bg-blue-700'
                         : 'bg-slate-800 text-white active:bg-slate-900'
                     } disabled:opacity-60`}
                   >
@@ -355,10 +355,10 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
           );
         })}
 
-        <div className="bg-white rounded-2xl shadow-lg border-2 border-dashed border-slate-300 p-5 mt-6">
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-5 mt-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="bg-amber-100 p-2 rounded-lg">
-              <Package size={22} className="text-amber-600" />
+            <div className="bg-amber-50 p-2.5 rounded-full">
+              <Package size={22} className="text-amber-500" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-slate-900">Documentos extra</h3>
@@ -372,7 +372,7 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
           <button
             onClick={handleBuyPack}
             disabled={loadingPack || !hasActiveSubscription}
-            className="w-full bg-amber-500 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 active:bg-amber-600 transition-colors disabled:opacity-60"
+            className="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 active:bg-slate-900 transition-colors disabled:opacity-60"
           >
             {loadingPack ? (
               <Loader2 size={20} className="animate-spin" />

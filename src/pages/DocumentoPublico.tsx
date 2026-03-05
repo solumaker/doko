@@ -84,7 +84,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[#f0f4f8] flex flex-col items-center justify-center">
         <div className="bg-blue-600 p-3 rounded-2xl mb-4">
           <Truck size={40} className="text-white" />
         </div>
@@ -97,7 +97,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
 
   if (error || !document) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+      <div className="min-h-screen bg-[#f0f4f8] flex flex-col items-center justify-center p-6">
         <div className="bg-red-100 p-4 rounded-2xl mb-4">
           <AlertCircle size={40} className="text-red-500" />
         </div>
@@ -149,14 +149,14 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-blue-600 text-white px-4 py-4 print:hidden">
+    <div className="min-h-screen bg-[#f0f4f8]">
+      <header className="bg-white border-b border-slate-200 px-4 py-4 print:hidden">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-1.5 rounded-lg">
-              <Truck size={24} />
+            <div className="bg-blue-600 p-1.5 rounded-lg">
+              <Truck size={24} className="text-white" />
             </div>
-            <h1 className="text-lg font-bold">DOKO</h1>
+            <h1 className="text-lg font-bold text-slate-800">DOKO</h1>
           </div>
         </div>
 
@@ -164,35 +164,35 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleViewPdf}
-              className="bg-white text-blue-600 px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
             >
               <FileText size={18} />
               Ver PDF
             </button>
             <button
               onClick={handleDownloadPdf}
-              className="bg-white/20 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+              className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
             >
               <Download size={18} />
               Descargar
             </button>
             <button
               onClick={handlePrint}
-              className="bg-white/20 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
             >
               <Printer size={18} />
               <span className="hidden sm:inline">Imprimir</span>
             </button>
             <button
               onClick={handleShare}
-              className="bg-white/20 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
             >
               <Share2 size={18} />
               <span className="hidden sm:inline">Compartir</span>
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
             <Loader2 size={16} className="animate-spin" />
             <span>Generando PDF/A-1a...</span>
           </div>
@@ -200,7 +200,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
       </header>
 
       <div className="p-4 pb-8 print:p-0 max-w-2xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden print:rounded-none print:shadow-none print:border-2 print:border-black">
+        <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden print:rounded-none print:shadow-none print:border-2 print:border-black">
           <div className="bg-slate-800 text-white p-5 text-center">
             <h1 className="text-xl font-bold tracking-wide">
               DOCUMENTO DE CONTROL DE TRANSPORTE
@@ -212,12 +212,12 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
 
           <div className="p-5">
             <div className="flex justify-center mb-6">
-              <div className="bg-white p-3 border-2 border-slate-200 rounded-xl">
+              <div className="bg-white p-3 border border-slate-200 rounded-xl">
                 <QRCode value={documentUrl} size={120} />
               </div>
             </div>
 
-            <div className="text-center mb-5 pb-5 border-b-2 border-slate-100">
+            <div className="text-center mb-5 pb-5 border-b border-slate-200">
               <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold">Documento ID</p>
               <p className="text-lg font-mono font-bold text-slate-900 mt-1">
                 DOC-{document.id.toUpperCase().slice(0, 8)}
@@ -323,7 +323,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
                   )}
                 </div>
                 {content.vehicle.amendments && content.vehicle.amendments.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                  <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
                     <p className="text-xs font-semibold text-slate-400 uppercase">Matriculas Sucesivas</p>
                     {content.vehicle.amendments.map((a, i) => (
                       <div key={i} className="bg-slate-50 rounded-lg px-3 py-2 text-sm">
@@ -387,7 +387,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
               )}
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+            <div className="mt-6 pt-4 border-t border-slate-200 text-center">
               <p className="text-xs text-slate-400">
                 Este documento ha sido generado digitalmente por <span className="font-bold text-slate-500 tracking-wider">DOKO</span>
               </p>

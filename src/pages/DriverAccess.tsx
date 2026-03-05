@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Truck, Loader2, Delete, AlertCircle } from 'lucide-react';
+import { FileText, Loader2, Delete, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { callEdgeFunction } from '../lib/supabase';
 
@@ -124,8 +124,8 @@ export function DriverAccess({ accessToken, onSuccess }: DriverAccessProps) {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-4">
-        <div className="bg-blue-600 p-3 rounded-2xl mb-3">
-          <Truck size={40} className="text-white" />
+        <div className="bg-blue-600 p-3 rounded-full mb-3">
+          <FileText size={40} className="text-white" />
         </div>
         <h1 className="text-2xl font-bold text-white mb-1">DOKO</h1>
         <p className="text-blue-300 text-lg font-medium mb-1">
@@ -171,32 +171,34 @@ export function DriverAccess({ accessToken, onSuccess }: DriverAccessProps) {
       </div>
 
       <div className="px-6 pb-8">
-        <div className="grid grid-cols-3 gap-3 max-w-xs mx-auto">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+        <div className="bg-slate-800/80 backdrop-blur border border-slate-700/50 rounded-xl p-4 max-w-xs mx-auto">
+          <div className="grid grid-cols-3 gap-3">
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+              <button
+                key={num}
+                onClick={() => handleDigitPress(num)}
+                disabled={loading}
+                className="h-16 rounded-xl bg-slate-700/50 text-white text-2xl font-bold active:bg-slate-600 transition-colors disabled:opacity-50 border border-slate-600/50"
+              >
+                {num}
+              </button>
+            ))}
+            <div />
             <button
-              key={num}
-              onClick={() => handleDigitPress(num)}
+              onClick={() => handleDigitPress('0')}
               disabled={loading}
-              className="h-16 rounded-xl bg-slate-800 text-white text-2xl font-bold active:bg-slate-700 transition-colors disabled:opacity-50 border border-slate-700"
+              className="h-16 rounded-xl bg-slate-700/50 text-white text-2xl font-bold active:bg-slate-600 transition-colors disabled:opacity-50 border border-slate-600/50"
             >
-              {num}
+              0
             </button>
-          ))}
-          <div />
-          <button
-            onClick={() => handleDigitPress('0')}
-            disabled={loading}
-            className="h-16 rounded-xl bg-slate-800 text-white text-2xl font-bold active:bg-slate-700 transition-colors disabled:opacity-50 border border-slate-700"
-          >
-            0
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={loading}
-            className="h-16 rounded-xl bg-slate-800 text-slate-400 flex items-center justify-center active:bg-slate-700 transition-colors disabled:opacity-50 border border-slate-700"
-          >
-            <Delete size={28} />
-          </button>
+            <button
+              onClick={handleDelete}
+              disabled={loading}
+              className="h-16 rounded-xl bg-slate-700/50 text-slate-400 flex items-center justify-center active:bg-slate-600 transition-colors disabled:opacity-50 border border-slate-600/50"
+            >
+              <Delete size={28} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

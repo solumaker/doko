@@ -92,63 +92,69 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
   const displayedDocs = isAdmin && adminView === 'all' ? allDocuments : documents;
 
   const renderDocCard = (doc: Document, actions?: React.ReactNode) => (
-    <div key={doc.id} className="bg-white rounded-xl shadow border-2 border-slate-200 overflow-hidden">
+    <div key={doc.id} className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden hover:shadow-sm transition-shadow">
       <button
         onClick={() => onViewDocument(doc)}
-        className="w-full p-5 text-left active:bg-slate-50"
+        className="w-full p-4 text-left hover:bg-slate-50/50 transition-colors"
       >
-        <div className="flex items-center gap-3 mb-3">
-          <div className="bg-green-100 p-2 rounded-lg">
-            <FileText size={24} className="text-green-600" />
+        <div className="flex items-center gap-2.5 mb-3 flex-wrap">
+          <div className="bg-emerald-50 p-1.5 rounded-lg">
+            <FileText size={18} className="text-emerald-600" />
           </div>
-          <div className="flex items-center gap-2 text-slate-500">
-            <Calendar size={18} />
-            <span className="text-base font-medium">
+          <div className="flex items-center gap-1.5 text-slate-500">
+            <Calendar size={14} />
+            <span className="text-xs font-medium">
               {format(new Date(doc.created_at), "d 'de' MMMM, yyyy", { locale: es })}
             </span>
           </div>
           {doc.driver_name && (
-            <span className="ml-auto text-sm text-slate-400 font-medium truncate max-w-[120px]">{doc.driver_name}</span>
+            <span className="ml-auto text-xs text-slate-400 font-medium truncate max-w-[120px]">{doc.driver_name}</span>
           )}
         </div>
 
         <div className="space-y-2">
-          <div className="flex items-start gap-3">
-            <div className="bg-blue-100 p-1.5 rounded-lg mt-0.5"><MapPin size={18} className="text-blue-600" /></div>
+          <div className="flex items-start gap-2.5">
+            <div className="bg-blue-50 p-1 rounded-lg mt-0.5">
+              <MapPin size={14} className="text-blue-600" />
+            </div>
             <div>
-              <p className="text-sm text-slate-500">Origen</p>
-              <p className="text-base font-semibold text-slate-900">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Origen</p>
+              <p className="text-sm font-semibold text-slate-900">
                 {doc.content.origin.poblacion || doc.content.origin.name || doc.content.origin.city}
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3">
-            <div className="bg-green-100 p-1.5 rounded-lg mt-0.5"><MapPin size={18} className="text-green-600" /></div>
+          <div className="flex items-start gap-2.5">
+            <div className="bg-emerald-50 p-1 rounded-lg mt-0.5">
+              <MapPin size={14} className="text-emerald-600" />
+            </div>
             <div>
-              <p className="text-sm text-slate-500">Destino</p>
-              <p className="text-base font-semibold text-slate-900">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Destino</p>
+              <p className="text-sm font-semibold text-slate-900">
                 {doc.content.destination.poblacion || doc.content.destination.name || doc.content.destination.city}
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3">
-            <div className="bg-slate-100 p-1.5 rounded-lg mt-0.5"><Truck size={18} className="text-slate-600" /></div>
+          <div className="flex items-start gap-2.5">
+            <div className="bg-slate-50 p-1 rounded-lg mt-0.5">
+              <Truck size={14} className="text-slate-600" />
+            </div>
             <div>
-              <p className="text-sm text-slate-500">Vehiculo</p>
-              <p className="text-base font-semibold text-slate-900">{doc.content.vehicle.tractor_plate}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Vehiculo</p>
+              <p className="text-sm font-semibold text-slate-900">{doc.content.vehicle.tractor_plate}</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-slate-200">
-          <p className="text-slate-600">
+        <div className="mt-3 pt-3 border-t border-slate-100">
+          <p className="text-slate-700 text-sm">
             <span className="font-semibold">{doc.content.cargo.description}</span>
             {' - '}
             {doc.content.cargo.weight_kg.toLocaleString()} kg
           </p>
         </div>
       </button>
-      {actions && <div className="border-t border-slate-200 px-4 py-2">{actions}</div>}
+      {actions && <div className="border-t border-slate-100 px-4 py-2.5">{actions}</div>}
     </div>
   );
 
@@ -156,24 +162,24 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
     if (loadingDrivers) {
       return (
         <div className="flex items-center justify-center py-12">
-          <Loader2 size={48} className="animate-spin text-blue-600" />
+          <Loader2 size={40} className="animate-spin text-blue-600" />
         </div>
       );
     }
 
     if (drivers.length === 0) {
       return (
-        <div className="text-center py-12">
-          <Users size={64} className="text-slate-300 mx-auto mb-4" />
-          <p className="text-xl text-slate-500">No hay conductores</p>
+        <div className="text-center py-16">
+          <Users size={56} className="text-slate-300 mx-auto mb-4" />
+          <p className="text-base font-medium text-slate-500">No hay conductores</p>
         </div>
       );
     }
 
     return (
       <div className="space-y-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-          <p className="text-sm text-blue-800 font-medium">Selecciona un conductor para gestionar qué documentos puede ver en su Historial.</p>
+        <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3">
+          <p className="text-xs font-medium text-blue-800">Selecciona un conductor para gestionar qué documentos puede ver en su Historial.</p>
         </div>
 
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -181,10 +187,10 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
             <button
               key={d.id}
               onClick={() => setSelectedDriver(d)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl font-semibold text-sm border-2 transition-colors ${
+              className={`flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold text-sm border transition-colors ${
                 selectedDriver?.id === d.id
                   ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-700 border-slate-200 active:bg-slate-50'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
             >
               {d.full_name}
@@ -194,9 +200,9 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
 
         {selectedDriver && (
           <div className="space-y-3">
-            <h3 className="font-bold text-slate-900 text-lg">{selectedDriver.full_name}</h3>
+            <h3 className="font-bold text-slate-900 text-base">{selectedDriver.full_name}</h3>
             {allDocuments.length === 0 ? (
-              <p className="text-slate-500 text-center py-8">No hay documentos</p>
+              <p className="text-slate-500 text-center py-8 text-sm">No hay documentos</p>
             ) : (
               allDocuments.map((doc) => {
                 const isHidden = selectedDriver.hiddenDocIds.includes(doc.id);
@@ -204,13 +210,13 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
                   doc,
                   <button
                     onClick={() => handleToggleVisibility(doc.id, selectedDriver.id, isHidden)}
-                    className={`flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
                       isHidden
-                        ? 'text-red-600 bg-red-50 active:bg-red-100'
-                        : 'text-green-700 bg-green-50 active:bg-green-100'
+                        ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                        : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
                     }`}
                   >
-                    {isHidden ? <><EyeOff size={15} /> Oculto para este conductor</> : <><Eye size={15} /> Visible para este conductor</>}
+                    {isHidden ? <><EyeOff size={14} /> Oculto para este conductor</> : <><Eye size={14} /> Visible para este conductor</>}
                   </button>
                 );
               })
@@ -222,24 +228,24 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
-        <button onClick={onBack} className="p-2">
-          <ArrowLeft size={32} />
+    <div className="min-h-screen bg-[#f0f4f8]">
+      <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
+        <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:text-slate-900">
+          <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold">Historial</h1>
+        <h1 className="text-lg font-bold text-slate-800">Historial</h1>
       </header>
 
       {isAdmin && (
-        <div className="bg-white border-b border-slate-200 px-4 py-2 flex gap-2">
+        <div className="bg-white border-b border-slate-200 px-4 py-2 flex gap-2 overflow-x-auto">
           {(['my', 'all', 'manage'] as const).map((v) => {
-            const labels = { my: 'Mis documentos', all: 'Todos', manage: <span className="flex items-center gap-1"><Users size={15} />Gestionar visibilidad</span> };
+            const labels = { my: 'Mis documentos', all: 'Todos', manage: <span className="flex items-center gap-1"><Users size={14} />Gestionar visibilidad</span> };
             return (
               <button
                 key={v}
                 onClick={() => setAdminView(v)}
-                className={`flex items-center gap-1 px-3 py-2 rounded-lg font-semibold text-sm transition-colors ${
-                  adminView === v ? 'bg-blue-600 text-white' : 'text-slate-600 active:bg-slate-100'
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition-colors whitespace-nowrap ${
+                  adminView === v ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 {labels[v]}
@@ -254,16 +260,16 @@ export function Historial({ onBack, onViewDocument }: HistorialProps) {
           renderManageView()
         ) : loadingDocuments ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 size={48} className="animate-spin text-blue-600" />
+            <Loader2 size={40} className="animate-spin text-blue-600" />
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {displayedDocs.map((doc) => renderDocCard(doc))}
             {displayedDocs.length === 0 && (
-              <div className="text-center py-12">
-                <FileText size={64} className="text-slate-300 mx-auto mb-4" />
-                <p className="text-xl text-slate-500">No hay documentos</p>
-                <p className="text-base text-slate-400 mt-2">Los documentos generados apareceran aqui</p>
+              <div className="text-center py-16">
+                <FileText size={56} className="text-slate-300 mx-auto mb-4" />
+                <p className="text-base font-medium text-slate-500">No hay documentos</p>
+                <p className="text-sm text-slate-400 mt-1">Los documentos generados apareceran aqui</p>
               </div>
             )}
           </div>

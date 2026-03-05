@@ -266,17 +266,17 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-slate-100">
-        <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
-          <button onClick={onBack} className="p-2">
-            <ArrowLeft size={32} />
+      <div className="min-h-screen bg-[#f0f4f8]">
+        <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
+          <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:text-slate-900">
+            <ArrowLeft size={24} />
           </button>
-          <h1 className="text-2xl font-bold">Mi Equipo</h1>
+          <h1 className="text-lg font-bold text-slate-800">Mi Equipo</h1>
         </header>
-        <div className="p-6 text-center">
-          <Shield size={64} className="text-slate-300 mx-auto mb-4" />
-          <p className="text-xl text-slate-700 font-semibold">Acceso restringido</p>
-          <p className="text-base text-slate-500 mt-2">
+        <div className="p-6 text-center py-16">
+          <Shield size={56} className="text-slate-300 mx-auto mb-4" />
+          <p className="text-base font-semibold text-slate-700">Acceso restringido</p>
+          <p className="text-sm text-slate-500 mt-1">
             Solo los administradores pueden gestionar el equipo
           </p>
         </div>
@@ -286,30 +286,30 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
 
   if (view === 'created' && createdLink) {
     return (
-      <div className="min-h-screen bg-slate-100">
-        <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
+      <div className="min-h-screen bg-[#f0f4f8]">
+        <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => {
               setCreatedLink(null);
               setView('list');
             }}
-            className="p-2"
+            className="p-2 -ml-2 text-slate-700 hover:text-slate-900"
           >
-            <ArrowLeft size={32} />
+            <ArrowLeft size={24} />
           </button>
-          <h1 className="text-2xl font-bold">Conductor creado</h1>
+          <h1 className="text-lg font-bold text-slate-800">Conductor creado</h1>
         </header>
 
-        <div className="p-4 space-y-5">
-          <div className="bg-green-100 border-2 border-green-400 rounded-xl p-4 text-center">
-            <Check size={40} className="text-green-600 mx-auto mb-2" />
-            <p className="text-xl font-bold text-green-800">
+        <div className="p-4 space-y-4">
+          <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 text-center">
+            <Check size={32} className="text-emerald-600 mx-auto mb-2" />
+            <p className="text-base font-semibold text-emerald-800">
               {createdLink.name} ha sido agregado
             </p>
           </div>
 
-          <div className="bg-white rounded-xl border-2 border-slate-200 p-5">
-            <p className="text-lg font-semibold text-slate-900 mb-4 text-center">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
+            <p className="text-sm font-semibold text-slate-900 mb-4 text-center">
               Enlace de acceso del conductor
             </p>
 
@@ -319,8 +319,8 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
               </div>
             </div>
 
-            <div className="bg-slate-100 rounded-xl p-3 mb-4">
-              <p className="text-sm text-slate-600 break-all font-mono">{createdLink.url}</p>
+            <div className="bg-slate-50 rounded-xl p-3 mb-4">
+              <p className="text-xs text-slate-600 break-all font-mono">{createdLink.url}</p>
             </div>
 
             <div className="space-y-3">
@@ -330,16 +330,16 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                   setCopied('created');
                   setTimeout(() => setCopied(null), 2000);
                 }}
-                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 active:bg-blue-700"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
               >
                 {copied === 'created' ? (
                   <>
-                    <Check size={22} />
+                    <Check size={18} />
                     Copiado
                   </>
                 ) : (
                   <>
-                    <Copy size={22} />
+                    <Copy size={18} />
                     Copiar enlace
                   </>
                 )}
@@ -350,9 +350,9 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                   createdLink.url.split('token=')[1],
                   createdLink.name
                 )}
-                className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 active:bg-green-700"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
               >
-                <Share2 size={22} />
+                <Share2 size={18} />
                 Compartir por WhatsApp
               </button>
             </div>
@@ -363,7 +363,7 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
               setCreatedLink(null);
               setView('list');
             }}
-            className="w-full bg-slate-200 text-slate-800 py-4 rounded-xl font-bold text-lg active:bg-slate-300"
+            className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 py-3.5 rounded-xl font-semibold text-sm transition-colors"
           >
             Volver al equipo
           </button>
@@ -374,64 +374,64 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
 
   if (view === 'form') {
     return (
-      <div className="min-h-screen bg-slate-100">
-        <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
+      <div className="min-h-screen bg-[#f0f4f8]">
+        <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => {
               resetForm();
               setView('list');
             }}
-            className="p-2"
+            className="p-2 -ml-2 text-slate-700 hover:text-slate-900"
           >
-            <ArrowLeft size={32} />
+            <ArrowLeft size={24} />
           </button>
-          <h1 className="text-2xl font-bold">Agregar Conductor</h1>
+          <h1 className="text-lg font-bold text-slate-800">Agregar Conductor</h1>
         </header>
 
-        <form onSubmit={handleAddDriver} className="p-4 space-y-5">
+        <form onSubmit={handleAddDriver} className="p-4 space-y-4">
           {error && (
-            <div className="bg-red-100 border-2 border-red-500 text-red-700 px-4 py-3 rounded-xl text-lg">
+            <div className="bg-red-50 border border-red-200/80 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
               {error}
             </div>
           )}
 
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-            <p className="text-blue-800 text-base">
+          <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3.5">
+            <p className="text-blue-800 text-xs font-medium">
               Al crear el conductor se generara un enlace unico. Compartelo por WhatsApp
               para que pueda acceder con su PIN.
             </p>
           </div>
 
           <div>
-            <label className="block text-lg font-semibold text-slate-900 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Nombre completo
             </label>
             <input
               type="text"
               value={formData.fullName}
               onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-              className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+              className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 text-slate-900"
               placeholder="Nombre del conductor"
               disabled={saving}
             />
           </div>
 
           <div>
-            <label className="block text-lg font-semibold text-slate-900 mb-2">
-              DNI / NIE <span className="text-slate-400 font-normal text-base">(opcional)</span>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              DNI / NIE <span className="text-slate-400 font-normal text-xs">(opcional)</span>
             </label>
             <input
               type="text"
               value={formData.dni}
               onChange={(e) => setFormData({ ...formData, dni: e.target.value.toUpperCase() })}
-              className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+              className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 text-slate-900"
               placeholder="Ej: 12345678A"
               disabled={saving}
             />
           </div>
 
           <div>
-            <label className="block text-lg font-semibold text-slate-900 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               PIN de acceso (4 digitos)
             </label>
             <div className="flex gap-3 justify-center">
@@ -450,12 +450,12 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                       prev?.focus();
                     }
                   }}
-                  className="w-16 h-20 text-center text-3xl font-bold border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+                  className="w-14 h-16 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900"
                   disabled={saving}
                 />
               ))}
             </div>
-            <p className="text-slate-500 text-base mt-2 text-center">
+            <p className="text-slate-500 text-xs mt-2 text-center">
               El conductor usara este PIN para acceder
             </p>
           </div>
@@ -463,15 +463,15 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-green-600 text-white text-xl font-bold py-5 rounded-xl active:bg-green-700 transition-colors mt-4 disabled:bg-green-400 flex items-center justify-center gap-3"
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-base font-semibold py-4 rounded-xl transition-colors mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? (
               <>
-                <Loader2 size={28} className="animate-spin" />
+                <Loader2 size={20} className="animate-spin" />
                 Creando...
               </>
             ) : (
-              'CREAR CONDUCTOR'
+              'Crear Conductor'
             )}
           </button>
         </form>
@@ -480,69 +480,69 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
-        <button onClick={onBack} className="p-2">
-          <ArrowLeft size={32} />
+    <div className="min-h-screen bg-[#f0f4f8]">
+      <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
+        <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:text-slate-900">
+          <ArrowLeft size={24} />
         </button>
-        <h1 className="text-2xl font-bold">Mi Equipo</h1>
+        <h1 className="text-lg font-bold text-slate-800">Mi Equipo</h1>
       </header>
 
       {editingDriver && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-slate-900">Editar conductor</h2>
-              <button onClick={() => setEditingDriver(null)} className="p-2 text-slate-400 active:text-slate-700">
-                <X size={24} />
+              <h2 className="text-base font-bold text-slate-900">Editar conductor</h2>
+              <button onClick={() => setEditingDriver(null)} className="p-2 text-slate-400 hover:text-slate-700">
+                <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleEditDriver} className="space-y-4">
               {editError && (
-                <div className="bg-red-100 border-2 border-red-400 text-red-700 px-4 py-3 rounded-xl text-base">
+                <div className="bg-red-50 border border-red-200/80 text-red-700 px-3 py-2.5 rounded-xl text-xs font-medium">
                   {editError}
                 </div>
               )}
 
               <div>
-                <label className="block text-base font-semibold text-slate-700 mb-1.5">Nombre completo</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre completo</label>
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full p-3.5 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900"
                   disabled={editSaving}
                 />
               </div>
 
               <div>
-                <label className="block text-base font-semibold text-slate-700 mb-1.5">
-                  DNI / NIE <span className="text-slate-400 font-normal text-sm">(opcional)</span>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  DNI / NIE <span className="text-slate-400 font-normal text-xs">(opcional)</span>
                 </label>
                 <input
                   type="text"
                   value={editDni}
                   onChange={(e) => setEditDni(e.target.value.toUpperCase())}
-                  className="w-full p-3.5 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900"
                   placeholder="Ej: 12345678A"
                   disabled={editSaving}
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-2 pt-2">
                 <button
                   type="submit"
                   disabled={editSaving}
-                  className="flex-1 bg-blue-600 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 disabled:bg-blue-300 active:bg-blue-700"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors"
                 >
-                  {editSaving ? <Loader2 size={20} className="animate-spin" /> : <Check size={20} />}
+                  {editSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                   Guardar
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingDriver(null)}
-                  className="flex-1 bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold text-base active:bg-slate-300"
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-semibold text-sm transition-colors"
                 >
                   Cancelar
                 </button>
@@ -555,31 +555,31 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl">
-            <div className="flex items-start gap-4 mb-5">
-              <div className="p-3 bg-red-100 rounded-xl shrink-0">
-                <AlertTriangle size={28} className="text-red-600" />
+            <div className="flex items-start gap-3 mb-5">
+              <div className="p-2.5 bg-red-50 rounded-xl shrink-0">
+                <AlertTriangle size={24} className="text-red-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-1">Eliminar conductor</h2>
-                <p className="text-slate-600 text-base">
+                <h2 className="text-base font-bold text-slate-900 mb-1">Eliminar conductor</h2>
+                <p className="text-slate-600 text-sm">
                   Vas a eliminar a <span className="font-semibold text-slate-900">{deleteTarget.full_name}</span>. Esta accion no se puede deshacer.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={handleDeleteDriver}
                 disabled={deleteConfirming}
-                className="flex-1 bg-red-600 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 disabled:bg-red-300 active:bg-red-700"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors"
               >
-                {deleteConfirming ? <Loader2 size={20} className="animate-spin" /> : <Trash2 size={20} />}
+                {deleteConfirming ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                 Eliminar
               </button>
               <button
                 onClick={() => setDeleteTarget(null)}
                 disabled={deleteConfirming}
-                className="flex-1 bg-slate-200 text-slate-700 py-3.5 rounded-xl font-bold text-base active:bg-slate-300"
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-semibold text-sm transition-colors"
               >
                 Cancelar
               </button>
@@ -590,7 +590,7 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
 
       <div className="p-4">
         {success && (
-          <div className="bg-green-100 border-2 border-green-500 text-green-700 px-4 py-3 rounded-xl text-lg mb-4">
+          <div className="bg-emerald-50 border border-emerald-200/80 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium mb-4">
             {success}
           </div>
         )}
@@ -603,13 +603,13 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
           if (atLimit) {
             return (
               <div className="mb-6 space-y-3">
-                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex items-start gap-3">
+                <div className="bg-red-50 border border-red-200/80 rounded-2xl p-4 flex items-start gap-3">
                   <div className="bg-red-100 p-2 rounded-xl shrink-0 mt-0.5">
-                    <AlertTriangle size={20} className="text-red-600" />
+                    <AlertTriangle size={18} className="text-red-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-base font-bold text-red-800 mb-0.5">Limite de conductores alcanzado</p>
-                    <p className="text-sm text-red-700">
+                    <p className="text-sm font-bold text-red-800 mb-0.5">Limite de conductores alcanzado</p>
+                    <p className="text-xs text-red-700">
                       Tu plan <span className="font-bold">{PLAN_CONFIG[usage!.plan!].name}</span> permite hasta{' '}
                       <span className="font-bold">{planLimit} {planLimit === 1 ? 'usuario' : 'usuarios'}</span>.
                       Para agregar mas conductores, actualiza tu plan.
@@ -617,7 +617,7 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                     {onGoToPlanes && (
                       <button
                         onClick={onGoToPlanes}
-                        className="mt-2.5 text-sm font-semibold text-red-700 underline underline-offset-2"
+                        className="mt-2 text-xs font-semibold text-red-700 underline underline-offset-2"
                       >
                         Ver planes disponibles
                       </button>
@@ -626,10 +626,10 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                 </div>
                 <button
                   disabled
-                  className="w-full bg-slate-200 text-slate-400 rounded-xl py-5 px-6 flex items-center justify-center gap-3 cursor-not-allowed"
+                  className="w-full bg-slate-200 text-slate-400 rounded-xl py-4 px-6 flex items-center justify-center gap-3 cursor-not-allowed"
                 >
-                  <Plus size={32} strokeWidth={2.5} />
-                  <span className="text-xl font-bold">AGREGAR CONDUCTOR</span>
+                  <Plus size={24} strokeWidth={2.5} />
+                  <span className="text-base font-semibold">Agregar Conductor</span>
                 </button>
               </div>
             );
@@ -638,50 +638,50 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
           return (
             <button
               onClick={() => setView('form')}
-              className="w-full bg-green-600 text-white rounded-xl py-5 px-6 mb-6 flex items-center justify-center gap-3 active:bg-green-700 transition-colors shadow"
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-4 px-6 mb-6 flex items-center justify-center gap-3 transition-colors shadow-sm"
             >
-              <Plus size={32} strokeWidth={2.5} />
-              <span className="text-xl font-bold">AGREGAR CONDUCTOR</span>
+              <Plus size={24} strokeWidth={2.5} />
+              <span className="text-base font-semibold">Agregar Conductor</span>
             </button>
           );
         })()}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 size={48} className="animate-spin text-blue-600" />
+            <Loader2 size={40} className="animate-spin text-blue-600" />
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {drivers.map((member) => (
               <div
                 key={member.id}
-                className="bg-white rounded-xl p-5 shadow border-2 border-slate-200"
+                className="bg-white rounded-2xl p-4 border border-slate-200/80 hover:shadow-sm transition-shadow"
               >
-                <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-xl ${member.role === 'admin' ? 'bg-blue-100' : member.link?.is_active === false ? 'bg-red-100' : 'bg-slate-100'}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`p-2.5 rounded-full ${member.role === 'admin' ? 'bg-blue-50' : member.link?.is_active === false ? 'bg-red-50' : 'bg-slate-50'}`}>
                     {member.role === 'admin' ? (
-                      <Shield size={28} className="text-blue-600" />
+                      <Shield size={20} className="text-blue-600" />
                     ) : (
-                      <User size={28} className={member.link?.is_active === false ? 'text-red-400' : 'text-slate-600'} />
+                      <User size={20} className={member.link?.is_active === false ? 'text-red-400' : 'text-slate-600'} />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-xl font-bold text-slate-900 truncate">
+                      <h3 className="text-base font-semibold text-slate-900 truncate">
                         {member.full_name}
                       </h3>
                       {member.role === 'admin' && (
-                        <span className="bg-blue-100 text-blue-700 text-sm font-semibold px-2 py-1 rounded">
+                        <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded">
                           Admin
                         </span>
                       )}
                       {member.link?.is_active === false && (
-                        <span className="bg-red-100 text-red-600 text-sm font-semibold px-2 py-1 rounded">
+                        <span className="bg-red-50 text-red-600 text-xs font-semibold px-2 py-0.5 rounded">
                           Inactivo
                         </span>
                       )}
                     </div>
-                    <p className="text-slate-500 text-sm mt-1">
+                    <p className="text-slate-500 text-xs mt-0.5">
                       {member.role === 'admin' ? 'Administrador' : 'Conductor'}
                       {member.dni ? ` · ${member.dni}` : ''}
                     </p>
@@ -695,27 +695,27 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                           setEditDni(member.dni || '');
                           setEditError('');
                         }}
-                        className="p-2.5 bg-slate-100 text-slate-600 rounded-xl active:bg-slate-200 border border-slate-200"
+                        className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl border border-blue-200/50 transition-colors"
                         title="Editar"
                       >
-                        <Pencil size={18} />
+                        <Pencil size={16} />
                       </button>
                       <button
                         onClick={() => setDeleteTarget(member)}
-                        className="p-2.5 bg-red-50 text-red-600 rounded-xl active:bg-red-100 border border-red-200"
+                        className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl border border-red-200/50 transition-colors"
                         title="Eliminar"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   )}
                 </div>
 
                 {member.role === 'driver' && member.link && (
-                  <div className="mt-4 space-y-2">
+                  <div className="mt-3 space-y-2">
                     {changingPin === member.link.id ? (
-                      <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                        <p className="text-base font-semibold text-slate-900 mb-3">Nuevo PIN</p>
+                      <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                        <p className="text-sm font-semibold text-slate-900 mb-2.5">Nuevo PIN</p>
                         <div className="flex gap-2 justify-center mb-3">
                           {newPinDigits.map((digit, i) => (
                             <input
@@ -732,7 +732,7 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                                   prev?.focus();
                                 }
                               }}
-                              className="w-14 h-16 text-center text-2xl font-bold border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
+                              className="w-12 h-14 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900"
                             />
                           ))}
                         </div>
@@ -740,9 +740,9 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                           <button
                             onClick={() => handleChangePin(member.link!.id)}
                             disabled={newPinDigits.join('').length !== 4}
-                            className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold text-base disabled:bg-slate-300 flex items-center justify-center gap-1"
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-semibold text-xs disabled:opacity-30 flex items-center justify-center gap-1 transition-colors"
                           >
-                            <Check size={18} />
+                            <Check size={14} />
                             Guardar
                           </button>
                           <button
@@ -750,9 +750,9 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                               setChangingPin(null);
                               setNewPinDigits(['', '', '', '']);
                             }}
-                            className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold text-base flex items-center justify-center gap-1"
+                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 transition-colors"
                           >
-                            <X size={18} />
+                            <X size={14} />
                             Cancelar
                           </button>
                         </div>
@@ -761,16 +761,16 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => handleCopyLink(member.link!.access_token, member.id)}
-                          className="flex-1 min-w-[120px] bg-blue-50 text-blue-700 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 active:bg-blue-100 border border-blue-200"
+                          className="flex-1 min-w-[120px] bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-blue-200/50 transition-colors"
                         >
-                          {copied === member.id ? <Check size={16} /> : <Copy size={16} />}
+                          {copied === member.id ? <Check size={14} /> : <Copy size={14} />}
                           {copied === member.id ? 'Copiado' : 'Copiar enlace'}
                         </button>
                         <button
                           onClick={() => handleShareWhatsApp(member.link!.access_token, member.full_name)}
-                          className="flex-1 min-w-[120px] bg-green-50 text-green-700 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 active:bg-green-100 border border-green-200"
+                          className="flex-1 min-w-[120px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-emerald-200/50 transition-colors"
                         >
-                          <Share2 size={16} />
+                          <Share2 size={14} />
                           WhatsApp
                         </button>
                         <button
@@ -778,27 +778,27 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                             setChangingPin(member.link!.id);
                             setNewPinDigits(['', '', '', '']);
                           }}
-                          className="flex-1 min-w-[120px] bg-amber-50 text-amber-700 py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 active:bg-amber-100 border border-amber-200"
+                          className="flex-1 min-w-[120px] bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-amber-200/50 transition-colors"
                         >
-                          <Key size={16} />
+                          <Key size={14} />
                           Cambiar PIN
                         </button>
                         <button
                           onClick={() => handleToggleAccess(member.link!.id, member.link!.is_active)}
-                          className={`flex-1 min-w-[120px] py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-1.5 border ${
+                          className={`flex-1 min-w-[120px] py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border transition-colors ${
                             member.link.is_active
-                              ? 'bg-red-50 text-red-700 active:bg-red-100 border-red-200'
-                              : 'bg-emerald-50 text-emerald-700 active:bg-emerald-100 border-emerald-200'
+                              ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200/50'
+                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200/50'
                           }`}
                         >
                           {member.link.is_active ? (
                             <>
-                              <ToggleRight size={16} />
+                              <ToggleRight size={14} />
                               Desactivar
                             </>
                           ) : (
                             <>
-                              <ToggleLeft size={16} />
+                              <ToggleLeft size={14} />
                               Activar
                             </>
                           )}
@@ -811,10 +811,10 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
             ))}
 
             {drivers.length === 0 && (
-              <div className="text-center py-12">
-                <Users size={64} className="text-slate-300 mx-auto mb-4" />
-                <p className="text-xl text-slate-500">No hay miembros en el equipo</p>
-                <p className="text-base text-slate-400 mt-2">
+              <div className="text-center py-16">
+                <Users size={56} className="text-slate-300 mx-auto mb-4" />
+                <p className="text-base font-medium text-slate-500">No hay miembros en el equipo</p>
+                <p className="text-sm text-slate-400 mt-1">
                   Agrega conductores para que puedan crear documentos
                 </p>
               </div>

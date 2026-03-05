@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Truck, Eye, EyeOff, ArrowLeft, Loader2, Building2, User } from 'lucide-react';
+import { FileText, Eye, EyeOff, ArrowLeft, Loader2, Building2, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface RegisterProps {
@@ -112,269 +112,251 @@ export function Register({ onNavigateToLogin }: RegisterProps) {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
-        <button
-          onClick={step === 1 ? onNavigateToLogin : handleBack}
-          className="p-2"
-        >
-          <ArrowLeft size={32} />
-        </button>
-        <div>
-          <h1 className="text-xl font-bold">Crear Cuenta</h1>
-          <p className="text-blue-100 text-base">
-            Paso {step} de 2: {step === 1 ? 'Tus datos' : 'Datos de empresa'}
-          </p>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
+          <div className="flex flex-col items-center mb-6">
+            <button
+              onClick={step === 1 ? onNavigateToLogin : handleBack}
+              className="self-start mb-4 p-2 text-slate-600 hover:text-slate-900 -ml-2"
+            >
+              <ArrowLeft size={24} />
+            </button>
 
-      <div className="flex items-center justify-center gap-2 py-4 px-4 bg-slate-100 border-b border-slate-200">
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
-            step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
-          }`}
-        >
-          <User size={20} />
-        </div>
-        <div className={`w-12 h-1 ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
-        <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
-            step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
-          }`}
-        >
-          <Building2 size={20} />
-        </div>
-      </div>
-
-      <div className="flex-1 px-6 py-6">
-        {error && (
-          <div className="bg-red-100 border-2 border-red-500 text-red-700 px-4 py-3 rounded-xl text-lg mb-6">
-            {error}
+            <div className="bg-blue-50 p-4 rounded-full mb-3">
+              <FileText size={32} className="text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-blue-700">DOKO</h1>
+            <h2 className="text-lg font-bold text-slate-900 mt-4">Crear Cuenta</h2>
+            <p className="text-slate-600 text-sm text-center">
+              Paso {step} de 2: {step === 1 ? 'Tus datos' : 'Datos de empresa'}
+            </p>
           </div>
-        )}
 
-        {step === 1 && (
-          <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-5">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-blue-100 p-3 rounded-xl">
-                <User size={28} className="text-blue-600" />
-              </div>
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
+              }`}
+            >
+              <User size={16} />
+            </div>
+            <div className={`w-12 h-1 rounded ${step >= 2 ? 'bg-blue-600' : 'bg-slate-200'}`} />
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                step >= 2 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'
+              }`}
+            >
+              <Building2 size={16} />
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm mb-4">
+              {error}
+            </div>
+          )}
+
+          {step === 1 && (
+            <form onSubmit={(e) => { e.preventDefault(); handleNext(); }} className="space-y-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Tus datos personales</h2>
-                <p className="text-slate-600">Informacion del administrador</p>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Nombre completo *
+                </label>
+                <input
+                  type="text"
+                  value={formData.fullName}
+                  onChange={(e) => updateField('fullName', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                  placeholder="Juan Garcia Lopez"
+                />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Nombre completo *
-              </label>
-              <input
-                type="text"
-                value={formData.fullName}
-                onChange={(e) => updateField('fullName', e.target.value)}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                placeholder="Juan Garcia Lopez"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Correo electronico *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => updateField('email', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                  placeholder="tu@email.com"
+                  autoComplete="email"
+                />
+              </div>
 
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Correo electronico *
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => updateField('email', e.target.value)}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                placeholder="tu@email.com"
-                autoComplete="email"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Contrasena *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.password}
+                    onChange={(e) => updateField('password', e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400 pr-12"
+                    placeholder="Minimo 6 caracteres"
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-700"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
 
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Contrasena *
-              </label>
-              <div className="relative">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Confirmar contrasena *
+                </label>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={(e) => updateField('password', e.target.value)}
-                  className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900 pr-14"
-                  placeholder="Minimo 6 caracteres"
+                  value={formData.confirmPassword}
+                  onChange={(e) => updateField('confirmPassword', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                  placeholder="Repite la contrasena"
                   autoComplete="new-password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 text-slate-500"
-                >
-                  {showPassword ? <EyeOff size={28} /> : <Eye size={28} />}
-                </button>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Confirmar contrasena *
-              </label>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={formData.confirmPassword}
-                onChange={(e) => updateField('confirmPassword', e.target.value)}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                placeholder="Repite la contrasena"
-                autoComplete="new-password"
-              />
-            </div>
+              <button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-colors"
+              >
+                SIGUIENTE
+              </button>
+            </form>
+          )}
 
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white text-xl font-bold py-5 rounded-xl active:bg-blue-700 transition-colors mt-6"
-            >
-              SIGUIENTE
-            </button>
-          </form>
-        )}
-
-        {step === 2 && (
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="bg-blue-100 p-3 rounded-xl">
-                <Building2 size={28} className="text-blue-600" />
-              </div>
+          {step === 2 && (
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Datos de la empresa</h2>
-                <p className="text-slate-600">Informacion fiscal y de contacto</p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Nombre de la empresa *
-              </label>
-              <input
-                type="text"
-                value={formData.companyName}
-                onChange={(e) => updateField('companyName', e.target.value)}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                placeholder="Transportes Garcia S.L."
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                CIF *
-              </label>
-              <input
-                type="text"
-                value={formData.companyCif}
-                onChange={(e) => updateField('companyCif', e.target.value.toUpperCase())}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900 uppercase"
-                placeholder="B12345678"
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Direccion
-              </label>
-              <input
-                type="text"
-                value={formData.companyAddress}
-                onChange={(e) => updateField('companyAddress', e.target.value)}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                placeholder="Calle, numero, nave..."
-                disabled={loading}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-lg font-semibold text-slate-900 mb-2">
-                  Poblacion
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Nombre de la empresa *
                 </label>
                 <input
                   type="text"
-                  value={formData.companyCity}
-                  onChange={(e) => updateField('companyCity', e.target.value)}
-                  className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                  placeholder="Ciudad"
+                  value={formData.companyName}
+                  onChange={(e) => updateField('companyName', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                  placeholder="Transportes Garcia S.L."
                   disabled={loading}
                 />
               </div>
+
               <div>
-                <label className="block text-lg font-semibold text-slate-900 mb-2">
-                  CP
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  CIF *
                 </label>
                 <input
                   type="text"
-                  value={formData.companyPostalCode}
-                  onChange={(e) => updateField('companyPostalCode', e.target.value)}
-                  className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                  placeholder="28001"
+                  value={formData.companyCif}
+                  onChange={(e) => updateField('companyCif', e.target.value.toUpperCase())}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400 uppercase"
+                  placeholder="B12345678"
                   disabled={loading}
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Provincia
-              </label>
-              <input
-                type="text"
-                value={formData.companyProvince}
-                onChange={(e) => updateField('companyProvince', e.target.value)}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                placeholder="Madrid"
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Direccion
+                </label>
+                <input
+                  type="text"
+                  value={formData.companyAddress}
+                  onChange={(e) => updateField('companyAddress', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                  placeholder="Calle, numero, nave..."
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Poblacion
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.companyCity}
+                    onChange={(e) => updateField('companyCity', e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                    placeholder="Ciudad"
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    CP
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.companyPostalCode}
+                    onChange={(e) => updateField('companyPostalCode', e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                    placeholder="28001"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Provincia
+                </label>
+                <input
+                  type="text"
+                  value={formData.companyProvince}
+                  onChange={(e) => updateField('companyProvince', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                  placeholder="Madrid"
+                  disabled={loading}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Telefono
+                </label>
+                <input
+                  type="tel"
+                  value={formData.companyPhone}
+                  onChange={(e) => updateField('companyPhone', e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                  placeholder="+34 912 345 678"
+                  disabled={loading}
+                />
+              </div>
+
+              <button
+                type="submit"
                 disabled={loading}
-              />
-            </div>
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Creando cuenta...
+                  </>
+                ) : (
+                  'CREAR MI CUENTA'
+                )}
+              </button>
+            </form>
+          )}
 
-            <div>
-              <label className="block text-lg font-semibold text-slate-900 mb-2">
-                Telefono
-              </label>
-              <input
-                type="tel"
-                value={formData.companyPhone}
-                onChange={(e) => updateField('companyPhone', e.target.value)}
-                className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-                placeholder="+34 912 345 678"
-                disabled={loading}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-green-600 text-white text-xl font-bold py-5 rounded-xl active:bg-green-700 transition-colors mt-6 disabled:bg-green-400 flex items-center justify-center gap-3"
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={28} className="animate-spin" />
-                  Creando cuenta...
-                </>
-              ) : (
-                <>
-                  <Truck size={28} />
-                  CREAR MI CUENTA
-                </>
-              )}
+          <p className="text-center text-slate-600 mt-6 text-sm">
+            ¿Ya tienes cuenta?{' '}
+            <button onClick={onNavigateToLogin} className="text-blue-600 hover:text-blue-700 font-semibold">
+              Inicia sesion
             </button>
-          </form>
-        )}
-
-        <p className="text-center text-slate-500 mt-8 text-base">
-          ¿Ya tienes cuenta?{' '}
-          <button onClick={onNavigateToLogin} className="text-blue-600 font-semibold">
-            Inicia sesion
-          </button>
-        </p>
+          </p>
+        </div>
       </div>
     </div>
   );

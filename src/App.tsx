@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Truck } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
@@ -56,12 +56,12 @@ function getStripeReturnParams(): { success: boolean; isPack: boolean } | null {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center">
-      <div className="bg-blue-600 p-4 rounded-2xl mb-4">
-        <Truck size={56} className="text-white" />
+    <div className="min-h-screen bg-[#f0f4f8] flex flex-col items-center justify-center">
+      <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
+        <FileText size={32} className="text-blue-600" />
       </div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-4">DOKO</h1>
-      <Loader2 size={40} className="animate-spin text-blue-600" />
+      <h1 className="text-2xl font-extrabold text-blue-700 tracking-tight mb-6">DOKO</h1>
+      <Loader2 size={28} className="animate-spin text-blue-500" />
     </div>
   );
 }
@@ -236,11 +236,11 @@ function AppContent() {
             />
           );
         }
-        return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} />;
+        return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} onViewDocument={handleViewDocument} />;
       case 'equipo':
         return <Equipo onBack={() => handleNavigate('dashboard')} onGoToPlanes={() => handleNavigate('planes')} />;
       default:
-        return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} />;
+        return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} onViewDocument={handleViewDocument} />;
     }
   };
 

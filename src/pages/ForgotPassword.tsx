@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Truck, ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react';
+import { FileText, ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface ForgotPasswordProps {
@@ -35,105 +35,112 @@ export function ForgotPassword({ onNavigateToLogin }: ForgotPasswordProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
-          <button onClick={onNavigateToLogin} className="p-2">
-            <ArrowLeft size={32} />
-          </button>
-          <h1 className="text-xl font-bold">Recuperar Contrasena</h1>
-        </header>
+      <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
+            <button
+              onClick={onNavigateToLogin}
+              className="mb-6 p-2 text-slate-600 hover:text-slate-900 -ml-2"
+            >
+              <ArrowLeft size={24} />
+            </button>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-          <div className="bg-green-100 p-6 rounded-full mb-6">
-            <CheckCircle size={64} className="text-green-600" />
+            <div className="flex flex-col items-center text-center">
+              <div className="bg-green-50 p-5 rounded-full mb-4">
+                <CheckCircle size={48} className="text-green-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 mb-3">
+                Correo enviado
+              </h2>
+              <p className="text-sm text-slate-600 mb-2">
+                Hemos enviado un enlace de recuperacion a{' '}
+                <span className="font-semibold text-slate-900">{email}</span>
+              </p>
+              <p className="text-sm text-slate-500 mb-6">
+                Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contrasena.
+              </p>
+              <button
+                onClick={onNavigateToLogin}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-colors"
+              >
+                VOLVER A INICIAR SESION
+              </button>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 text-center mb-4">
-            Correo enviado
-          </h2>
-          <p className="text-lg text-slate-600 text-center mb-8">
-            Hemos enviado un enlace de recuperacion a{' '}
-            <span className="font-semibold text-slate-900">{email}</span>
-          </p>
-          <p className="text-base text-slate-500 text-center mb-8">
-            Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contrasena.
-          </p>
-          <button
-            onClick={onNavigateToLogin}
-            className="w-full bg-blue-600 text-white text-xl font-bold py-5 rounded-xl active:bg-blue-700"
-          >
-            VOLVER A INICIAR SESION
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <header className="bg-blue-600 text-white px-4 py-4 flex items-center gap-4">
-        <button onClick={onNavigateToLogin} className="p-2">
-          <ArrowLeft size={32} />
-        </button>
-        <h1 className="text-xl font-bold">Recuperar Contrasena</h1>
-      </header>
+    <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
+          <button
+            onClick={onNavigateToLogin}
+            className="mb-6 p-2 text-slate-600 hover:text-slate-900 -ml-2"
+          >
+            <ArrowLeft size={24} />
+          </button>
 
-      <div className="flex-1 flex flex-col justify-center px-6 py-12">
-        <div className="flex flex-col items-center mb-10">
-          <div className="bg-blue-100 p-4 rounded-2xl mb-4">
-            <Mail size={56} className="text-blue-600" />
+          <div className="flex flex-col items-center mb-8">
+            <div className="bg-blue-50 p-4 rounded-full mb-3">
+              <FileText size={32} className="text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-blue-700 mb-4">DOKO</h1>
+            <h2 className="text-lg font-bold text-slate-900 text-center">
+              ¿Olvidaste tu contrasena?
+            </h2>
+            <p className="text-slate-600 text-sm mt-2 text-center">
+              Te enviaremos un enlace para restablecerla
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 text-center">
-            ¿Olvidaste tu contrasena?
-          </h2>
-          <p className="text-slate-600 text-lg mt-2 text-center">
-            Te enviaremos un enlace para restablecerla
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Correo electronico
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                placeholder="tu@email.com"
+                autoComplete="email"
+                disabled={loading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                'ENVIAR ENLACE'
+              )}
+            </button>
+          </form>
+
+          <p className="text-center text-slate-600 mt-6 text-sm">
+            ¿Recordaste tu contrasena?{' '}
+            <button onClick={onNavigateToLogin} className="text-blue-600 hover:text-blue-700 font-semibold">
+              Volver a iniciar sesion
+            </button>
           </p>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <div className="bg-red-100 border-2 border-red-500 text-red-700 px-4 py-3 rounded-xl text-lg">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-lg font-semibold text-slate-900 mb-2">
-              Correo electronico
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-4 text-lg border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900"
-              placeholder="tu@email.com"
-              autoComplete="email"
-              disabled={loading}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white text-xl font-bold py-5 rounded-xl active:bg-blue-700 transition-colors mt-6 disabled:bg-blue-400 flex items-center justify-center gap-3"
-          >
-            {loading ? (
-              <>
-                <Loader2 size={28} className="animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              'ENVIAR ENLACE'
-            )}
-          </button>
-        </form>
-
-        <p className="text-center text-slate-500 mt-8 text-base">
-          ¿Recordaste tu contrasena?{' '}
-          <button onClick={onNavigateToLogin} className="text-blue-600 font-semibold">
-            Volver a iniciar sesion
-          </button>
-        </p>
       </div>
     </div>
   );

@@ -28,7 +28,7 @@ interface DocumentoControlProps {
 }
 
 const inputClass =
-  'w-full p-3 text-base border-2 border-slate-300 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900 placeholder:text-slate-400';
+  'w-full p-3 text-base border border-slate-200 rounded-xl focus:border-blue-600 focus:outline-none text-slate-900 placeholder:text-slate-400';
 
 function getOriginLabel(content: Document['content']) {
   return {
@@ -225,14 +225,14 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
     const sig = content.signatures?.[side];
     const isOrigin = side === 'origin';
     return (
-      <section className={`border-2 rounded-xl p-4 ${isOrigin ? 'border-blue-200 bg-blue-50' : 'border-green-200 bg-green-50'}`}>
+      <section className={`border rounded-xl p-4 ${isOrigin ? 'border-blue-200 bg-blue-50/50' : 'border-emerald-200 bg-emerald-50/50'}`}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className={`text-sm font-bold uppercase tracking-wide ${isOrigin ? 'text-blue-700' : 'text-green-700'}`}>
+          <h2 className={`text-sm font-bold uppercase tracking-wide ${isOrigin ? 'text-blue-700' : 'text-emerald-700'}`}>
             Firma — {label}
           </h2>
           <button
             onClick={() => openSignModal(side)}
-            className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg text-white active:opacity-80 ${isOrigin ? 'bg-blue-600' : 'bg-green-600'}`}
+            className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg text-white active:opacity-80 ${isOrigin ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-500 hover:bg-emerald-600'}`}
           >
             <PenLine size={14} />{sig ? 'Re-firmar' : 'Firmar'}
           </button>
@@ -256,19 +256,19 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-blue-600 text-white px-4 py-4 flex items-center justify-between print:hidden">
-        <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2"><ArrowLeft size={32} /></button>
-          <h1 className="text-xl font-bold">Documento de Control</h1>
-        </div>
-        <button onClick={handleShare} className="bg-white text-blue-600 px-4 py-2 rounded-xl font-bold flex items-center gap-2">
-          <Share2 size={22} />Compartir
+    <div className="min-h-screen bg-[#f0f4f8]">
+      <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center justify-between print:hidden">
+        <button onClick={onBack} className="p-2 -ml-2">
+          <ArrowLeft size={24} className="text-slate-800" />
+        </button>
+        <h1 className="text-lg font-bold text-slate-800 flex-1 text-center -ml-10">Documento de Control</h1>
+        <button onClick={handleShare} className="text-blue-600 p-2">
+          <Share2 size={22} />
         </button>
       </header>
 
       <div className="p-4 pb-40 print:p-0">
-        <div className="bg-white rounded-xl shadow-lg border-2 border-slate-300 overflow-hidden print:rounded-none print:shadow-none">
+        <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden print:rounded-none print:shadow-none">
           <div className="bg-slate-800 text-white p-4 text-center">
             <h1 className="text-xl font-bold tracking-wide">DOCUMENTO DE CONTROL DE TRANSPORTE</h1>
             <p className="text-slate-300 text-sm mt-1">Conforme a la normativa vigente de transporte por carretera</p>
@@ -276,12 +276,12 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
 
           <div className="p-4">
             <div className="flex justify-center mb-6">
-              <div className="bg-white p-3 border-2 border-slate-300 rounded-xl">
+              <div className="bg-white p-3 border border-slate-200 rounded-xl">
                 <QRCode value={documentUrl} size={140} />
               </div>
             </div>
 
-            <div className="text-center mb-4 pb-4 border-b-2 border-slate-200">
+            <div className="text-center mb-4 pb-4 border-b border-slate-200">
               <p className="text-slate-500 text-sm">Documento ID</p>
               <p className="text-lg font-mono font-bold text-slate-900">{doc.id.toUpperCase().slice(0, 8)}</p>
               <p className="text-slate-600 text-base mt-1">
@@ -290,21 +290,21 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
             </div>
 
             <div className="space-y-4">
-              <section className="border-2 border-slate-200 rounded-xl p-4">
+              <section className="border border-slate-200 rounded-xl p-4">
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">Cargador Contractual</h2>
                 <p className="text-lg font-bold text-slate-900">{shipperName}</p>
                 {shipperNif && <p className="text-base text-slate-700">NIF: {shipperNif}</p>}
                 <p className="text-base text-slate-600">{shipperAddr}</p>
               </section>
 
-              <section className="border-2 border-slate-200 rounded-xl p-4">
+              <section className="border border-slate-200 rounded-xl p-4">
                 <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">Transportista Efectivo</h2>
                 <p className="text-lg font-bold text-slate-900">{content.company.name}</p>
                 {content.company.cif && <p className="text-base text-slate-700">CIF: {content.company.cif}</p>}
               </section>
 
               {(content.driver?.name || doc.driver_name) && (
-                <section className="border-2 border-slate-200 rounded-xl p-4">
+                <section className="border border-slate-200 rounded-xl p-4">
                   <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide mb-2">Conductor</h2>
                   <div className="flex items-center gap-3">
                     <div className="bg-slate-100 p-2 rounded-lg"><User size={20} className="text-slate-600" /></div>
@@ -314,7 +314,7 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <section className="border-2 border-blue-200 bg-blue-50 rounded-xl p-4">
+                <section className="border border-blue-200 bg-blue-50/50 rounded-xl p-4">
                   <h2 className="text-sm font-bold text-blue-700 uppercase tracking-wide mb-2">Origen</h2>
                   {origin.empresa && <p className="text-lg font-bold text-slate-900">{origin.empresa}</p>}
                   <p className={origin.empresa ? 'text-base text-slate-700' : 'text-lg font-bold text-slate-900'}>{origin.addr}</p>
@@ -324,15 +324,15 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
                   </div>
                 </section>
 
-                <section className="border-2 border-green-200 bg-green-50 rounded-xl p-4">
-                  <h2 className="text-sm font-bold text-green-700 uppercase tracking-wide mb-2">Destino</h2>
+                <section className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4">
+                  <h2 className="text-sm font-bold text-emerald-700 uppercase tracking-wide mb-2">Destino</h2>
                   {destination.empresa && <p className="text-lg font-bold text-slate-900">{destination.empresa}</p>}
                   <p className={destination.empresa ? 'text-base text-slate-700' : 'text-lg font-bold text-slate-900'}>{destination.addr}</p>
                   {destination.loc && <p className="text-base text-slate-700">{destination.loc}</p>}
                   {content.unloading_date && (
-                    <div className="mt-3 pt-3 border-t border-green-200">
+                    <div className="mt-3 pt-3 border-t border-emerald-200">
                       <p className="text-base text-slate-700 flex items-center gap-1.5">
-                        <Clock size={14} className="text-green-600" />
+                        <Clock size={14} className="text-emerald-600" />
                         <span className="font-semibold">Descarga:</span> {format(new Date(content.unloading_date), "d/MM/yyyy", { locale: es })}
                       </p>
                     </div>
@@ -340,7 +340,7 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
                 </section>
               </div>
 
-              <section className="border-2 border-slate-200 rounded-xl p-4">
+              <section className="border border-slate-200 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">Vehiculo</h2>
                 </div>
@@ -366,7 +366,7 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
                 )}
               </section>
 
-              <section className="border-2 border-amber-200 bg-amber-50 rounded-xl p-4">
+              <section className="border border-amber-200 bg-amber-50/50 rounded-xl p-4">
                 <h2 className="text-sm font-bold text-amber-700 uppercase tracking-wide mb-2">Mercancia</h2>
                 <p className="text-lg font-bold text-slate-900">{content.cargo.description}</p>
                 <div className="flex gap-4 mt-2">
@@ -379,7 +379,7 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
 
             </div>
 
-            <div className="mt-6 pt-4 border-t-2 border-slate-200 text-center">
+            <div className="mt-6 pt-4 border-t border-slate-200 text-center">
               <p className="text-sm text-slate-500">Este documento ha sido generado digitalmente por DOKO</p>
               <p className="text-xs text-slate-400 mt-1">Verificable mediante codigo QR</p>
             </div>
@@ -387,17 +387,17 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
         </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-slate-200 print:hidden space-y-3">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200 print:hidden space-y-3">
         {downloadUrl ? (
           <button
             onClick={handleDownload}
-            className="w-full bg-green-600 text-white text-xl font-bold py-4 rounded-xl active:bg-green-700 flex items-center justify-center gap-3"
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xl font-bold py-4 rounded-xl active:bg-emerald-700 flex items-center justify-center gap-3"
           >
             <Download size={26} />
             DESCARGAR PDF{!doc.pdf_url && doc.pdf_original_url ? ' (Original)' : ''}
           </button>
         ) : (
-          <div className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-4 py-3 space-y-2.5">
+          <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText size={16} className="text-blue-600 shrink-0" />
@@ -419,7 +419,7 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
             </p>
           </div>
         )}
-        <button onClick={onBack} className="w-full bg-blue-600 text-white text-xl font-bold py-4 rounded-xl active:bg-blue-700">
+        <button onClick={onBack} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-4 rounded-xl active:bg-blue-800">
           VOLVER AL INICIO
         </button>
       </div>
@@ -451,7 +451,7 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
             <button
               onClick={handleSaveSignature}
               disabled={!signFirmante.trim() || !signDni.trim() || !signDrawn || signSaving}
-              className="w-full bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 active:bg-green-700"
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 active:bg-emerald-700"
             >
               {signSaving ? <><Loader2 size={20} className="animate-spin" />Guardando...</> : <><Check size={20} />CONFIRMAR FIRMA</>}
             </button>
@@ -487,7 +487,7 @@ export function DocumentoControl({ document: initialDoc, onBack }: DocumentoCont
             <button
               onClick={handleSaveAmendment}
               disabled={(!amendTractor.trim() && !amendTrailer1.trim() && !amendTrailer2.trim()) || amendSaving}
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 active:bg-blue-700"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 active:bg-blue-800"
             >
               {amendSaving ? <><Loader2 size={20} className="animate-spin" />Guardando...</> : <><Check size={20} />GUARDAR MATRICULAS</>}
             </button>
