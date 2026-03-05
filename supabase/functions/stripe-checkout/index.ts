@@ -85,6 +85,19 @@ Deno.serve(async (req: Request) => {
     }
 
     let customerId = company.stripe_customer_id;
+
+    if (customerId) {
+      try {
+        await stripe.customers.retrieve(customerId);
+      } catch {
+        customerId = null;
+        await supabaseAdmin
+          .from("companies")
+          .update({ stripe_customer_id: null })
+          .eq("id", company.id);
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
