@@ -269,7 +269,7 @@ export function Planes({ onBack }: PlanesProps) {
           </div>
           <p className="text-base text-slate-600 mb-4">
             Anade <span className="font-bold text-slate-900">+10 documentos</span> a tu saldo por solo{' '}
-            <span className="font-bold text-slate-900">0,50 EUR</span>. No se pierden al renovar tu plan.
+            <span className="font-bold text-slate-900">5 EUR</span>. No se pierden al renovar tu plan.
           </p>
           <button
             onClick={handleBuyPack}

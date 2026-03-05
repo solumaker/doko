@@ -124,7 +124,7 @@ Deno.serve(async (req: Request) => {
             price_data: {
               currency: "eur",
               product_data: { name: "+10 Documentos extra" },
-              unit_amount: 50,
+              unit_amount: 500,
             },
             quantity: 1,
           },
