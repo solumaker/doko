@@ -19,7 +19,7 @@ interface SubscriptionContextType {
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { profile, company } = useAuth();
+  const { profile, company, session } = useAuth();
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -81,9 +81,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [fetchUsage]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token ?? null;
-  }, []);
+    if (session?.access_token) return session.access_token;
+    const { data: { session: freshSession } } = await supabase.auth.refreshSession();
+    return freshSession?.access_token ?? null;
+  }, [session]);
 
   const createCheckoutSession = useCallback(async (plan: PlanId) => {
     const token = await getToken();
