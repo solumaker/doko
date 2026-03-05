@@ -131,16 +131,16 @@ Deno.serve(async (req: Request) => {
                 const foundPlan = Object.entries(PLAN_LIMITS).find(
                   ([, _]) => {
                     return Object.entries({
-                      autonomo: "price_1T7HOQBnbfHLJ2lEWtdSMHiR",
+                      autonomo: "price_1T7ennBnbfHLJ2lEttin2U6U",
                       pyme: "price_1T7HOaBnbfHLJ2lE0ks9Mm3O",
-                      flotas: "price_1T7HOiBnbfHLJ2lEBqyi2aGL",
+                      flotas: "price_1T7eoABnbfHLJ2lEutKrGJVV",
                     }).find(([planKey]) => planKey && priceId && planKey === _)?.[0];
                   }
                 );
                 const PRICE_TO_PLAN: Record<string, string> = {
-                  "price_1T7HOQBnbfHLJ2lEWtdSMHiR": "autonomo",
+                  "price_1T7ennBnbfHLJ2lEttin2U6U": "autonomo",
                   "price_1T7HOaBnbfHLJ2lE0ks9Mm3O": "pyme",
-                  "price_1T7HOiBnbfHLJ2lEBqyi2aGL": "flotas",
+                  "price_1T7eoABnbfHLJ2lEutKrGJVV": "flotas",
                 };
                 pendingPlan = PRICE_TO_PLAN[priceId] ?? null;
                 if (pendingPlan && nextPhase.start_date) {

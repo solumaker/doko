@@ -10,9 +10,9 @@ const corsHeaders = {
 };
 
 const PLAN_PRICES: Record<string, { price_id: string; doc_limit: number; user_limit: number }> = {
-  autonomo: { price_id: "price_1T7HOQBnbfHLJ2lEWtdSMHiR", doc_limit: 100, user_limit: 1 },
+  autonomo: { price_id: "price_1T7ennBnbfHLJ2lEttin2U6U", doc_limit: 100, user_limit: 1 },
   pyme: { price_id: "price_1T7HOaBnbfHLJ2lE0ks9Mm3O", doc_limit: 500, user_limit: 3 },
-  flotas: { price_id: "price_1T7HOiBnbfHLJ2lEBqyi2aGL", doc_limit: 2500, user_limit: 10 },
+  flotas: { price_id: "price_1T7eoABnbfHLJ2lEutKrGJVV", doc_limit: 2500, user_limit: 10 },
 };
 
 Deno.serve(async (req: Request) => {
