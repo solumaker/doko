@@ -287,6 +287,7 @@ export function Planes({ onBack, onGoToEquipo }: PlanesProps) {
                   <div className="text-right">
                     <span className="text-3xl font-bold text-slate-900">{plan.price}</span>
                     <span className="text-slate-500 text-base font-medium"> EUR/mes</span>
+                    <p className="text-[10px] text-slate-400 font-normal mt-0.5 tracking-wide">antes de IVA</p>
                   </div>
                 </div>
 
