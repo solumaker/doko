@@ -1,14 +1,12 @@
-import { Clock, CreditCard, FileText, Users } from 'lucide-react';
+import { Clock, CreditCard, FileText } from 'lucide-react';
 import { TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
 
 interface TrialExpiredModalProps {
   onSelectPlan: () => void;
   onViewHistory: () => void;
-  onManageUsers: () => void;
-  hasDrivers: boolean;
 }
 
-export function TrialExpiredModal({ onSelectPlan, onViewHistory, onManageUsers, hasDrivers }: TrialExpiredModalProps) {
+export function TrialExpiredModal({ onSelectPlan, onViewHistory }: TrialExpiredModalProps) {
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-5">
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-scaleIn">
@@ -36,16 +34,6 @@ export function TrialExpiredModal({ onSelectPlan, onViewHistory, onManageUsers, 
             <CreditCard size={20} />
             Elegir un plan
           </button>
-
-          {hasDrivers && (
-            <button
-              onClick={onManageUsers}
-              className="w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2.5 active:bg-slate-200 transition-colors"
-            >
-              <Users size={16} />
-              Gestionar usuarios
-            </button>
-          )}
 
           <button
             onClick={onViewHistory}

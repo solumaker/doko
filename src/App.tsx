@@ -248,8 +248,6 @@ function AppContent() {
         <TrialExpiredModal
           onSelectPlan={() => handleNavigate('planes')}
           onViewHistory={() => handleNavigate('historial')}
-          onManageUsers={() => handleNavigate('equipo')}
-          hasDrivers={hasDrivers}
         />
       )}
     </>
