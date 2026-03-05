@@ -240,8 +240,8 @@ function RecentActivityTable({ documents, onViewDocument, onNavigate }: {
   );
 }
 
-function SubscriptionBanner({ onNavigate }: { onNavigate: (s: Screen) => void }) {
-  const { usage, hasActiveSubscription, isTrialActive } = useSubscription();
+function SubscriptionBanner() {
+  const { usage, hasActiveSubscription, isTrialActive, openCustomerPortal } = useSubscription();
 
   const planName = hasActiveSubscription && usage?.plan
     ? PLAN_CONFIG[usage.plan]?.name ?? usage.plan
@@ -262,10 +262,10 @@ function SubscriptionBanner({ onNavigate }: { onNavigate: (s: Screen) => void })
         <p className="text-sm text-slate-500 mt-1">{description}</p>
       </div>
       <button
-        onClick={() => onNavigate('planes')}
+        onClick={openCustomerPortal}
         className="shrink-0 border-2 border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white font-bold text-sm px-6 py-3 rounded-xl transition-all uppercase tracking-wide"
       >
-        Ver detalles del plan
+        Gestionar suscripcion
       </button>
     </div>
   );
@@ -326,7 +326,7 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
           onNavigate={onNavigate}
         />
 
-        {isAdmin && <SubscriptionBanner onNavigate={onNavigate} />}
+        {isAdmin && <SubscriptionBanner />}
       </div>
     </AppLayout>
   );
