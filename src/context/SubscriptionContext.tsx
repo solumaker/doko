@@ -82,53 +82,75 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const getToken = useCallback(async (): Promise<string | null> => {
     const { data: { session: currentSession } } = await supabase.auth.getSession();
-    return currentSession?.access_token ?? null;
+    if (!currentSession) return null;
+
+    const expiresAt = currentSession.expires_at ?? 0;
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (expiresAt - nowSec < 60) {
+      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+      return refreshed?.access_token ?? null;
+    }
+
+    return currentSession.access_token;
   }, []);
 
-  const createCheckoutSession = useCallback(async (plan: PlanId) => {
+  const callWithRetry = useCallback(async (
+    functionName: string,
+    body: Record<string, unknown>,
+  ): Promise<{ data: Record<string, unknown> | null; ok: boolean }> => {
     const token = await getToken();
-    if (!token) { console.error('stripe-checkout: no auth token'); return; }
-    const { data, ok } = await callEdgeFunction('stripe-checkout', {
+    if (!token) return { data: null, ok: false };
+
+    const result = await callEdgeFunction(functionName, body, token);
+    if (result.ok) return result;
+
+    if (result.status === 401) {
+      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+      if (!refreshed?.access_token) return { data: null, ok: false };
+      return callEdgeFunction(functionName, body, refreshed.access_token);
+    }
+
+    return result;
+  }, [getToken]);
+
+  const createCheckoutSession = useCallback(async (plan: PlanId) => {
+    const { data, ok } = await callWithRetry('stripe-checkout', {
       plan,
       mode: 'subscription',
       success_url: `${window.location.origin}?checkout_success=true`,
       cancel_url: `${window.location.origin}?checkout_cancel=true`,
-    }, token);
+    });
 
     if (!ok) console.error('stripe-checkout error:', data);
     if (ok && data?.url) {
-      window.location.href = data.url;
+      window.location.href = data.url as string;
     }
-  }, [getToken]);
+  }, [callWithRetry]);
 
   const purchaseDocumentPack = useCallback(async () => {
-    const token = await getToken();
-    if (!token) { console.error('stripe-checkout: no auth token'); return; }
-    const { data, ok } = await callEdgeFunction('stripe-checkout', {
+    const { data, ok } = await callWithRetry('stripe-checkout', {
       mode: 'payment',
       pack: true,
       success_url: `${window.location.origin}?checkout_success=true&type=pack`,
       cancel_url: `${window.location.origin}?checkout_cancel=true`,
-    }, token);
+    });
 
     if (!ok) console.error('stripe-checkout error:', data);
     if (ok && data?.url) {
-      window.location.href = data.url;
+      window.location.href = data.url as string;
     }
-  }, [getToken]);
+  }, [callWithRetry]);
 
   const openCustomerPortal = useCallback(async () => {
-    const token = await getToken();
-    if (!token) { console.error('stripe-portal: no auth token'); return; }
-    const { data, ok } = await callEdgeFunction('stripe-portal', {
+    const { data, ok } = await callWithRetry('stripe-portal', {
       return_url: window.location.origin,
-    }, token);
+    });
 
     if (!ok) console.error('stripe-portal error:', data);
     if (ok && data?.url) {
-      window.location.href = data.url;
+      window.location.href = data.url as string;
     }
-  }, [getToken]);
+  }, [callWithRetry]);
 
   return (
     <SubscriptionContext.Provider
