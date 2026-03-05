@@ -72,9 +72,13 @@ export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout
                 <p className="text-sm font-semibold text-slate-800">{profile?.full_name || 'Usuario'}</p>
                 <p className="text-xs text-slate-400">{planLabel}</p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
-                <User size={18} className="text-slate-600" />
-              </div>
+              <button
+                onClick={onLogout}
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center hover:from-red-100 hover:to-red-200 hover:text-red-600 transition-all"
+                title="Cerrar sesion"
+              >
+                <LogOut size={18} className="text-slate-600 hover:text-red-600" />
+              </button>
             </div>
           </div>
         </header>
