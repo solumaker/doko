@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Eye, EyeOff, ArrowLeft, Loader2, Building2, User } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Loader2, Building2, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface RegisterProps {
@@ -123,10 +123,7 @@ export function Register({ onNavigateToLogin }: RegisterProps) {
               <ArrowLeft size={24} />
             </button>
 
-            <div className="bg-blue-50 p-4 rounded-full mb-3">
-              <FileText size={32} className="text-blue-600" />
-            </div>
-            <h1 className="text-2xl font-extrabold text-blue-700">DOKO</h1>
+            <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain mb-1" />
             <h2 className="text-lg font-bold text-slate-900 mt-4">Crear Cuenta</h2>
             <p className="text-slate-600 text-sm text-center">
               Paso {step} de 2: {step === 1 ? 'Tus datos' : 'Datos de empresa'}

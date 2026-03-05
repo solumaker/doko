@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginProps {
@@ -42,11 +42,8 @@ export function Login({ onNavigateToRegister, onNavigateToForgotPassword }: Logi
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-blue-50 p-4 rounded-full mb-4">
-              <FileText size={40} className="text-blue-600" />
-            </div>
-            <h1 className="text-2xl font-extrabold text-blue-700">DOKO</h1>
-            <p className="text-slate-600 text-sm mt-2 text-center">
+            <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-16 w-auto object-contain mb-2" />
+            <p className="text-slate-500 text-sm mt-1 text-center">
               Tu documento de control digital
             </p>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
@@ -57,10 +57,7 @@ function getStripeReturnParams(): { success: boolean; isPack: boolean } | null {
 function LoadingScreen() {
   return (
     <div className="min-h-screen bg-[#f0f4f8] flex flex-col items-center justify-center">
-      <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
-        <FileText size={32} className="text-blue-600" />
-      </div>
-      <h1 className="text-2xl font-extrabold text-blue-700 tracking-tight mb-6">DOKO</h1>
+      <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-16 w-auto object-contain mb-6" />
       <Loader2 size={28} className="animate-spin text-blue-500" />
     </div>
   );

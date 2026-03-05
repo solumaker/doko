@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Truck, AlertCircle, Share2, Printer, FileText, Download } from 'lucide-react';
+import { Loader2, AlertCircle, Share2, Printer, FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import QRCode from 'react-qr-code';
@@ -85,10 +85,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f0f4f8] flex flex-col items-center justify-center">
-        <div className="bg-blue-600 p-3 rounded-2xl mb-4">
-          <Truck size={40} className="text-white" />
-        </div>
-        <h1 className="text-2xl font-bold text-slate-900 mb-4">DOKO</h1>
+        <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-14 w-auto object-contain mb-4" />
         <Loader2 size={32} className="animate-spin text-blue-600" />
         <p className="text-slate-500 mt-3 text-sm">Cargando documento...</p>
       </div>
@@ -153,10 +150,7 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
       <header className="bg-white border-b border-slate-200 px-4 py-4 print:hidden">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="bg-blue-600 p-1.5 rounded-lg">
-              <Truck size={24} className="text-white" />
-            </div>
-            <h1 className="text-lg font-bold text-slate-800">DOKO</h1>
+            <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-8 w-auto object-contain" />
           </div>
         </div>
 

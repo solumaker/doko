@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface ForgotPasswordProps {
@@ -84,10 +84,7 @@ export function ForgotPassword({ onNavigateToLogin }: ForgotPasswordProps) {
           </button>
 
           <div className="flex flex-col items-center mb-8">
-            <div className="bg-blue-50 p-4 rounded-full mb-3">
-              <FileText size={32} className="text-blue-600" />
-            </div>
-            <h1 className="text-2xl font-extrabold text-blue-700 mb-4">DOKO</h1>
+            <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain mb-4" />
             <h2 className="text-lg font-bold text-slate-900 text-center">
               ¿Olvidaste tu contrasena?
             </h2>

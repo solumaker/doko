@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FileText, Loader2, Delete, AlertCircle } from 'lucide-react';
+import { Loader2, Delete, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { callEdgeFunction } from '../lib/supabase';
 
@@ -124,10 +124,9 @@ export function DriverAccess({ accessToken, onSuccess }: DriverAccessProps) {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-4">
-        <div className="bg-blue-600 p-3 rounded-full mb-3">
-          <FileText size={40} className="text-white" />
+        <div className="mb-4 bg-white rounded-2xl p-3">
+          <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-1">DOKO</h1>
         <p className="text-blue-300 text-lg font-medium mb-1">
           {linkInfo?.company_name}
         </p>

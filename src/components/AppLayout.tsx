@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Home, FolderOpen, Users, User, LogOut, HelpCircle, FileText } from 'lucide-react';
+import { Home, FolderOpen, Users, User, LogOut, HelpCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { PLAN_CONFIG } from '../lib/supabase';
@@ -31,11 +31,8 @@ export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout
   return (
     <div className="min-h-screen bg-[#f0f4f8]">
       <aside className="hidden lg:flex lg:fixed lg:inset-y-0 lg:left-0 lg:w-60 lg:flex-col bg-white border-r border-slate-200 z-30">
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-100">
-          <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
-            <FileText size={20} className="text-blue-600" />
-          </div>
-          <span className="text-xl font-extrabold text-blue-700 tracking-tight">DOKO</span>
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100">
+          <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-10 w-auto object-contain" />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
@@ -97,9 +94,7 @@ export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout
         <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                <FileText size={16} className="text-blue-600" />
-              </div>
+              <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-8 w-auto object-contain" />
               <div>
                 <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider leading-none">Panel Principal</p>
                 <p className="text-base font-bold text-slate-800 leading-tight">{profile?.full_name || 'Usuario'}</p>
