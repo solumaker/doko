@@ -1,12 +1,15 @@
-import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings, ArrowRight } from 'lucide-react';
+import { Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
 import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
 import { useState } from 'react';
+import { AppLayout } from '../components/AppLayout';
 
 interface PlanesProps {
   onBack: () => void;
   onGoToEquipo?: () => void;
+  onLogout: () => void;
+  onNavigate: (screen: string) => void;
 }
 
 const planOrder: PlanId[] = ['autonomo', 'pyme', 'flotas'];
@@ -17,7 +20,7 @@ const planFeatures: Record<PlanId, string[]> = {
   flotas: ['2.500 documentos/mes', 'Usuarios ilimitados', 'Soporte telefono y email'],
 };
 
-export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
+export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNavigate }: PlanesProps) {
   const { usage, hasActiveSubscription, trialDocsUsed, trialDaysLeft, createCheckoutSession, purchaseDocumentPack, openCustomerPortal } = useSubscription();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [loadingPack, setLoadingPack] = useState(false);
@@ -48,6 +51,10 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
     setLoadingPortal(false);
   };
 
+  const handleNavItem = (item: string) => {
+    onNavigate(item);
+  };
+
   const docsUsed = usage?.documents_used ?? 0;
   const docsLimit = usage?.document_limit ?? 0;
   const docsExtra = usage?.documents_extra_remaining ?? 0;
@@ -68,24 +75,21 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
   })();
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] flex flex-col">
-      <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
-        <button onClick={onBack} className="p-2">
-          <ArrowLeft size={24} className="text-slate-800" />
-        </button>
-        <h1 className="text-lg font-bold text-slate-800">{hasActiveSubscription ? 'Mi Suscripcion' : 'Elige tu plan'}</h1>
-      </header>
-
-      <main className="flex-1 px-4 py-6 space-y-4 pb-8">
-
+    <AppLayout
+      activeNav="inicio"
+      onNavigate={handleNavItem}
+      onLogout={onLogout}
+      pageTitle="Mi Suscripcion"
+    >
+      <div className="max-w-3xl space-y-5">
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-700 uppercase tracking-wide">Mi Suscripcion</h2>
+            <h2 className="text-base font-bold text-slate-800">Estado actual</h2>
             {hasActiveSubscription && (
               <button
                 onClick={handleOpenPortal}
                 disabled={loadingPortal}
-                className="flex items-center gap-1.5 bg-slate-800 text-white text-sm font-semibold px-3.5 py-2 rounded-xl active:bg-slate-900 transition-colors disabled:opacity-60"
+                className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold px-3.5 py-2 rounded-xl transition-colors disabled:opacity-60"
               >
                 {loadingPortal ? <Loader2 size={15} className="animate-spin" /> : <Settings size={15} />}
                 Gestionar
@@ -94,7 +98,7 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
           </div>
 
           <div className="flex items-center gap-3 mb-4">
-            <div className={`p-2.5 rounded-full ${hasActiveSubscription ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+            <div className={`p-2.5 rounded-xl ${hasActiveSubscription ? 'bg-emerald-50' : 'bg-amber-50'}`}>
               {hasActiveSubscription
                 ? <ShieldCheck size={22} className="text-emerald-500" />
                 : <Clock size={22} className="text-amber-500" />
@@ -102,12 +106,12 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
             </div>
             <div>
               <p className="text-lg font-bold text-slate-900">{planLabel}</p>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${hasActiveSubscription ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                {statusLabel}
-              </span>
-              {dateLabel && (
-                <p className="text-xs text-slate-400 mt-1">{dateLabel}</p>
-              )}
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${hasActiveSubscription ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                  {statusLabel}
+                </span>
+                {dateLabel && <p className="text-xs text-slate-400">{dateLabel}</p>}
+              </div>
             </div>
           </div>
 
@@ -155,9 +159,9 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
                 <span className="text-sm font-medium text-slate-600">Documentos de prueba</span>
                 <span className="text-sm font-bold text-slate-800">{trialDocsUsed} / {TRIAL_DOC_LIMIT}</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                 <div
-                  className={`h-3 rounded-full transition-all duration-500 ${
+                  className={`h-2.5 rounded-full transition-all duration-500 ${
                     trialDocsUsed / TRIAL_DOC_LIMIT >= 0.9 ? 'bg-red-500' : trialDocsUsed / TRIAL_DOC_LIMIT >= 0.7 ? 'bg-amber-500' : 'bg-blue-600'
                   }`}
                   style={{ width: `${Math.min(100, Math.round((trialDocsUsed / TRIAL_DOC_LIMIT) * 100))}%` }}
@@ -175,9 +179,9 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
                   {docsUsed} / {totalLimit > 0 ? totalLimit : '—'}
                 </span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+              <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                 <div
-                  className={`h-3 rounded-full transition-all duration-500 ${
+                  className={`h-2.5 rounded-full transition-all duration-500 ${
                     docsPct >= 90 ? 'bg-red-500' : docsPct >= 70 ? 'bg-amber-500' : 'bg-blue-600'
                   }`}
                   style={{ width: totalLimit > 0 ? `${docsPct}%` : '0%' }}
@@ -192,110 +196,113 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo }: PlanesProps) {
           )}
         </div>
 
-        {planOrder.map((planId) => {
-          const plan = PLAN_CONFIG[planId];
-          const isCurrentPlan = hasActiveSubscription && currentPlan === planId;
-          const isRecommended = planId === 'pyme';
+        <div>
+          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">
+            {hasActiveSubscription ? 'Cambiar plan' : 'Elige tu plan'}
+          </h3>
 
-          return (
-            <div
-              key={planId}
-              className={`bg-white rounded-2xl overflow-hidden border transition-colors ${
-                isRecommended
-                  ? 'border-blue-500'
-                  : isCurrentPlan
-                    ? 'border-emerald-500'
-                    : 'border-slate-200/80'
-              }`}
-            >
-              {isRecommended && (
-                <div className="bg-blue-600 text-white text-center py-2 px-4 flex items-center justify-center gap-1.5">
-                  <Star size={14} fill="currentColor" />
-                  <span className="text-sm font-bold tracking-wide uppercase">Recomendado</span>
-                </div>
-              )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {planOrder.map((planId, idx) => {
+              const plan = PLAN_CONFIG[planId];
+              const isCurrentPlan = hasActiveSubscription && currentPlan === planId;
+              const isPopular = idx === 1;
+              const isLoading = loadingPlan === planId;
 
-              <div className="p-5">
-                <div className="flex items-baseline justify-between mb-4">
-                  <h3 className="text-2xl font-bold text-slate-900">{plan.name}</h3>
-                  <div className="text-right">
-                    <span className="text-3xl font-bold text-slate-900">{plan.price}</span>
-                    <span className="text-slate-500 text-base font-medium"> EUR/mes</span>
-                    <p className="text-[10px] text-slate-400 font-normal mt-0.5 tracking-wide">antes de IVA</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 mb-5">
-                  {planFeatures[planId].map((feature) => (
-                    <div key={feature} className="flex items-center gap-3">
-                      <div className="bg-emerald-50 rounded-full p-1 shrink-0">
-                        <Check size={14} className="text-emerald-500" strokeWidth={3} />
-                      </div>
-                      <span className="text-base text-slate-700">{feature}</span>
+              return (
+                <div
+                  key={planId}
+                  className={`relative rounded-2xl border-2 p-5 flex flex-col transition-all ${
+                    isPopular
+                      ? 'border-blue-600 bg-blue-600 text-white shadow-xl shadow-blue-600/20'
+                      : isCurrentPlan
+                        ? 'border-emerald-500 bg-white'
+                        : 'border-slate-200 bg-white hover:border-blue-300'
+                  }`}
+                >
+                  {isPopular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="bg-amber-400 text-amber-900 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wide flex items-center gap-1">
+                        <Star size={10} fill="currentColor" />
+                        Recomendado
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  )}
+                  {isCurrentPlan && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full">Plan actual</span>
+                    </div>
+                  )}
 
-                {isCurrentPlan ? (
-                  <div className="w-full bg-emerald-50 text-emerald-700 py-3.5 rounded-xl font-bold text-center text-base">
-                    Plan actual
+                  <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isPopular ? 'text-blue-200' : 'text-slate-400'}`}>
+                    {plan.name}
+                  </p>
+                  <div className="flex items-end gap-1 mb-4">
+                    <span className={`text-3xl font-extrabold leading-none ${isPopular ? 'text-white' : 'text-slate-900'}`}>
+                      {plan.price}€
+                    </span>
+                    <span className={`text-sm mb-0.5 ${isPopular ? 'text-blue-200' : 'text-slate-400'}`}>/mes</span>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => handleSelectPlan(planId)}
-                    disabled={loadingPlan === planId}
-                    className={`w-full py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-colors ${
-                      isRecommended
-                        ? 'bg-blue-600 text-white active:bg-blue-700'
-                        : 'bg-slate-800 text-white active:bg-slate-900'
-                    } disabled:opacity-60`}
-                  >
-                    {loadingPlan === planId ? (
-                      <Loader2 size={20} className="animate-spin" />
-                    ) : (
-                      <CreditCard size={18} />
-                    )}
-                    {hasActiveSubscription ? 'Cambiar a este plan' : 'Suscribirme'}
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
 
-        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-5 mt-6">
+                  <ul className="space-y-2 mb-5 flex-1">
+                    {planFeatures[planId].map((feat) => (
+                      <li key={feat} className="flex items-center gap-2 text-sm">
+                        <Check size={14} className={isPopular ? 'text-blue-200 shrink-0' : 'text-emerald-500 shrink-0'} strokeWidth={3} />
+                        <span className={isPopular ? 'text-blue-100' : 'text-slate-600'}>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {isCurrentPlan ? (
+                    <div className={`w-full py-3 rounded-xl font-bold text-center text-sm bg-emerald-50 text-emerald-700`}>
+                      Plan activo
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleSelectPlan(planId)}
+                      disabled={isLoading}
+                      className={`w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wide transition-all flex items-center justify-center gap-2 ${
+                        isPopular
+                          ? 'bg-white text-blue-700 hover:bg-blue-50 active:scale-[0.98]'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98]'
+                      } disabled:opacity-60`}
+                    >
+                      {isLoading ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={15} />}
+                      {hasActiveSubscription ? 'Cambiar plan' : 'Suscribirme'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-5">
           <div className="flex items-center gap-3 mb-3">
-            <div className="bg-amber-50 p-2.5 rounded-full">
+            <div className="bg-amber-50 p-2.5 rounded-xl">
               <Package size={22} className="text-amber-500" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Documentos extra</h3>
+              <h3 className="text-base font-bold text-slate-900">Documentos extra</h3>
               <p className="text-sm text-slate-500">Pago unico, no expiran</p>
             </div>
           </div>
-          <p className="text-base text-slate-600 mb-4">
+          <p className="text-sm text-slate-600 mb-4">
             Anade <span className="font-bold text-slate-900">+10 documentos</span> a tu saldo por solo{' '}
             <span className="font-bold text-slate-900">5 EUR</span>. No se pierden al renovar tu plan.
           </p>
           <button
             onClick={handleBuyPack}
             disabled={loadingPack || !hasActiveSubscription}
-            className="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-2 active:bg-slate-900 transition-colors disabled:opacity-60"
+            className="w-full bg-slate-800 hover:bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
           >
-            {loadingPack ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              <CreditCard size={18} />
-            )}
+            {loadingPack ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={17} />}
             Comprar +10 documentos
           </button>
           {!hasActiveSubscription && (
-            <p className="text-sm text-slate-400 text-center mt-2">
-              Necesitas una suscripcion activa para comprar documentos extra
-            </p>
+            <p className="text-xs text-slate-400 text-center mt-2">Necesitas una suscripcion activa para comprar documentos extra</p>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

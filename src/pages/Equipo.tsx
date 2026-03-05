@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import {
-  ArrowLeft,
   Plus,
   Users,
   User,
@@ -16,11 +15,13 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  UserPlus,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { supabase, callEdgeFunction, Profile, DriverCompanyLink } from '../lib/supabase';
+import { AppLayout } from '../components/AppLayout';
 
 type View = 'list' | 'form' | 'created';
 
@@ -31,9 +32,11 @@ interface DriverWithLink extends Profile {
 interface EquipoProps {
   onBack: () => void;
   onGoToPlanes?: () => void;
+  onLogout: () => void;
+  onNavigate: (screen: string) => void;
 }
 
-export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
+export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoProps) {
   const { profile, isAdmin } = useAuth();
   const { usage, hasActiveSubscription } = useSubscription();
   const [view, setView] = useState<View>('list');
@@ -264,54 +267,40 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
+  const handleNavItem = (item: string) => {
+    onNavigate(item);
+  };
+
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-[#f0f4f8]">
-        <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
-          <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:text-slate-900">
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-lg font-bold text-slate-800">Mi Equipo</h1>
-        </header>
-        <div className="p-6 text-center py-16">
-          <Shield size={56} className="text-slate-300 mx-auto mb-4" />
-          <p className="text-base font-semibold text-slate-700">Acceso restringido</p>
-          <p className="text-sm text-slate-500 mt-1">
-            Solo los administradores pueden gestionar el equipo
-          </p>
+      <AppLayout activeNav="equipo" onNavigate={handleNavItem} onLogout={onLogout}>
+        <div className="max-w-lg mx-auto">
+          <div className="bg-white rounded-2xl border border-slate-200/80 py-20 text-center">
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Shield size={28} className="text-slate-400" />
+            </div>
+            <p className="text-base font-semibold text-slate-700">Acceso restringido</p>
+            <p className="text-sm text-slate-500 mt-1">Solo los administradores pueden gestionar el equipo</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (view === 'created' && createdLink) {
     return (
-      <div className="min-h-screen bg-[#f0f4f8]">
-        <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => {
-              setCreatedLink(null);
-              setView('list');
-            }}
-            className="p-2 -ml-2 text-slate-700 hover:text-slate-900"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-lg font-bold text-slate-800">Conductor creado</h1>
-        </header>
-
-        <div className="p-4 space-y-4">
-          <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 text-center">
-            <Check size={32} className="text-emerald-600 mx-auto mb-2" />
-            <p className="text-base font-semibold text-emerald-800">
-              {createdLink.name} ha sido agregado
-            </p>
+      <AppLayout activeNav="equipo" onNavigate={handleNavItem} onLogout={onLogout} pageTitle="Conductor creado" onBack={() => { setCreatedLink(null); setView('list'); }}>
+        <div className="max-w-md mx-auto space-y-4">
+          <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-5 text-center">
+            <div className="w-12 h-12 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+              <Check size={24} className="text-emerald-600" />
+            </div>
+            <p className="text-base font-bold text-emerald-800">{createdLink.name} ha sido agregado</p>
+            <p className="text-sm text-emerald-700 mt-1">Comparte el enlace de acceso con el conductor</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
-            <p className="text-sm font-semibold text-slate-900 mb-4 text-center">
-              Enlace de acceso del conductor
-            </p>
+            <p className="text-sm font-bold text-slate-800 mb-4 text-center">Enlace de acceso del conductor</p>
 
             <div className="flex justify-center mb-5">
               <div className="bg-white p-3 rounded-xl border border-slate-200">
@@ -332,17 +321,7 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
               >
-                {copied === 'created' ? (
-                  <>
-                    <Check size={18} />
-                    Copiado
-                  </>
-                ) : (
-                  <>
-                    <Copy size={18} />
-                    Copiar enlace
-                  </>
-                )}
+                {copied === 'created' ? <><Check size={18} />Copiado</> : <><Copy size={18} />Copiar enlace</>}
               </button>
 
               <button
@@ -357,137 +336,97 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
               </button>
             </div>
           </div>
-
-          <button
-            onClick={() => {
-              setCreatedLink(null);
-              setView('list');
-            }}
-            className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 py-3.5 rounded-xl font-semibold text-sm transition-colors"
-          >
-            Volver al equipo
-          </button>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   if (view === 'form') {
     return (
-      <div className="min-h-screen bg-[#f0f4f8]">
-        <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
-          <button
-            onClick={() => {
-              resetForm();
-              setView('list');
-            }}
-            className="p-2 -ml-2 text-slate-700 hover:text-slate-900"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-lg font-bold text-slate-800">Agregar Conductor</h1>
-        </header>
+      <AppLayout activeNav="equipo" onNavigate={handleNavItem} onLogout={onLogout} pageTitle="Agregar Conductor" onBack={() => { resetForm(); setView('list'); }}>
+        <div className="max-w-lg mx-auto">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6">
+            <form onSubmit={handleAddDriver} className="space-y-5">
+              {error && (
+                <div className="bg-red-50 border border-red-200/80 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
+                  {error}
+                </div>
+              )}
 
-        <form onSubmit={handleAddDriver} className="p-4 space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200/80 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
-              {error}
-            </div>
-          )}
+              <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3.5">
+                <p className="text-blue-800 text-xs font-medium">
+                  Al crear el conductor se generara un enlace unico. Compartelo por WhatsApp para que pueda acceder con su PIN.
+                </p>
+              </div>
 
-          <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3.5">
-            <p className="text-blue-800 text-xs font-medium">
-              Al crear el conductor se generara un enlace unico. Compartelo por WhatsApp
-              para que pueda acceder con su PIN.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Nombre completo
-            </label>
-            <input
-              type="text"
-              value={formData.fullName}
-              onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-              className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 text-slate-900"
-              placeholder="Nombre del conductor"
-              disabled={saving}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              DNI / NIE <span className="text-slate-400 font-normal text-xs">(opcional)</span>
-            </label>
-            <input
-              type="text"
-              value={formData.dni}
-              onChange={(e) => setFormData({ ...formData, dni: e.target.value.toUpperCase() })}
-              className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 text-slate-900"
-              placeholder="Ej: 12345678A"
-              disabled={saving}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              PIN de acceso (4 digitos)
-            </label>
-            <div className="flex gap-3 justify-center">
-              {formData.pin.map((digit, i) => (
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Nombre completo</label>
                 <input
-                  key={i}
-                  id={`pin-form-${i}`}
                   type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handlePinInput(formData.pin, i, e.target.value, setFormPinDigits)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && !digit && i > 0) {
-                      const prev = document.getElementById(`pin-form-${i - 1}`);
-                      prev?.focus();
-                    }
-                  }}
-                  className="w-14 h-16 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 text-slate-900"
+                  placeholder="Nombre del conductor"
                   disabled={saving}
                 />
-              ))}
-            </div>
-            <p className="text-slate-500 text-xs mt-2 text-center">
-              El conductor usara este PIN para acceder
-            </p>
-          </div>
+              </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-base font-semibold py-4 rounded-xl transition-colors mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                Creando...
-              </>
-            ) : (
-              'Crear Conductor'
-            )}
-          </button>
-        </form>
-      </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  DNI / NIE <span className="text-slate-400 font-normal text-xs">(opcional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.dni}
+                  onChange={(e) => setFormData({ ...formData, dni: e.target.value.toUpperCase() })}
+                  className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 text-slate-900"
+                  placeholder="Ej: 12345678A"
+                  disabled={saving}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">PIN de acceso (4 digitos)</label>
+                <div className="flex gap-3 justify-center">
+                  {formData.pin.map((digit, i) => (
+                    <input
+                      key={i}
+                      id={`pin-form-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handlePinInput(formData.pin, i, e.target.value, setFormPinDigits)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Backspace' && !digit && i > 0) {
+                          const prev = document.getElementById(`pin-form-${i - 1}`);
+                          prev?.focus();
+                        }
+                      }}
+                      className="w-14 h-16 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-slate-900"
+                      disabled={saving}
+                    />
+                  ))}
+                </div>
+                <p className="text-slate-500 text-xs mt-2 text-center">El conductor usara este PIN para acceder</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-base font-semibold py-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {saving ? <><Loader2 size={20} className="animate-spin" />Creando...</> : 'Crear Conductor'}
+              </button>
+            </form>
+          </div>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8]">
-      <header className="bg-white border-b border-slate-200 px-4 py-4 flex items-center gap-4">
-        <button onClick={onBack} className="p-2 -ml-2 text-slate-700 hover:text-slate-900">
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-lg font-bold text-slate-800">Mi Equipo</h1>
-      </header>
-
+    <AppLayout activeNav="equipo" onNavigate={handleNavItem} onLogout={onLogout}>
       {editingDriver && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl">
@@ -506,7 +445,7 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre completo</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Nombre completo</label>
                 <input
                   type="text"
                   value={editName}
@@ -517,7 +456,7 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   DNI / NIE <span className="text-slate-400 font-normal text-xs">(opcional)</span>
                 </label>
                 <input
@@ -588,59 +527,67 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
         </div>
       )}
 
-      <div className="p-4">
+      <div className="max-w-3xl space-y-5">
         {success && (
-          <div className="bg-emerald-50 border border-emerald-200/80 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium mb-4">
+          <div className="bg-emerald-50 border border-emerald-200/80 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium">
             {success}
           </div>
         )}
 
-        <button
-          onClick={() => setView('form')}
-          className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-4 px-6 mb-6 flex items-center justify-center gap-3 transition-colors shadow-sm"
-        >
-          <Plus size={24} strokeWidth={2.5} />
-          <span className="text-base font-semibold">Agregar Conductor</span>
-        </button>
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-800">Miembros del equipo</h3>
+            <p className="text-sm text-slate-500 mt-0.5">Gestiona el acceso de tus conductores</p>
+          </div>
+          <button
+            onClick={() => setView('form')}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-3 px-5 flex items-center justify-center gap-2.5 transition-colors shadow-sm shadow-emerald-500/20 shrink-0"
+          >
+            <UserPlus size={18} strokeWidth={2.5} />
+            <span className="text-sm font-bold">Agregar Conductor</span>
+          </button>
+        </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 size={40} className="animate-spin text-blue-600" />
+          <div className="flex items-center justify-center py-16">
+            <Loader2 size={36} className="animate-spin text-blue-600" />
+          </div>
+        ) : drivers.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 py-20 text-center">
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Users size={28} className="text-slate-400" />
+            </div>
+            <p className="text-base font-semibold text-slate-600">No hay miembros en el equipo</p>
+            <p className="text-sm text-slate-400 mt-1">Agrega conductores para que puedan crear documentos</p>
           </div>
         ) : (
           <div className="space-y-3">
             {drivers.map((member) => (
               <div
                 key={member.id}
-                className="bg-white rounded-2xl p-4 border border-slate-200/80 hover:shadow-sm transition-shadow"
+                className="bg-white rounded-2xl border border-slate-200/80 p-4 hover:shadow-sm transition-shadow"
               >
                 <div className="flex items-start gap-3">
-                  <div className={`p-2.5 rounded-full ${member.role === 'admin' ? 'bg-blue-50' : member.link?.is_active === false ? 'bg-red-50' : 'bg-slate-50'}`}>
+                  <div className={`p-2.5 rounded-xl shrink-0 ${member.role === 'admin' ? 'bg-blue-50' : member.link?.is_active === false ? 'bg-red-50' : 'bg-slate-50'}`}>
                     {member.role === 'admin' ? (
                       <Shield size={20} className="text-blue-600" />
                     ) : (
-                      <User size={20} className={member.link?.is_active === false ? 'text-red-400' : 'text-slate-600'} />
+                      <User size={20} className={member.link?.is_active === false ? 'text-red-400' : 'text-slate-500'} />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base font-semibold text-slate-900 truncate">
-                        {member.full_name}
-                      </h3>
+                      <h3 className="text-base font-semibold text-slate-900 truncate">{member.full_name}</h3>
                       {member.role === 'admin' && (
-                        <span className="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded">
-                          Admin
-                        </span>
+                        <span className="bg-blue-50 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-lg">Admin</span>
                       )}
                       {member.link?.is_active === false && (
-                        <span className="bg-red-50 text-red-600 text-xs font-semibold px-2 py-0.5 rounded">
-                          Inactivo
-                        </span>
+                        <span className="bg-red-50 text-red-600 text-xs font-bold px-2 py-0.5 rounded-lg">Inactivo</span>
                       )}
                     </div>
                     <p className="text-slate-500 text-xs mt-0.5">
                       {member.role === 'admin' ? 'Administrador' : 'Conductor'}
-                      {member.dni ? ` · ${member.dni}` : ''}
+                      {member.dni ? ` · DNI: ${member.dni}` : ''}
                     </p>
                   </div>
                   {member.role === 'driver' && (
@@ -699,18 +646,13 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                             disabled={newPinDigits.join('').length !== 4}
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-semibold text-xs disabled:opacity-30 flex items-center justify-center gap-1 transition-colors"
                           >
-                            <Check size={14} />
-                            Guardar
+                            <Check size={14} />Guardar
                           </button>
                           <button
-                            onClick={() => {
-                              setChangingPin(null);
-                              setNewPinDigits(['', '', '', '']);
-                            }}
+                            onClick={() => { setChangingPin(null); setNewPinDigits(['', '', '', '']); }}
                             className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 transition-colors"
                           >
-                            <X size={14} />
-                            Cancelar
+                            <X size={14} />Cancelar
                           </button>
                         </div>
                       </div>
@@ -718,47 +660,35 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => handleCopyLink(member.link!.access_token, member.id)}
-                          className="flex-1 min-w-[120px] bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-blue-200/50 transition-colors"
+                          className="flex-1 min-w-[110px] bg-blue-50 hover:bg-blue-100 text-blue-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-blue-200/50 transition-colors"
                         >
                           {copied === member.id ? <Check size={14} /> : <Copy size={14} />}
                           {copied === member.id ? 'Copiado' : 'Copiar enlace'}
                         </button>
                         <button
                           onClick={() => handleShareWhatsApp(member.link!.access_token, member.full_name)}
-                          className="flex-1 min-w-[120px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-emerald-200/50 transition-colors"
+                          className="flex-1 min-w-[110px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-emerald-200/50 transition-colors"
                         >
-                          <Share2 size={14} />
-                          WhatsApp
+                          <Share2 size={14} />WhatsApp
                         </button>
                         <button
-                          onClick={() => {
-                            setChangingPin(member.link!.id);
-                            setNewPinDigits(['', '', '', '']);
-                          }}
-                          className="flex-1 min-w-[120px] bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-amber-200/50 transition-colors"
+                          onClick={() => { setChangingPin(member.link!.id); setNewPinDigits(['', '', '', '']); }}
+                          className="flex-1 min-w-[110px] bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border border-amber-200/50 transition-colors"
                         >
-                          <Key size={14} />
-                          Cambiar PIN
+                          <Key size={14} />Cambiar PIN
                         </button>
                         <button
                           onClick={() => handleToggleAccess(member.link!.id, member.link!.is_active)}
-                          className={`flex-1 min-w-[120px] py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border transition-colors ${
+                          className={`flex-1 min-w-[110px] py-2 rounded-xl font-semibold text-xs flex items-center justify-center gap-1 border transition-colors ${
                             member.link.is_active
                               ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200/50'
                               : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200/50'
                           }`}
                         >
-                          {member.link.is_active ? (
-                            <>
-                              <ToggleRight size={14} />
-                              Desactivar
-                            </>
-                          ) : (
-                            <>
-                              <ToggleLeft size={14} />
-                              Activar
-                            </>
-                          )}
+                          {member.link.is_active
+                            ? <><ToggleRight size={14} />Desactivar</>
+                            : <><ToggleLeft size={14} />Activar</>
+                          }
                         </button>
                       </div>
                     )}
@@ -766,19 +696,9 @@ export function Equipo({ onBack, onGoToPlanes }: EquipoProps) {
                 )}
               </div>
             ))}
-
-            {drivers.length === 0 && (
-              <div className="text-center py-16">
-                <Users size={56} className="text-slate-300 mx-auto mb-4" />
-                <p className="text-base font-medium text-slate-500">No hay miembros en el equipo</p>
-                <p className="text-sm text-slate-400 mt-1">
-                  Agrega conductores para que puedan crear documentos
-                </p>
-              </div>
-            )}
           </div>
         )}
       </div>
-    </div>
+    </AppLayout>
   );
 }

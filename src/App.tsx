@@ -117,6 +117,8 @@ function AppContent() {
     setCurrentScreen('documento');
   };
 
+  const sharedNav = (screen: string) => handleNavigate(screen as AppScreen);
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -161,6 +163,8 @@ function AppContent() {
             <DocumentoControl
               document={selectedDocument}
               onBack={() => handleNavigate('dashboard')}
+              onLogout={handleLogout}
+              onNavigate={sharedNav}
             />
           );
         }
@@ -196,15 +200,14 @@ function AppContent() {
   }
 
   const trialBlocksNavigation = isAdmin && isTrialExpired && !hasActiveSubscription;
-  const hasDrivers = (usage?.users_count ?? 0) > 1;
 
   const renderScreen = () => {
     switch (currentScreen) {
       case 'planes':
-        return <Planes onBack={() => handleNavigate('dashboard')} onGoToEquipo={() => handleNavigate('equipo')} />;
+        return <Planes onBack={() => handleNavigate('dashboard')} onGoToEquipo={() => handleNavigate('equipo')} onLogout={handleLogout} onNavigate={sharedNav} />;
       case 'lugares':
         if (trialBlocksNavigation) { handleNavigate('dashboard'); return null; }
-        return <Lugares onBack={() => handleNavigate('dashboard')} />;
+        return <Lugares onBack={() => handleNavigate('dashboard')} onLogout={handleLogout} onNavigate={sharedNav} />;
       case 'vehiculos':
         if (trialBlocksNavigation) { handleNavigate('dashboard'); return null; }
         return <Vehiculos onBack={() => handleNavigate('dashboard')} />;
@@ -213,6 +216,8 @@ function AppContent() {
           <Historial
             onBack={() => handleNavigate('dashboard')}
             onViewDocument={handleViewDocument}
+            onLogout={handleLogout}
+            onNavigate={sharedNav}
           />
         );
       case 'crear':
@@ -229,13 +234,15 @@ function AppContent() {
           return (
             <DocumentoControl
               document={selectedDocument}
-              onBack={() => handleNavigate('dashboard')}
+              onBack={() => handleNavigate('historial')}
+              onLogout={handleLogout}
+              onNavigate={sharedNav}
             />
           );
         }
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} onViewDocument={handleViewDocument} />;
       case 'equipo':
-        return <Equipo onBack={() => handleNavigate('dashboard')} onGoToPlanes={() => handleNavigate('planes')} />;
+        return <Equipo onBack={() => handleNavigate('dashboard')} onGoToPlanes={() => handleNavigate('planes')} onLogout={handleLogout} onNavigate={sharedNav} />;
       default:
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} onViewDocument={handleViewDocument} />;
     }
