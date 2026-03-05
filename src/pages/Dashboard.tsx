@@ -88,14 +88,14 @@ function QuickAccessCard({ icon: Icon, label, description, onClick }: {
   return (
     <button
       onClick={onClick}
-      className="bg-white rounded-2xl p-5 flex flex-col items-center lg:items-start gap-3 border border-slate-200/80 hover:border-blue-200 hover:shadow-md transition-all duration-200 active:scale-[0.98] group"
+      className="bg-white rounded-2xl p-4 flex flex-col items-center lg:items-start gap-3 border border-slate-200/80 hover:border-blue-200 hover:shadow-md transition-all duration-200 active:scale-[0.98] group w-full"
     >
       <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
         <Icon size={22} className="text-blue-600" />
       </div>
       <div className="text-center lg:text-left">
         <h3 className="text-sm font-bold text-slate-800">{label}</h3>
-        <p className="text-xs text-slate-400 mt-0.5 hidden lg:block">{description}</p>
+        {description && <p className="text-xs text-slate-400 mt-0.5 hidden lg:block">{description}</p>}
       </div>
     </button>
   );
@@ -204,11 +204,11 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
             <h3 className="text-base font-bold text-slate-800">Accesos Rapidos</h3>
           </div>
 
-          <div className="lg:hidden space-y-3">
-            <QuickAccessCard icon={MapPin} label="MIS LUGARES" description="" onClick={() => onNavigate('lugares')} />
-            <QuickAccessCard icon={Clock} label="HISTORIAL" description="" onClick={() => onNavigate('historial')} />
-            {isAdmin && <QuickAccessCard icon={Users} label="MI EQUIPO" description="" onClick={() => onNavigate('equipo')} />}
-            {isAdmin && <QuickAccessCard icon={CreditCard} label="SUSCRIPCION" description="" onClick={() => onNavigate('planes')} />}
+          <div className="grid grid-cols-2 gap-3 lg:hidden">
+            <QuickAccessCard icon={MapPin} label="Mis Lugares" description="" onClick={() => onNavigate('lugares')} />
+            <QuickAccessCard icon={Clock} label="Historial" description="" onClick={() => onNavigate('historial')} />
+            {isAdmin && <QuickAccessCard icon={Users} label="Mi Equipo" description="" onClick={() => onNavigate('equipo')} />}
+            {isAdmin && <QuickAccessCard icon={CreditCard} label="Suscripcion" description="" onClick={() => onNavigate('planes')} />}
           </div>
 
           <div className="hidden lg:grid lg:grid-cols-4 gap-4">

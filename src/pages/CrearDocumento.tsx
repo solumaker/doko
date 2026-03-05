@@ -351,16 +351,20 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
   const renderProgressBar = () => {
     const progress = (step / 5) * 100;
     return (
-      <div className="bg-white border-b border-slate-200/80 px-4 py-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Progreso de Creacion</span>
-          <span className="text-sm font-medium text-slate-600">Paso {step} de 5</span>
-        </div>
-        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-          <div
-            className="h-full bg-blue-700 transition-all duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          />
+      <div className="bg-white border-b border-slate-200/80 px-4 py-3 md:border-b-0 md:bg-transparent md:px-0 md:py-0 md:mb-6">
+        <div className="md:max-w-4xl md:mx-auto md:px-4">
+          <div className="md:bg-white md:rounded-2xl md:border md:border-slate-200/80 md:shadow-sm md:px-6 md:py-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Progreso de Creacion</span>
+              <span className="text-sm font-medium text-slate-600">Paso {step} de 5</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-blue-700 transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
     );
