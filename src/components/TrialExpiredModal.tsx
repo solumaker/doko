@@ -1,12 +1,14 @@
-import { Clock, CreditCard, FileText } from 'lucide-react';
+import { Clock, CreditCard, FileText, Users } from 'lucide-react';
 import { TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
 
 interface TrialExpiredModalProps {
   onSelectPlan: () => void;
   onViewHistory: () => void;
+  onManageUsers: () => void;
+  hasDrivers: boolean;
 }
 
-export function TrialExpiredModal({ onSelectPlan, onViewHistory }: TrialExpiredModalProps) {
+export function TrialExpiredModal({ onSelectPlan, onViewHistory, onManageUsers, hasDrivers }: TrialExpiredModalProps) {
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-5">
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
@@ -22,8 +24,8 @@ export function TrialExpiredModal({ onSelectPlan, onViewHistory }: TrialExpiredM
           </p>
         </div>
 
-        <div className="p-6 space-y-4">
-          <p className="text-base text-slate-600 text-center">
+        <div className="p-6 space-y-3">
+          <p className="text-base text-slate-600 text-center mb-4">
             Para seguir creando documentos de control, elige un plan que se adapte a tu negocio.
           </p>
 
@@ -35,12 +37,22 @@ export function TrialExpiredModal({ onSelectPlan, onViewHistory }: TrialExpiredM
             Elegir un plan
           </button>
 
+          {hasDrivers && (
+            <button
+              onClick={onManageUsers}
+              className="w-full bg-slate-100 text-slate-700 py-3.5 rounded-xl font-semibold text-base flex items-center justify-center gap-2.5 active:bg-slate-200 transition-colors"
+            >
+              <Users size={18} />
+              Gestionar usuarios
+            </button>
+          )}
+
           <button
             onClick={onViewHistory}
             className="w-full text-slate-500 py-3 text-base font-medium flex items-center justify-center gap-2 active:text-slate-700 transition-colors"
           >
             <FileText size={18} />
-            Ver mi historial de documentos
+            Ver historial de documentos generados
           </button>
         </div>
       </div>

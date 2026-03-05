@@ -151,7 +151,6 @@ Deno.serve(async (req: Request) => {
         mode: "subscription",
         line_items: [{ price: planConfig.price_id, quantity: 1 }],
         subscription_data: {
-          trial_period_days: 7,
           metadata: {
             company_id: company.id,
             plan,

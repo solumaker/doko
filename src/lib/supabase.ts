@@ -100,6 +100,9 @@ export interface SubscriptionUsage {
   is_trial_active: boolean;
   trial_docs_used: number;
   trial_doc_limit: number;
+  cancel_at_period_end: boolean;
+  pending_plan: PlanId | null;
+  pending_plan_effective_date: string | null;
 }
 
 export interface Profile {

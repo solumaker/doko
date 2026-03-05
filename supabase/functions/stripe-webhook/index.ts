@@ -107,6 +107,52 @@ Deno.serve(async (req: Request) => {
         const companyId = subscription.metadata?.company_id;
         if (!companyId) break;
 
+        const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+
+        // Detect scheduled phase/plan changes via subscription schedules
+        let pendingPlan: string | null = null;
+        let pendingPlanEffectiveDate: string | null = null;
+
+        if (subscription.schedule) {
+          try {
+            const schedule = await stripe.subscriptionSchedules.retrieve(
+              subscription.schedule as string
+            );
+            if (
+              schedule.status === "active" &&
+              Array.isArray(schedule.phases) &&
+              schedule.phases.length >= 2
+            ) {
+              const nextPhase = schedule.phases[1];
+              if (nextPhase?.items?.[0]?.price) {
+                const priceId = typeof nextPhase.items[0].price === "string"
+                  ? nextPhase.items[0].price
+                  : (nextPhase.items[0].price as Stripe.Price).id;
+                const foundPlan = Object.entries(PLAN_LIMITS).find(
+                  ([, _]) => {
+                    return Object.entries({
+                      autonomo: "price_1T7HOQBnbfHLJ2lEWtdSMHiR",
+                      pyme: "price_1T7HOaBnbfHLJ2lE0ks9Mm3O",
+                      flotas: "price_1T7HOiBnbfHLJ2lEBqyi2aGL",
+                    }).find(([planKey]) => planKey && priceId && planKey === _)?.[0];
+                  }
+                );
+                const PRICE_TO_PLAN: Record<string, string> = {
+                  "price_1T7HOQBnbfHLJ2lEWtdSMHiR": "autonomo",
+                  "price_1T7HOaBnbfHLJ2lE0ks9Mm3O": "pyme",
+                  "price_1T7HOiBnbfHLJ2lEBqyi2aGL": "flotas",
+                };
+                pendingPlan = PRICE_TO_PLAN[priceId] ?? null;
+                if (pendingPlan && nextPhase.start_date) {
+                  pendingPlanEffectiveDate = new Date(nextPhase.start_date * 1000).toISOString();
+                }
+              }
+            }
+          } catch (_scheduleErr) {
+            // schedule fetch failed, proceed without pending plan
+          }
+        }
+
         const plan = subscription.metadata?.plan || "autonomo";
         const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
 
@@ -120,9 +166,10 @@ Deno.serve(async (req: Request) => {
             current_period_start: new Date(
               subscription.current_period_start * 1000
             ).toISOString(),
-            current_period_end: new Date(
-              subscription.current_period_end * 1000
-            ).toISOString(),
+            current_period_end: currentPeriodEnd,
+            cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+            pending_plan: pendingPlan,
+            pending_plan_effective_date: pendingPlanEffectiveDate ?? (pendingPlan ? currentPeriodEnd : null),
             updated_at: new Date().toISOString(),
           })
           .eq("company_id", companyId);

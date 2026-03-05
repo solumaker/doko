@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings } from 'lucide-react';
+import { ArrowLeft, Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
 import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
@@ -72,7 +72,7 @@ export function Planes({ onBack }: PlanesProps) {
         <button onClick={onBack} className="p-2">
           <ArrowLeft size={28} />
         </button>
-        <h1 className="text-xl font-bold">Elige tu plan</h1>
+        <h1 className="text-xl font-bold">{hasActiveSubscription ? 'Mi Suscripcion' : 'Elige tu plan'}</h1>
       </header>
 
       <main className="flex-1 px-4 py-6 space-y-4 pb-8">
@@ -109,6 +109,44 @@ export function Planes({ onBack }: PlanesProps) {
               )}
             </div>
           </div>
+
+          {hasActiveSubscription && usage?.pending_plan && usage.pending_plan !== usage.plan && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
+              <ArrowRight size={18} className="text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-amber-800">Cambio de plan programado</p>
+                <p className="text-sm text-amber-700 mt-0.5">
+                  A partir del{' '}
+                  <span className="font-bold">
+                    {usage.pending_plan_effective_date
+                      ? format(new Date(usage.pending_plan_effective_date), 'dd/MM/yyyy')
+                      : usage.current_period_end
+                        ? format(new Date(usage.current_period_end), 'dd/MM/yyyy')
+                        : '—'}
+                  </span>{' '}
+                  pasaras al plan{' '}
+                  <span className="font-bold">{PLAN_CONFIG[usage.pending_plan]?.name ?? usage.pending_plan}</span>.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {hasActiveSubscription && usage?.cancel_at_period_end && !usage.pending_plan && (
+            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+              <Clock size={18} className="text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-red-700">Cancelacion programada</p>
+                <p className="text-sm text-red-600 mt-0.5">
+                  Tu suscripcion se cancelara el{' '}
+                  <span className="font-bold">
+                    {usage.current_period_end
+                      ? format(new Date(usage.current_period_end), 'dd/MM/yyyy')
+                      : '—'}
+                  </span>. Podras seguir usando el servicio hasta esa fecha.
+                </p>
+              </div>
+            </div>
+          )}
 
           {!hasActiveSubscription ? (
             <div>

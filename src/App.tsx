@@ -68,7 +68,7 @@ function LoadingScreen() {
 
 function AppContent() {
   const { session, profile, loading, isDriver, isAdmin, signOut } = useAuth();
-  const { isTrialExpired, hasActiveSubscription, loading: subLoading } = useSubscription();
+  const { isTrialExpired, hasActiveSubscription, loading: subLoading, usage } = useSubscription();
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
@@ -199,6 +199,7 @@ function AppContent() {
   }
 
   const trialBlocksNavigation = isAdmin && isTrialExpired && !hasActiveSubscription;
+  const hasDrivers = (usage?.users_count ?? 0) > 1;
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -237,7 +238,6 @@ function AppContent() {
         }
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} />;
       case 'equipo':
-        if (trialBlocksNavigation) { handleNavigate('dashboard'); return null; }
         return <Equipo onBack={() => handleNavigate('dashboard')} />;
       default:
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} />;
@@ -251,6 +251,8 @@ function AppContent() {
         <TrialExpiredModal
           onSelectPlan={() => handleNavigate('planes')}
           onViewHistory={() => handleNavigate('historial')}
+          onManageUsers={() => handleNavigate('equipo')}
+          hasDrivers={hasDrivers}
         />
       )}
     </>

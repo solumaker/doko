@@ -1,8 +1,7 @@
-import { MapPin, Clock, FileText, LogOut, Users, CreditCard, ArrowUpCircle, Package, Settings } from 'lucide-react';
-import { format } from 'date-fns';
+import { MapPin, Clock, FileText, LogOut, Users, CreditCard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
-import { PLAN_CONFIG } from '../lib/supabase';
+import { format } from 'date-fns';
 
 type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes';
 
@@ -11,18 +10,8 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
-function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
-  const {
-    usage,
-    isTrialActive,
-    isTrialExpired,
-    hasActiveSubscription,
-    trialDaysLeft,
-    trialDocsUsed,
-    trialDocsLeft,
-    openCustomerPortal,
-    purchaseDocumentPack,
-  } = useSubscription();
+function TrialBanner({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
+  const { usage, isTrialActive, isTrialExpired, hasActiveSubscription, trialDaysLeft, trialDocsUsed, trialDocsLeft } = useSubscription();
 
   if (isTrialActive) {
     const trialEndDate = usage?.trial_ends_at
@@ -82,81 +71,12 @@ function SubscriptionBanner({ onNavigate }: { onNavigate: (screen: Screen) => vo
     );
   }
 
-  if (hasActiveSubscription && usage) {
-    const plan = usage.plan ? PLAN_CONFIG[usage.plan] : null;
-    const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
-    const usagePercent = totalAvailable > 0 ? Math.min(100, (usage.documents_used / totalAvailable) * 100) : 0;
-    const barColor = usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-green-500';
-
-    return (
-      <div className="mx-4 mt-4 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CreditCard size={18} className="text-blue-600" />
-            <span className="font-bold text-slate-900">Plan {plan?.name}</span>
-            <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">Activo</span>
-          </div>
-          <button
-            onClick={openCustomerPortal}
-            className="text-slate-400 active:text-slate-600"
-          >
-            <Settings size={18} />
-          </button>
-        </div>
-
-        <div className="px-4 py-3 space-y-3">
-          <div>
-            <div className="flex items-baseline justify-between mb-1.5">
-              <span className="text-sm font-medium text-slate-600">Documentos este mes</span>
-              <span className="text-sm font-bold text-slate-900">{usage.documents_used} / {usage.document_limit}</span>
-            </div>
-            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${usagePercent}%` }} />
-            </div>
-            {usage.documents_extra_remaining > 0 && (
-              <p className="text-xs text-blue-600 font-medium mt-1">
-                +{usage.documents_extra_remaining} documentos extra disponibles
-              </p>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-600">Usuarios</span>
-            <span className="font-bold text-slate-900">{usage.users_count} / {usage.user_limit}</span>
-          </div>
-
-          {usage.current_period_end && (
-            <p className="text-xs text-slate-400">
-              Se renueva el {format(new Date(usage.current_period_end), 'dd/MM/yyyy')}
-            </p>
-          )}
-
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={purchaseDocumentPack}
-              className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 active:bg-slate-200 transition-colors"
-            >
-              <Package size={14} />
-              +10 docs
-            </button>
-            <button
-              onClick={() => onNavigate('planes')}
-              className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-1.5 active:bg-slate-200 transition-colors"
-            >
-              <ArrowUpCircle size={14} />
-              Cambiar plan
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return null;
 }
 
 export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
   const { profile, company, isAdmin } = useAuth();
+  const { hasActiveSubscription } = useSubscription();
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -176,7 +96,7 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
         <p className="text-blue-100 mt-2 text-base">{company?.name || 'Empresa'}</p>
       </header>
 
-      {isAdmin && <SubscriptionBanner onNavigate={onNavigate} />}
+      {isAdmin && <TrialBanner onNavigate={onNavigate} />}
 
       <main className="flex-1 px-4 py-6">
         <button
@@ -213,6 +133,16 @@ export function Dashboard({ onNavigate, onLogout }: DashboardProps) {
             >
               <Users size={64} className="text-blue-600" strokeWidth={1.5} />
               <h3 className="text-lg font-bold text-slate-900">Mi Equipo</h3>
+            </button>
+          )}
+
+          {isAdmin && hasActiveSubscription && (
+            <button
+              onClick={() => onNavigate('planes')}
+              className="bg-white rounded-xl py-8 px-4 flex flex-col items-center justify-center gap-3 active:bg-slate-50 transition-colors shadow-lg border-2 border-blue-200"
+            >
+              <CreditCard size={64} className="text-blue-600" strokeWidth={1.5} />
+              <h3 className="text-lg font-bold text-slate-900">Mi Suscripcion</h3>
             </button>
           )}
         </div>
