@@ -1,11 +1,11 @@
-import { MapPin, Clock, FileText, Users, CreditCard, FilePlus, LayoutGrid } from 'lucide-react';
+import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AppLayout } from '../components/AppLayout';
-import { Document } from '../lib/supabase';
+import { Document, PLAN_CONFIG } from '../lib/supabase';
 
 type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes';
 
@@ -15,141 +15,258 @@ interface DashboardProps {
   onViewDocument?: (doc: Document) => void;
 }
 
-function TrialBanner({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
-  const { usage, isTrialActive, isTrialExpired, hasActiveSubscription, trialDaysLeft, trialDocsUsed, trialDocsLeft } = useSubscription();
+function CircularProgress({ value, max, label }: { value: number; max: number; label: string }) {
+  const pct = max > 0 ? Math.min(1, value / max) : 0;
+  const r = 52;
+  const circ = 2 * Math.PI * r;
+  const dashOffset = circ * (1 - pct);
 
-  if (isTrialActive) {
-    const trialEndDate = usage?.trial_ends_at
-      ? format(new Date(usage.trial_ends_at), 'dd/MM/yyyy')
-      : null;
-    const docsPct = Math.min(100, Math.round((trialDocsUsed / TRIAL_DOC_LIMIT) * 100));
-    const docsBarColor = docsPct >= 80 ? 'bg-red-400' : docsPct >= 60 ? 'bg-amber-400' : 'bg-white/60';
-
-    return (
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-5 text-white">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-base">Prueba gratuita</p>
-            <p className="text-emerald-100 text-sm mt-0.5">
-              Te quedan <span className="font-bold text-white">{trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'}</span> o <span className="font-bold text-white">{trialDocsLeft} documentos</span>
-            </p>
-            {trialEndDate && (
-              <p className="text-emerald-200 text-xs mt-1">Vence el {trialEndDate}</p>
-            )}
-            <div className="mt-3">
-              <div className="flex justify-between text-xs text-emerald-100 mb-1">
-                <span>Documentos usados</span>
-                <span className="font-bold text-white">{trialDocsUsed} / {TRIAL_DOC_LIMIT}</span>
-              </div>
-              <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${docsBarColor}`} style={{ width: `${docsPct}%` }} />
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => onNavigate('planes')}
-            className="bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-sm font-bold active:bg-white/30 transition-colors shrink-0"
-          >
-            Elegir plan
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isTrialExpired && !hasActiveSubscription) {
-    return (
-      <div className="bg-gradient-to-r from-red-600 to-red-500 rounded-2xl p-5 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-bold text-base">Prueba finalizada</p>
-            <p className="text-red-100 text-sm mt-0.5">Has alcanzado el limite de tu prueba gratuita</p>
-          </div>
-          <button
-            onClick={() => onNavigate('planes')}
-            className="bg-white text-red-600 px-4 py-2 rounded-xl text-sm font-bold active:bg-red-50 transition-colors shrink-0"
-          >
-            Elegir plan
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
-}
-
-function QuickAccessCard({ icon: Icon, label, description, onClick }: {
-  icon: typeof MapPin;
-  label: string;
-  description: string;
-  onClick: () => void;
-}) {
   return (
-    <button
-      onClick={onClick}
-      className="bg-white rounded-2xl p-4 flex flex-col items-center lg:items-start gap-3 border border-slate-200/80 hover:border-blue-200 hover:shadow-md transition-all duration-200 active:scale-[0.98] group w-full"
-    >
-      <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-        <Icon size={22} className="text-blue-600" />
+    <div className="flex flex-col items-center gap-4">
+      <div className="relative w-36 h-36 flex items-center justify-center">
+        <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+          <circle
+            cx="60"
+            cy="60"
+            r={r}
+            fill="none"
+            stroke="#1d4ed8"
+            strokeWidth="10"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={dashOffset}
+            className="transition-all duration-700"
+          />
+        </svg>
+        <div className="relative text-center">
+          <p className="text-3xl font-extrabold text-slate-800 leading-none">{value}</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase mt-1">DE {max}</p>
+        </div>
       </div>
-      <div className="text-center lg:text-left">
-        <h3 className="text-sm font-bold text-slate-800">{label}</h3>
-        {description && <p className="text-xs text-slate-400 mt-0.5 hidden lg:block">{description}</p>}
-      </div>
-    </button>
+      <p className="text-sm text-slate-600 text-center">
+        {label}
+      </p>
+    </div>
   );
 }
 
-function RecentActivity({ documents, onViewDocument }: { documents: Document[]; onViewDocument: (doc: Document) => void }) {
-  if (documents.length === 0) return null;
+function DocumentUsageCard() {
+  const { usage, isTrialActive, trialDocsUsed, hasActiveSubscription } = useSubscription();
+
+  if (isTrialActive) {
+    const trialLimit = usage?.trial_doc_limit ?? 50;
+    const pct = trialLimit > 0 ? Math.round((trialDocsUsed / trialLimit) * 100) : 0;
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center gap-2">
+        <div className="flex items-center gap-2 self-start mb-2">
+          <BarChart2 size={18} className="text-blue-700" />
+          <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
+        </div>
+        <CircularProgress
+          value={trialDocsUsed}
+          max={trialLimit}
+          label={`Has utilizado el `}
+        />
+        <p className="text-sm text-slate-600 text-center">
+          Has utilizado el{' '}
+          <span className="font-bold text-blue-700">{pct}%</span>{' '}
+          de tu limite de prueba.
+        </p>
+      </div>
+    );
+  }
+
+  if (hasActiveSubscription && usage) {
+    const used = usage.documents_used;
+    const limit = usage.document_limit;
+    const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center">
+        <div className="flex items-center gap-2 self-start mb-4">
+          <BarChart2 size={18} className="text-blue-700" />
+          <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
+        </div>
+        <CircularProgress value={used} max={limit} label="" />
+        <p className="text-sm text-slate-600 text-center mt-2">
+          Has utilizado el{' '}
+          <span className="font-bold text-blue-700">{pct}%</span>{' '}
+          de tu limite mensual.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-bold text-slate-800">Actividad Reciente</h3>
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center justify-center min-h-[200px]">
+      <div className="flex items-center gap-2 self-start mb-4">
+        <BarChart2 size={18} className="text-blue-700" />
+        <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
       </div>
-      <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
-        <div className="hidden lg:grid grid-cols-[1fr_140px_120px_60px] gap-4 px-5 py-3 bg-slate-50/80 border-b border-slate-100 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          <span>Documento</span>
-          <span>Fecha</span>
-          <span>Estado</span>
-          <span>Acciones</span>
-        </div>
-        {documents.map((doc) => {
-          const originLabel = doc.content.origin?.poblacion || doc.content.origin?.name || doc.content.origin?.city || '';
-          const destLabel = doc.content.destination?.poblacion || doc.content.destination?.name || doc.content.destination?.city || '';
-          const hasPdf = !!doc.pdf_url;
+      <p className="text-sm text-slate-400">Sin datos de suscripcion disponibles.</p>
+    </div>
+  );
+}
 
-          return (
-            <button
-              key={doc.id}
-              onClick={() => onViewDocument(doc)}
-              className="w-full flex items-center gap-4 px-5 py-3.5 border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 transition-colors text-left"
-            >
-              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                <FileText size={16} className="text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0 lg:grid lg:grid-cols-[1fr_140px_120px_60px] lg:gap-4 lg:items-center">
-                <p className="text-sm font-semibold text-slate-800 truncate">
-                  {originLabel} → {destLabel}
-                </p>
-                <p className="text-xs text-slate-400 lg:text-sm mt-0.5 lg:mt-0">
-                  {format(new Date(doc.created_at), "d MMM, HH:mm", { locale: es })}
-                </p>
-                <div className="mt-1 lg:mt-0">
-                  <span className={`inline-flex text-[10px] lg:text-xs font-bold px-2.5 py-1 rounded-full ${
-                    hasPdf ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                  }`}>
-                    {hasPdf ? 'COMPLETADO' : 'PENDIENTE'}
-                  </span>
-                </div>
-                <span className="hidden lg:block text-slate-300 text-lg">...</span>
-              </div>
-            </button>
-          );
-        })}
+function RenewalCard({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+  const { usage, hasActiveSubscription, isTrialActive } = useSubscription();
+
+  const renewalDate = (() => {
+    if (hasActiveSubscription && usage?.current_period_end) {
+      return new Date(usage.current_period_end);
+    }
+    if (isTrialActive && usage?.trial_ends_at) {
+      return new Date(usage.trial_ends_at);
+    }
+    return null;
+  })();
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col">
+      <div className="flex items-center gap-2 mb-4">
+        <CalendarCheck size={18} className="text-emerald-600" />
+        <h3 className="text-base font-bold text-slate-800">
+          {isTrialActive ? 'Fin de Prueba' : 'Proxima Renovacion'}
+        </h3>
       </div>
+
+      {renewalDate ? (
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-6 mb-4">
+          <p className="text-4xl font-extrabold text-blue-800 leading-none">
+            {format(renewalDate, "dd 'de' MMMM", { locale: es })}
+          </p>
+          <p className="text-xl font-bold text-slate-700 mt-2">{format(renewalDate, 'yyyy')}</p>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-6 mb-4">
+          <p className="text-slate-400 text-sm">Sin fecha disponible</p>
+        </div>
+      )}
+
+      {hasActiveSubscription && !usage?.cancel_at_period_end ? (
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <CheckCircle size={18} className="text-emerald-500" />
+          <span>Tu plan se renovara automaticamente</span>
+        </div>
+      ) : isTrialActive ? (
+        <button
+          onClick={() => onNavigate('planes')}
+          className="mt-auto text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors text-left"
+        >
+          Elegir un plan &rarr;
+        </button>
+      ) : (
+        <div className="flex items-center gap-2 text-sm text-amber-600">
+          <span>Renovacion no activa</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecentActivityTable({ documents, onViewDocument, onNavigate }: {
+  documents: Document[];
+  onViewDocument: (doc: Document) => void;
+  onNavigate: (s: Screen) => void;
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <h3 className="text-base font-bold text-slate-800">Actividad Reciente</h3>
+        <button
+          onClick={() => onNavigate('historial')}
+          className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+        >
+          Ver todo
+        </button>
+      </div>
+
+      {documents.length === 0 ? (
+        <div className="px-6 py-12 text-center text-slate-400 text-sm">
+          No hay documentos recientes.
+        </div>
+      ) : (
+        <>
+          <div className="hidden lg:grid grid-cols-[160px_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 bg-slate-50/80 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <span>Fecha</span>
+            <span>Cargador Contractual</span>
+            <span>Origen</span>
+            <span>Destino</span>
+            <span>Conductor</span>
+            <span>Matricula</span>
+          </div>
+
+          {documents.map((doc) => {
+            const shipperName = doc.content.contractual_shipper?.nombre || doc.content.company?.name || '-';
+            const originCity = doc.content.origin?.poblacion || doc.content.origin?.city || doc.content.origin?.empresa || '-';
+            const destCity = doc.content.destination?.poblacion || doc.content.destination?.city || doc.content.destination?.empresa || '-';
+            const driverName = doc.content.driver?.name || doc.driver_name || '-';
+            const plate = doc.content.vehicle?.tractor_plate || '-';
+
+            return (
+              <button
+                key={doc.id}
+                onClick={() => onViewDocument(doc)}
+                className="w-full text-left border-b border-slate-100 last:border-b-0 hover:bg-slate-50/60 transition-colors"
+              >
+                <div className="hidden lg:grid grid-cols-[160px_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-4 items-center">
+                  <span className="text-sm text-slate-500">
+                    {format(new Date(doc.created_at), "d MMM, HH:mm", { locale: es })}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800 truncate">{shipperName}</span>
+                  <span className="text-sm text-slate-600 truncate">{originCity}</span>
+                  <span className="text-sm text-slate-600 truncate">{destCity}</span>
+                  <span className="text-sm text-slate-600 truncate">{driverName}</span>
+                  <span className="text-sm text-slate-600">{plate}</span>
+                </div>
+
+                <div className="lg:hidden flex items-center gap-3 px-4 py-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                    <FileText size={16} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{shipperName}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {originCity} &rarr; {destCity} &middot; {format(new Date(doc.created_at), "d MMM", { locale: es })}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </>
+      )}
+    </div>
+  );
+}
+
+function SubscriptionBanner({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+  const { usage, hasActiveSubscription, isTrialActive } = useSubscription();
+
+  const planName = hasActiveSubscription && usage?.plan
+    ? PLAN_CONFIG[usage.plan]?.name ?? usage.plan
+    : isTrialActive
+    ? 'Prueba gratuita'
+    : null;
+
+  if (!planName) return null;
+
+  const description = hasActiveSubscription
+    ? `Tu plan ${planName} esta activo. Puedes cambiar tu metodo de pago o mejorar tu plan aqui.`
+    : `Tu periodo de prueba esta activo. Elige un plan para continuar.`;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h3 className="text-base font-bold text-slate-800">Gestionar mi suscripcion</h3>
+        <p className="text-sm text-slate-500 mt-1">{description}</p>
+      </div>
+      <button
+        onClick={() => onNavigate('planes')}
+        className="shrink-0 border-2 border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white font-bold text-sm px-6 py-3 rounded-xl transition-all uppercase tracking-wide"
+      >
+        Ver detalles del plan
+      </button>
     </div>
   );
 }
@@ -165,7 +282,7 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
       case 'inicio': onNavigate('dashboard'); break;
       case 'documentos': onNavigate('historial'); break;
       case 'equipo': onNavigate('equipo'); break;
-      case 'perfil': onNavigate('planes'); break;
+      case 'lugares': onNavigate('lugares'); break;
     }
   };
 
@@ -180,8 +297,6 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
   return (
     <AppLayout activeNav="inicio" onNavigate={handleNavItem} onLogout={onLogout}>
       <div className="space-y-6 max-w-5xl">
-        {isAdmin && <TrialBanner onNavigate={onNavigate} />}
-
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Bienvenido de nuevo!</h2>
@@ -198,28 +313,20 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
           </button>
         </div>
 
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <LayoutGrid size={18} className="text-slate-400" />
-            <h3 className="text-base font-bold text-slate-800">Accesos Rapidos</h3>
+        {isAdmin && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <DocumentUsageCard />
+            <RenewalCard onNavigate={onNavigate} />
           </div>
+        )}
 
-          <div className="grid grid-cols-2 gap-3 lg:hidden">
-            <QuickAccessCard icon={MapPin} label="Mis Lugares" description="" onClick={() => onNavigate('lugares')} />
-            <QuickAccessCard icon={Clock} label="Historial" description="" onClick={() => onNavigate('historial')} />
-            {isAdmin && <QuickAccessCard icon={Users} label="Mi Equipo" description="" onClick={() => onNavigate('equipo')} />}
-            {isAdmin && <QuickAccessCard icon={CreditCard} label="Suscripcion" description="" onClick={() => onNavigate('planes')} />}
-          </div>
+        <RecentActivityTable
+          documents={recentDocs}
+          onViewDocument={handleViewDocument}
+          onNavigate={onNavigate}
+        />
 
-          <div className="hidden lg:grid lg:grid-cols-4 gap-4">
-            <QuickAccessCard icon={MapPin} label="Mis Lugares" description="Gestionar ubicaciones y puntos de interes" onClick={() => onNavigate('lugares')} />
-            <QuickAccessCard icon={Clock} label="Historial" description="Ver documentos y actividades recientes" onClick={() => onNavigate('historial')} />
-            {isAdmin && <QuickAccessCard icon={Users} label="Mi Equipo" description="Colaborar con miembros y permisos" onClick={() => onNavigate('equipo')} />}
-            {isAdmin && <QuickAccessCard icon={CreditCard} label="Suscripcion" description="Ver plan actual y facturacion mensual" onClick={() => onNavigate('planes')} />}
-          </div>
-        </div>
-
-        <RecentActivity documents={recentDocs} onViewDocument={handleViewDocument} />
+        {isAdmin && <SubscriptionBanner onNavigate={onNavigate} />}
       </div>
     </AppLayout>
   );

@@ -1,10 +1,10 @@
 import { ReactNode } from 'react';
-import { Home, FolderOpen, Users, User, LogOut, HelpCircle } from 'lucide-react';
+import { Home, FolderOpen, Users, MapPin, LogOut, HelpCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { PLAN_CONFIG } from '../lib/supabase';
 
-type NavItem = 'inicio' | 'documentos' | 'equipo' | 'perfil';
+type NavItem = 'inicio' | 'documentos' | 'equipo' | 'lugares';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -17,7 +17,7 @@ const navItems: { id: NavItem; label: string; icon: typeof Home }[] = [
   { id: 'inicio', label: 'Inicio', icon: Home },
   { id: 'documentos', label: 'Documentos', icon: FolderOpen },
   { id: 'equipo', label: 'Equipo', icon: Users },
-  { id: 'perfil', label: 'Perfil', icon: User },
+  { id: 'lugares', label: 'Lugares', icon: MapPin },
 ];
 
 export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout }: AppLayoutProps) {
@@ -74,10 +74,10 @@ export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout
               </div>
               <button
                 onClick={onLogout}
-                className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center hover:from-red-100 hover:to-red-200 hover:text-red-600 transition-all"
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center hover:from-red-100 hover:to-red-200 transition-all group"
                 title="Cerrar sesion"
               >
-                <LogOut size={18} className="text-slate-600 hover:text-red-600" />
+                <LogOut size={18} className="text-slate-600 group-hover:text-red-600 transition-colors" />
               </button>
             </div>
           </div>
