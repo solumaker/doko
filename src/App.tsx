@@ -105,6 +105,7 @@ function AppContent() {
   const handleNavigate = (screen: AppScreen) => {
     setShowTrialModal(false);
     setCurrentScreen(screen);
+    window.scrollTo(0, 0);
   };
 
   const handleDocumentComplete = (document: Document) => {
