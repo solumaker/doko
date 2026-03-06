@@ -274,6 +274,104 @@ async function handleToggleAccess(
   return jsonResponse({ success: true });
 }
 
+async function handleCreateAdmin(
+  adminClient: ReturnType<typeof createClient>,
+  req: Request,
+  body: { full_name: string; email: string; password: string; dni?: string }
+) {
+  const callerProfile = await getAdminProfile(adminClient, req);
+  if (!callerProfile) {
+    return jsonResponse({ error: "No autorizado" }, 401);
+  }
+
+  const { full_name, email, password, dni } = body;
+  if (!full_name || !email || !password || password.length < 6) {
+    return jsonResponse(
+      { error: "Se requiere nombre, email y contraseña de al menos 6 caracteres" },
+      400
+    );
+  }
+
+  const { data: authData, error: authError } =
+    await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+
+  if (authError || !authData.user) {
+    if (authError?.message?.includes("already registered")) {
+      return jsonResponse({ error: "Ya existe un usuario con ese email" }, 400);
+    }
+    return jsonResponse(
+      { error: "Error al crear usuario", details: authError?.message },
+      500
+    );
+  }
+
+  const profileInsert: Record<string, unknown> = {
+    id: authData.user.id,
+    company_id: callerProfile.company_id,
+    role: "admin",
+    full_name,
+    email,
+  };
+  if (dni) profileInsert.dni = dni;
+
+  const { error: profileError } = await adminClient
+    .from("profiles")
+    .insert(profileInsert);
+
+  if (profileError) {
+    await adminClient.auth.admin.deleteUser(authData.user.id);
+    return jsonResponse(
+      { error: "Error al crear perfil", details: profileError.message },
+      500
+    );
+  }
+
+  return jsonResponse({ success: true, admin_id: authData.user.id, full_name });
+}
+
+async function handleDeleteAdmin(
+  adminClient: ReturnType<typeof createClient>,
+  req: Request,
+  body: { profile_id: string }
+) {
+  const callerProfile = await getAdminProfile(adminClient, req);
+  if (!callerProfile) {
+    return jsonResponse({ error: "No autorizado" }, 401);
+  }
+
+  const { profile_id } = body;
+  if (!profile_id) {
+    return jsonResponse({ error: "Se requiere profile_id" }, 400);
+  }
+
+  const { data: targetProfile } = await adminClient
+    .from("profiles")
+    .select("id, company_id, role")
+    .eq("id", profile_id)
+    .maybeSingle();
+
+  if (!targetProfile) {
+    return jsonResponse({ error: "Perfil no encontrado" }, 404);
+  }
+
+  if (targetProfile.company_id !== callerProfile.company_id) {
+    return jsonResponse({ error: "No autorizado" }, 403);
+  }
+
+  if (targetProfile.role !== "admin") {
+    return jsonResponse({ error: "El perfil no es un administrador" }, 400);
+  }
+
+  await adminClient.from("profiles").delete().eq("id", profile_id);
+  await adminClient.auth.admin.deleteUser(profile_id);
+
+  return jsonResponse({ success: true });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -298,6 +396,10 @@ Deno.serve(async (req: Request) => {
         return await handleChangePin(adminClient, req, body);
       case "toggle_access":
         return await handleToggleAccess(adminClient, req, body);
+      case "create_admin":
+        return await handleCreateAdmin(adminClient, req, body);
+      case "delete_admin":
+        return await handleDeleteAdmin(adminClient, req, body);
       default:
         return jsonResponse({ error: "Accion no valida" }, 400);
     }
