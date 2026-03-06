@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { useSubscription } from '../context/SubscriptionContext';
+import { supabase, callEdgeFunction } from '../lib/supabase';
 
 interface StripeReturnProps {
   success: boolean;
@@ -12,13 +13,30 @@ export function StripeReturn({ success, isPack, onContinue }: StripeReturnProps)
   const { refreshSubscription } = useSubscription();
 
   useEffect(() => {
-    if (success) {
-      const timer = setTimeout(() => {
-        refreshSubscription();
-      }, 1500);
-      return () => clearTimeout(timer);
+    if (!success || isPack) {
+      if (success && isPack) {
+        const timer = setTimeout(() => refreshSubscription(), 1500);
+        return () => clearTimeout(timer);
+      }
+      return;
     }
-  }, [success, refreshSubscription]);
+
+    const syncAndRefresh = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          await callEdgeFunction('stripe-sync', {}, session.access_token);
+        }
+      } catch (err) {
+        console.error('stripe-sync failed, falling back to DB refresh:', err);
+      } finally {
+        await refreshSubscription();
+      }
+    };
+
+    const timer = setTimeout(syncAndRefresh, 800);
+    return () => clearTimeout(timer);
+  }, [success, isPack, refreshSubscription]);
 
   return (
     <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center p-6">
