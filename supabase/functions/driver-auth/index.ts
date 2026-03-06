@@ -309,23 +309,22 @@ async function handleCreateAdmin(
     );
   }
 
-  const profileInsert: Record<string, unknown> = {
-    id: authData.user.id,
-    company_id: callerProfile.company_id,
-    role: "admin",
-    full_name,
-    email,
-  };
-  if (dni) profileInsert.dni = dni;
+  const { data: profileOk, error: profileError } = await adminClient.rpc(
+    "create_admin_profile",
+    {
+      p_id: authData.user.id,
+      p_company_id: callerProfile.company_id,
+      p_role: "admin",
+      p_full_name: full_name,
+      p_email: email,
+      p_dni: dni ?? "",
+    }
+  );
 
-  const { error: profileError } = await adminClient
-    .from("profiles")
-    .insert(profileInsert);
-
-  if (profileError) {
+  if (profileError || !profileOk) {
     await adminClient.auth.admin.deleteUser(authData.user.id);
     return jsonResponse(
-      { error: "Error al crear perfil", details: profileError.message },
+      { error: "Error al crear perfil", details: profileError?.message },
       500
     );
   }
