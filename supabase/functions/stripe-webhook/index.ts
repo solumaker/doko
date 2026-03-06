@@ -155,8 +155,9 @@ Deno.serve(async (req: Request) => {
         const oldPlan = existingSub?.plan;
         const planChanged = existingSub && oldPlan && oldPlan !== newPlan;
         const isDowngrade = planChanged && newLimits.document_limit < (existingSub.document_limit ?? 0);
+        const isImmediateChange = !subscription.schedule;
 
-        if (isDowngrade && existingSub.current_period_start && existingSub.current_period_end) {
+        if (isDowngrade && isImmediateChange && existingSub.current_period_start && existingSub.current_period_end) {
           const { count: docsUsedInPeriod } = await supabase
             .from("documents")
             .select("id", { count: "exact", head: true })

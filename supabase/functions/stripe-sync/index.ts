@@ -126,6 +126,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const hasPendingPlan = !!dbSub?.pending_plan;
+
     await supabaseAdmin
       .from("subscriptions")
       .upsert(
@@ -139,8 +141,7 @@ Deno.serve(async (req: Request) => {
           current_period_start: new Date(stripeSub.current_period_start * 1000).toISOString(),
           current_period_end: new Date(stripeSub.current_period_end * 1000).toISOString(),
           cancel_at_period_end: stripeSub.cancel_at_period_end ?? false,
-          pending_plan: null,
-          pending_plan_effective_date: null,
+          ...(hasPendingPlan ? {} : { pending_plan: null, pending_plan_effective_date: null }),
           updated_at: new Date().toISOString(),
         },
         { onConflict: "company_id" }
