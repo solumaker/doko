@@ -31,11 +31,17 @@ const pageTitleMap: Record<NavItem, string> = {
 
 export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout, pageTitle, onBack }: AppLayoutProps) {
   const { profile } = useAuth();
-  const { usage, hasActiveSubscription } = useSubscription();
+  const { usage, hasActiveSubscription, isSubscriptionExpired } = useSubscription();
 
-  const planLabel = hasActiveSubscription && usage?.plan
-    ? `Plan ${PLAN_CONFIG[usage.plan]?.name ?? usage.plan}`
-    : 'Prueba gratuita';
+  const planLabel = (() => {
+    if (hasActiveSubscription && usage?.plan) {
+      const name = PLAN_CONFIG[usage.plan]?.name ?? usage.plan;
+      if (usage.cancel_at_period_end) return `Plan ${name} (cancelado)`;
+      return `Plan ${name}`;
+    }
+    if (isSubscriptionExpired) return 'Suscripcion expirada';
+    return 'Prueba gratuita';
+  })();
 
   const displayTitle = pageTitle ?? pageTitleMap[activeNav];
 

@@ -79,7 +79,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const return_url = body.return_url || req.headers.get("origin") || "";
+    let return_url = body.return_url || req.headers.get("origin") || "";
+    const separator = return_url.includes("?") ? "&" : "?";
+    return_url = `${return_url}${separator}portal_return=true`;
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: company.stripe_customer_id,

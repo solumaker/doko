@@ -94,9 +94,11 @@ export interface SubscriptionUsage {
   user_limit: number;
   plan: PlanId | null;
   status: string | null;
+  current_period_start: string | null;
   current_period_end: string | null;
   trial_ends_at: string | null;
   is_trial_active: boolean;
+  is_subscription_expired: boolean;
   trial_docs_used: number;
   trial_doc_limit: number;
   cancel_at_period_end: boolean;

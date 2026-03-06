@@ -19,6 +19,7 @@ import { Equipo } from './pages/Equipo';
 import { Planes } from './pages/Planes';
 import { StripeReturn } from './pages/StripeReturn';
 import { TrialExpiredModal } from './components/TrialExpiredModal';
+import { SubscriptionExpiredModal } from './components/SubscriptionExpiredModal';
 import { Document } from './lib/supabase';
 
 function getPublicDocumentId(): string | null {
@@ -43,13 +44,16 @@ function getAccessTokenFromUrl(): string | null {
   return params.get('token');
 }
 
-function getStripeReturnParams(): { success: boolean; isPack: boolean } | null {
+function getStripeReturnParams(): { success: boolean; isPack: boolean; portalReturn: boolean } | null {
   const params = new URLSearchParams(window.location.search);
   if (params.has('checkout_success')) {
-    return { success: true, isPack: params.get('type') === 'pack' };
+    return { success: true, isPack: params.get('type') === 'pack', portalReturn: false };
   }
   if (params.has('checkout_cancel')) {
-    return { success: false, isPack: false };
+    return { success: false, isPack: false, portalReturn: false };
+  }
+  if (params.has('portal_return')) {
+    return { success: true, isPack: false, portalReturn: true };
   }
   return null;
 }
@@ -65,13 +69,14 @@ function LoadingScreen() {
 
 function AppContent() {
   const { session, profile, loading, isDriver, isAdmin, signOut } = useAuth();
-  const { isTrialExpired, hasActiveSubscription, loading: subLoading, usage } = useSubscription();
+  const { isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription } = useSubscription();
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [driverToken, setDriverToken] = useState<string | null>(null);
-  const [stripeReturn, setStripeReturn] = useState<{ success: boolean; isPack: boolean } | null>(null);
+  const [stripeReturn, setStripeReturn] = useState<{ success: boolean; isPack: boolean; portalReturn: boolean } | null>(null);
   const [showTrialModal, setShowTrialModal] = useState(false);
+  const [showSubExpiredModal, setShowSubExpiredModal] = useState(false);
 
   useEffect(() => {
     const token = getAccessTokenFromUrl();
@@ -82,17 +87,32 @@ function AppContent() {
     }
     const stripeParams = getStripeReturnParams();
     if (stripeParams) {
-      setStripeReturn(stripeParams);
-      setCurrentScreen('stripe-return');
-      window.history.replaceState({}, '', window.location.pathname);
+      if (stripeParams.portalReturn) {
+        refreshSubscription();
+        window.history.replaceState({}, '', window.location.pathname);
+      } else {
+        setStripeReturn(stripeParams);
+        setCurrentScreen('stripe-return');
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     }
   }, []);
 
   useEffect(() => {
-    if (!subLoading && isAdmin && isTrialExpired && !hasActiveSubscription && currentScreen === 'dashboard') {
+    if (!subLoading && isAdmin && isTrialExpired && !hasActiveSubscription && !isSubscriptionExpired && currentScreen === 'dashboard') {
       setShowTrialModal(true);
+    } else {
+      setShowTrialModal(false);
     }
-  }, [subLoading, isAdmin, isTrialExpired, hasActiveSubscription, currentScreen]);
+  }, [subLoading, isAdmin, isTrialExpired, hasActiveSubscription, isSubscriptionExpired, currentScreen]);
+
+  useEffect(() => {
+    if (!subLoading && isAdmin && isSubscriptionExpired && currentScreen === 'dashboard') {
+      setShowSubExpiredModal(true);
+    } else {
+      setShowSubExpiredModal(false);
+    }
+  }, [subLoading, isAdmin, isSubscriptionExpired, currentScreen]);
 
   const handleLogout = async () => {
     await signOut();
@@ -100,10 +120,12 @@ function AppContent() {
     setAuthScreen('login');
     setDriverToken(null);
     setShowTrialModal(false);
+    setShowSubExpiredModal(false);
   };
 
   const handleNavigate = (screen: AppScreen) => {
     setShowTrialModal(false);
+    setShowSubExpiredModal(false);
     setCurrentScreen(screen);
     window.scrollTo(0, 0);
   };
@@ -206,17 +228,17 @@ function AppContent() {
     );
   }
 
-  const trialBlocksNavigation = isAdmin && isTrialExpired && !hasActiveSubscription;
+  const blocksNavigation = isAdmin && (isTrialExpired || isSubscriptionExpired) && !hasActiveSubscription;
 
   const renderScreen = () => {
     switch (currentScreen) {
       case 'planes':
         return <Planes onBack={() => handleNavigate('dashboard')} onGoToEquipo={() => handleNavigate('equipo')} onLogout={handleLogout} onNavigate={sharedNav} />;
       case 'lugares':
-        if (trialBlocksNavigation) { handleNavigate('dashboard'); return null; }
+        if (blocksNavigation) { handleNavigate('dashboard'); return null; }
         return <Lugares onBack={() => handleNavigate('dashboard')} onLogout={handleLogout} onNavigate={sharedNav} />;
       case 'vehiculos':
-        if (trialBlocksNavigation) { handleNavigate('dashboard'); return null; }
+        if (blocksNavigation) { handleNavigate('dashboard'); return null; }
         return <Vehiculos onBack={() => handleNavigate('dashboard')} />;
       case 'historial':
         return (
@@ -228,7 +250,7 @@ function AppContent() {
           />
         );
       case 'crear':
-        if (trialBlocksNavigation) { handleNavigate('planes'); return null; }
+        if (blocksNavigation) { handleNavigate('planes'); return null; }
         return (
           <CrearDocumento
             onBack={() => handleNavigate('dashboard')}
@@ -260,6 +282,12 @@ function AppContent() {
       {renderScreen()}
       {showTrialModal && currentScreen === 'dashboard' && (
         <TrialExpiredModal
+          onSelectPlan={() => handleNavigate('planes')}
+          onViewHistory={() => handleNavigate('historial')}
+        />
+      )}
+      {showSubExpiredModal && currentScreen === 'dashboard' && (
+        <SubscriptionExpiredModal
           onSelectPlan={() => handleNavigate('planes')}
           onViewHistory={() => handleNavigate('historial')}
         />

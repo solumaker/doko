@@ -1,4 +1,4 @@
-import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Check, Loader2, Zap } from 'lucide-react';
+import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Check, Loader2, Zap, AlertTriangle, CreditCard, ArrowUpCircle, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -39,7 +39,7 @@ function CircularProgress({ value, max }: { value: number; max: number }) {
           cy="60"
           r={r}
           fill="none"
-          stroke="#1d4ed8"
+          stroke={pct >= 1 ? '#ef4444' : '#1d4ed8'}
           strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={circ}
@@ -79,7 +79,7 @@ function DocumentUsageCard() {
 
   if (hasActiveSubscription && usage) {
     const used = usage.documents_used;
-    const limit = usage.document_limit;
+    const limit = usage.document_limit + usage.documents_extra_remaining;
     const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
     return (
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center">
@@ -90,9 +90,14 @@ function DocumentUsageCard() {
         <CircularProgress value={used} max={limit} />
         <p className="text-sm text-slate-600 text-center mt-4">
           Has utilizado el{' '}
-          <span className="font-bold text-blue-700">{pct}%</span>{' '}
+          <span className={`font-bold ${pct >= 100 ? 'text-red-600' : 'text-blue-700'}`}>{Math.min(pct, 100)}%</span>{' '}
           de tu limite mensual.
         </p>
+        {usage.documents_extra_remaining > 0 && (
+          <p className="text-xs text-slate-500 mt-1">
+            Incluye <span className="font-semibold text-amber-600">{usage.documents_extra_remaining} extra</span>
+          </p>
+        )}
       </div>
     );
   }
@@ -111,6 +116,8 @@ function DocumentUsageCard() {
 function RenewalCard() {
   const { usage, hasActiveSubscription, isTrialActive } = useSubscription();
 
+  const isCanceling = hasActiveSubscription && usage?.cancel_at_period_end;
+
   const renewalDate = (() => {
     if (hasActiveSubscription && usage?.current_period_end) {
       return new Date(usage.current_period_end);
@@ -124,18 +131,22 @@ function RenewalCard() {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col">
       <div className="flex items-center gap-2 mb-4">
-        <CalendarCheck size={18} className="text-emerald-600" />
+        {isCanceling ? (
+          <Clock size={18} className="text-red-500" />
+        ) : (
+          <CalendarCheck size={18} className="text-emerald-600" />
+        )}
         <h3 className="text-base font-bold text-slate-800">
-          {isTrialActive ? 'Fin de Prueba' : 'Proxima Renovacion'}
+          {isCanceling ? 'Fin de Suscripcion' : isTrialActive ? 'Fin de Prueba' : 'Proxima Renovacion'}
         </h3>
       </div>
 
       {renewalDate ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-6 mb-4">
-          <p className="text-4xl font-extrabold text-blue-800 leading-none">
+        <div className={`flex-1 flex flex-col items-center justify-center rounded-xl p-6 mb-4 ${isCanceling ? 'bg-red-50' : 'bg-slate-50'}`}>
+          <p className={`text-4xl font-extrabold leading-none ${isCanceling ? 'text-red-700' : 'text-blue-800'}`}>
             {format(renewalDate, "dd 'de' MMMM", { locale: es })}
           </p>
-          <p className="text-xl font-bold text-slate-700 mt-2">{format(renewalDate, 'yyyy')}</p>
+          <p className={`text-xl font-bold mt-2 ${isCanceling ? 'text-red-600' : 'text-slate-700'}`}>{format(renewalDate, 'yyyy')}</p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-6 mb-4">
@@ -143,7 +154,12 @@ function RenewalCard() {
         </div>
       )}
 
-      {hasActiveSubscription && !usage?.cancel_at_period_end ? (
+      {isCanceling ? (
+        <div className="flex items-center gap-2 text-sm text-red-600">
+          <Clock size={18} className="text-red-500" />
+          <span>Tu suscripcion no se renovara. Finaliza en la fecha indicada.</span>
+        </div>
+      ) : hasActiveSubscription && !usage?.cancel_at_period_end ? (
         <div className="flex items-center gap-2 text-sm text-slate-600">
           <CheckCircle size={18} className="text-emerald-500" />
           <span>Tu plan se renovara automaticamente</span>
@@ -313,7 +329,54 @@ function TrialPricingCards() {
   );
 }
 
-function SubscriptionBanner() {
+function QuotaExhaustedCard({ onNavigatePlanes }: { onNavigatePlanes: () => void }) {
+  const { purchaseDocumentPack } = useSubscription();
+  const [loadingPack, setLoadingPack] = useState(false);
+
+  const handleBuyPack = async () => {
+    setLoadingPack(true);
+    await purchaseDocumentPack();
+    setLoadingPack(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border-2 border-amber-300 p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="bg-amber-50 p-2.5 rounded-xl">
+          <AlertTriangle size={22} className="text-amber-500" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-900">Limite de documentos alcanzado</h3>
+          <p className="text-sm text-slate-500">Has consumido toda tu cuota de documentos para este periodo.</p>
+        </div>
+      </div>
+
+      <p className="text-sm text-slate-600 mb-5">
+        Para seguir creando documentos, puedes subir de plan o comprar un pack de documentos extra.
+      </p>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={onNavigatePlanes}
+          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+        >
+          <ArrowUpCircle size={18} />
+          Gestionar mi suscripcion
+        </button>
+        <button
+          onClick={handleBuyPack}
+          disabled={loadingPack}
+          className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+        >
+          {loadingPack ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+          +10 documentos por 5€
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionBanner({ onNavigatePlanes }: { onNavigatePlanes: () => void }) {
   const { usage, hasActiveSubscription, openCustomerPortal } = useSubscription();
 
   if (!hasActiveSubscription) return null;
@@ -321,17 +384,29 @@ function SubscriptionBanner() {
   const planName = usage?.plan ? PLAN_CONFIG[usage.plan]?.name ?? usage.plan : null;
   if (!planName) return null;
 
+  const isCanceling = usage?.cancel_at_period_end;
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className={`bg-white rounded-2xl border p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${isCanceling ? 'border-red-200' : 'border-slate-200/80'}`}>
       <div>
         <h3 className="text-base font-bold text-slate-800">Gestionar mi suscripcion</h3>
-        <p className="text-sm text-slate-500 mt-1">
-          Tu plan {planName} esta activo. Puedes cambiar tu metodo de pago o mejorar tu plan aqui.
-        </p>
+        {isCanceling ? (
+          <p className="text-sm text-red-600 mt-1">
+            Tu plan {planName} se cancelara al final del periodo actual. Puedes reactivarlo desde el portal.
+          </p>
+        ) : (
+          <p className="text-sm text-slate-500 mt-1">
+            Tu plan {planName} esta activo. Puedes cambiar tu metodo de pago o mejorar tu plan.
+          </p>
+        )}
       </div>
       <button
         onClick={openCustomerPortal}
-        className="shrink-0 border-2 border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white font-bold text-sm px-6 py-3 rounded-xl transition-all uppercase tracking-wide"
+        className={`shrink-0 border-2 font-bold text-sm px-6 py-3 rounded-xl transition-all uppercase tracking-wide ${
+          isCanceling
+            ? 'border-red-600 text-red-600 hover:bg-red-600 hover:text-white'
+            : 'border-blue-700 text-blue-700 hover:bg-blue-700 hover:text-white'
+        }`}
       >
         Gestionar suscripcion
       </button>
@@ -342,7 +417,7 @@ function SubscriptionBanner() {
 export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardProps) {
   const { isAdmin } = useAuth();
   const { documents } = useData();
-  const { isTrialActive } = useSubscription();
+  const { isTrialActive, isQuotaExhausted, hasActiveSubscription, isSubscriptionExpired, canCreateDocument } = useSubscription();
 
   const recentDocs = documents.slice(0, 5);
 
@@ -363,24 +438,33 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
     }
   };
 
+  const showCreateButton = canCreateDocument() && !isSubscriptionExpired;
+  const showQuotaExhausted = isAdmin && hasActiveSubscription && isQuotaExhausted;
+
   return (
     <AppLayout activeNav="inicio" onNavigate={handleNavItem} onLogout={onLogout}>
       <div className="space-y-6 max-w-5xl">
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Bienvenido de nuevo!</h2>
-            <p className="text-sm text-slate-500 mt-1">Que te gustaria hacer hoy? Empieza creando un nuevo documento.</p>
-          </div>
-          <button
-            onClick={() => onNavigate('crear')}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl px-8 py-4 flex items-center justify-center gap-3 transition-colors shadow-lg shadow-emerald-500/20 active:scale-[0.98] shrink-0"
-          >
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-              <FilePlus size={22} />
+        {showQuotaExhausted ? (
+          <QuotaExhaustedCard onNavigatePlanes={() => onNavigate('planes')} />
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Bienvenido de nuevo!</h2>
+              <p className="text-sm text-slate-500 mt-1">Que te gustaria hacer hoy? Empieza creando un nuevo documento.</p>
             </div>
-            <span className="text-base font-extrabold uppercase tracking-wide">Crear Nuevo Documento</span>
-          </button>
-        </div>
+            {showCreateButton && (
+              <button
+                onClick={() => onNavigate('crear')}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl px-8 py-4 flex items-center justify-center gap-3 transition-colors shadow-lg shadow-emerald-500/20 active:scale-[0.98] shrink-0"
+              >
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                  <FilePlus size={22} />
+                </div>
+                <span className="text-base font-extrabold uppercase tracking-wide">Crear Nuevo Documento</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {isAdmin && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -396,7 +480,7 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
         />
 
         {isAdmin && isTrialActive && <TrialPricingCards />}
-        {isAdmin && !isTrialActive && <SubscriptionBanner />}
+        {isAdmin && !isTrialActive && hasActiveSubscription && <SubscriptionBanner onNavigatePlanes={() => onNavigate('planes')} />}
       </div>
     </AppLayout>
   );

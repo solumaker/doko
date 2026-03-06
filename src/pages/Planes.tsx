@@ -64,8 +64,13 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNaviga
   const planLabel = currentPlan ? PLAN_CONFIG[currentPlan]?.name : 'Gratuito (prueba)';
   const statusLabel = usage?.status === 'trialing' ? 'Periodo de prueba' : usage?.status === 'active' ? 'Activa' : usage?.is_trial_active ? 'Periodo de prueba' : 'Sin suscripcion';
 
+  const isCanceling = hasActiveSubscription && usage?.cancel_at_period_end;
+
   const dateLabel = (() => {
     if (hasActiveSubscription && usage?.current_period_end) {
+      if (isCanceling) {
+        return `Finaliza el ${format(new Date(usage.current_period_end), 'dd/MM/yyyy')}`;
+      }
       return `Se renueva el ${format(new Date(usage.current_period_end), 'dd/MM/yyyy')}`;
     }
     if (!hasActiveSubscription && usage?.trial_ends_at) {

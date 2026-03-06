@@ -15,6 +15,20 @@ const PLAN_LIMITS: Record<string, { document_limit: number; user_limit: number }
   flotas: { document_limit: 2500, user_limit: 10 },
 };
 
+const PRICE_TO_PLAN: Record<string, string> = {
+  "price_1T7ennBnbfHLJ2lEttin2U6U": "autonomo",
+  "price_1T7HOaBnbfHLJ2lE0ks9Mm3O": "pyme",
+  "price_1T7eoABnbfHLJ2lEutKrGJVV": "flotas",
+};
+
+function resolvePlanFromSubscription(subscription: Stripe.Subscription): string {
+  const priceId = subscription.items?.data?.[0]?.price?.id;
+  if (priceId && PRICE_TO_PLAN[priceId]) {
+    return PRICE_TO_PLAN[priceId];
+  }
+  return subscription.metadata?.plan || "autonomo";
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -77,7 +91,7 @@ Deno.serve(async (req: Request) => {
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string
           );
-          const plan = session.metadata?.plan || "autonomo";
+          const plan = resolvePlanFromSubscription(subscription);
           const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
 
           await supabase.from("subscriptions").upsert(
@@ -94,10 +108,21 @@ Deno.serve(async (req: Request) => {
               current_period_end: new Date(
                 subscription.current_period_end * 1000
               ).toISOString(),
+              cancel_at_period_end: false,
+              pending_plan: null,
+              pending_plan_effective_date: null,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "company_id" }
           );
+
+          await stripe.subscriptions.update(subscription.id, {
+            metadata: {
+              ...subscription.metadata,
+              company_id: companyId,
+              plan,
+            },
+          });
         }
         break;
       }
@@ -115,9 +140,40 @@ Deno.serve(async (req: Request) => {
         }
         if (!companyId) break;
 
+        const newPlan = resolvePlanFromSubscription(subscription);
+        const newLimits = PLAN_LIMITS[newPlan] || PLAN_LIMITS.autonomo;
+
+        const { data: existingSub } = await supabase
+          .from("subscriptions")
+          .select("plan, document_limit, current_period_start, current_period_end")
+          .eq("company_id", companyId)
+          .maybeSingle();
+
+        const oldPlan = existingSub?.plan;
+        const planChanged = existingSub && oldPlan && oldPlan !== newPlan;
+
+        if (planChanged && existingSub.current_period_start && existingSub.current_period_end) {
+          const { count: docsUsedInPeriod } = await supabase
+            .from("documents")
+            .select("id", { count: "exact", head: true })
+            .eq("company_id", companyId)
+            .gte("created_at", existingSub.current_period_start)
+            .lt("created_at", existingSub.current_period_end);
+
+          const oldLimit = existingSub.document_limit ?? 0;
+          const remaining = oldLimit - (docsUsedInPeriod ?? 0);
+          if (remaining > 0) {
+            await supabase.from("document_packs").insert({
+              company_id: companyId,
+              stripe_payment_intent_id: `plan_change_${oldPlan}_to_${newPlan}_${Date.now()}`,
+              documents_purchased: remaining,
+              documents_remaining: remaining,
+            });
+          }
+        }
+
         const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
 
-        // Detect scheduled phase/plan changes via subscription schedules
         let pendingPlan: string | null = null;
         let pendingPlanEffectiveDate: string | null = null;
 
@@ -136,20 +192,6 @@ Deno.serve(async (req: Request) => {
                 const priceId = typeof nextPhase.items[0].price === "string"
                   ? nextPhase.items[0].price
                   : (nextPhase.items[0].price as Stripe.Price).id;
-                const foundPlan = Object.entries(PLAN_LIMITS).find(
-                  ([, _]) => {
-                    return Object.entries({
-                      autonomo: "price_1T7ennBnbfHLJ2lEttin2U6U",
-                      pyme: "price_1T7HOaBnbfHLJ2lE0ks9Mm3O",
-                      flotas: "price_1T7eoABnbfHLJ2lEutKrGJVV",
-                    }).find(([planKey]) => planKey && priceId && planKey === _)?.[0];
-                  }
-                );
-                const PRICE_TO_PLAN: Record<string, string> = {
-                  "price_1T7ennBnbfHLJ2lEttin2U6U": "autonomo",
-                  "price_1T7HOaBnbfHLJ2lE0ks9Mm3O": "pyme",
-                  "price_1T7eoABnbfHLJ2lEutKrGJVV": "flotas",
-                };
                 pendingPlan = PRICE_TO_PLAN[priceId] ?? null;
                 if (pendingPlan && nextPhase.start_date) {
                   pendingPlanEffectiveDate = new Date(nextPhase.start_date * 1000).toISOString();
@@ -161,16 +203,13 @@ Deno.serve(async (req: Request) => {
           }
         }
 
-        const plan = subscription.metadata?.plan || "autonomo";
-        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
-
         await supabase
           .from("subscriptions")
           .update({
             status: subscription.status as string,
-            plan,
-            document_limit: limits.document_limit,
-            user_limit: limits.user_limit,
+            plan: newPlan,
+            document_limit: newLimits.document_limit,
+            user_limit: newLimits.user_limit,
             current_period_start: new Date(
               subscription.current_period_start * 1000
             ).toISOString(),
@@ -181,6 +220,15 @@ Deno.serve(async (req: Request) => {
             updated_at: new Date().toISOString(),
           })
           .eq("company_id", companyId);
+
+        await stripe.subscriptions.update(subscription.id, {
+          metadata: {
+            ...subscription.metadata,
+            company_id: companyId,
+            plan: newPlan,
+          },
+        });
+
         break;
       }
 
@@ -201,6 +249,12 @@ Deno.serve(async (req: Request) => {
           .from("subscriptions")
           .update({
             status: "canceled",
+            cancel_at_period_end: false,
+            pending_plan: null,
+            pending_plan_effective_date: null,
+            current_period_end: new Date(
+              subscription.current_period_end * 1000
+            ).toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq("company_id", companyId);
@@ -228,17 +282,25 @@ Deno.serve(async (req: Request) => {
         if (!subscriptionId) break;
 
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const plan = resolvePlanFromSubscription(subscription);
+        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
 
         await supabase
           .from("subscriptions")
           .update({
             status: "active",
+            plan,
+            document_limit: limits.document_limit,
+            user_limit: limits.user_limit,
             current_period_start: new Date(
               subscription.current_period_start * 1000
             ).toISOString(),
             current_period_end: new Date(
               subscription.current_period_end * 1000
             ).toISOString(),
+            cancel_at_period_end: false,
+            pending_plan: null,
+            pending_plan_effective_date: null,
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_subscription_id", subscriptionId);

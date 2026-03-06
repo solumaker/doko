@@ -10,6 +10,8 @@ interface SubscriptionContextType {
   isTrialActive: boolean;
   isTrialExpired: boolean;
   hasActiveSubscription: boolean;
+  isSubscriptionExpired: boolean;
+  isQuotaExhausted: boolean;
   trialDaysLeft: number;
   trialDocsUsed: number;
   trialDocsLeft: number;
@@ -59,11 +61,53 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
   }, [profile?.company_id, fetchUsage]);
 
+  useEffect(() => {
+    if (!profile?.company_id) return;
+
+    const channel = supabase
+      .channel(`subscriptions_${profile.company_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'subscriptions',
+          filter: `company_id=eq.${profile.company_id}`,
+        },
+        () => {
+          fetchUsage();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.company_id, fetchUsage]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && profile?.company_id) {
+        fetchUsage();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [profile?.company_id, fetchUsage]);
+
   const isTrialActive = usage?.is_trial_active ?? false;
 
   const hasActiveSubscription = usage?.status === 'active' || usage?.status === 'trialing';
 
-  const isTrialExpired = !loading && usage !== null && !isTrialActive && !hasActiveSubscription && !!profile;
+  const isSubscriptionExpired = !loading && !!usage && (usage.is_subscription_expired === true);
+
+  const isTrialExpired = !loading && usage !== null && !isTrialActive && !hasActiveSubscription && !isSubscriptionExpired && !!profile;
+
+  const isQuotaExhausted = (() => {
+    if (!usage || !hasActiveSubscription) return false;
+    const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
+    return usage.documents_used >= totalAvailable;
+  })();
 
   const trialDaysLeft = (() => {
     if (!company?.trial_ends_at) return 0;
@@ -169,6 +213,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         isTrialActive,
         isTrialExpired,
         hasActiveSubscription,
+        isSubscriptionExpired,
+        isQuotaExhausted,
         trialDaysLeft,
         trialDocsUsed,
         trialDocsLeft,
