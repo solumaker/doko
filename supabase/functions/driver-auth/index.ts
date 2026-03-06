@@ -300,8 +300,14 @@ async function handleCreateAdmin(
     });
 
   if (authError || !authData.user) {
-    if (authError?.message?.includes("already registered")) {
-      return jsonResponse({ error: "Ya existe un usuario con ese email" }, 400);
+    const msg = authError?.message ?? "";
+    if (
+      msg.includes("already registered") ||
+      msg.includes("already been registered") ||
+      msg.includes("already exists") ||
+      msg.includes("unique constraint")
+    ) {
+      return jsonResponse({ error: "EMAIL_ALREADY_EXISTS" }, 409);
     }
     return jsonResponse(
       { error: "Error al crear usuario", details: authError?.message },

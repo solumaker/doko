@@ -73,6 +73,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
     password: '',
     dni: '',
   });
+  const [showDuplicateEmailModal, setShowDuplicateEmailModal] = useState(false);
 
   const buildDriverUrl = (accessToken: string) => {
     return `${window.location.origin}?token=${accessToken}`;
@@ -221,7 +222,11 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
     setSaving(false);
 
     if (!ok || result.error) {
-      setError(result.error || 'Error al crear administrador');
+      if (result.error === 'EMAIL_ALREADY_EXISTS') {
+        setShowDuplicateEmailModal(true);
+      } else {
+        setError(result.error || 'Error al crear administrador');
+      }
       return;
     }
 
@@ -594,6 +599,30 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
             </form>
           </div>
         </div>
+
+        {showDuplicateEmailModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <AlertTriangle size={20} className="text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 mb-1">Correo ya registrado</h3>
+                  <p className="text-sm text-slate-600">
+                    El correo <span className="font-semibold text-slate-800">{adminForm.email}</span> ya esta registrado en el sistema. Por favor, utiliza una direccion de correo diferente.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDuplicateEmailModal(false)}
+                className="w-full bg-slate-900 hover:bg-slate-700 text-white text-sm font-semibold py-3 rounded-xl transition-colors"
+              >
+                Entendido, usar otro correo
+              </button>
+            </div>
+          </div>
+        )}
       </AppLayout>
     );
   }
