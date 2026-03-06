@@ -118,7 +118,13 @@ function AppContent() {
     setCurrentScreen('documento');
   };
 
-  const sharedNav = (screen: string) => handleNavigate(screen as AppScreen);
+  const navItemToScreen: Record<string, AppScreen> = {
+    'inicio': 'dashboard',
+    'documentos': 'historial',
+    'equipo': 'equipo',
+    'lugares': 'lugares',
+  };
+  const sharedNav = (screen: string) => handleNavigate((navItemToScreen[screen] ?? screen) as AppScreen);
 
   if (loading) {
     return <LoadingScreen />;
