@@ -26,6 +26,9 @@ function resolvePlanFromSubscription(subscription: Stripe.Subscription): string 
   if (priceId && PRICE_TO_PLAN[priceId]) {
     return PRICE_TO_PLAN[priceId];
   }
+  if (priceId) {
+    console.warn(`Unknown price ID: ${priceId}, falling back to metadata.plan`);
+  }
   return subscription.metadata?.plan || "autonomo";
 }
 
@@ -151,8 +154,9 @@ Deno.serve(async (req: Request) => {
 
         const oldPlan = existingSub?.plan;
         const planChanged = existingSub && oldPlan && oldPlan !== newPlan;
+        const isDowngrade = planChanged && newLimits.document_limit < (existingSub.document_limit ?? 0);
 
-        if (planChanged && existingSub.current_period_start && existingSub.current_period_end) {
+        if (isDowngrade && existingSub.current_period_start && existingSub.current_period_end) {
           const { count: docsUsedInPeriod } = await supabase
             .from("documents")
             .select("id", { count: "exact", head: true })
