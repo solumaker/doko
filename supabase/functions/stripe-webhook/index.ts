@@ -211,89 +211,115 @@ Deno.serve(async (req: Request) => {
       }
 
       case "customer.subscription.updated": {
-        const subscription = event.data.object as Stripe.Subscription;
-        let companyId = subscription.metadata?.company_id;
-        if (!companyId) {
-          const { data: subRow } = await supabase
+        try {
+          const subscription = event.data.object as Stripe.Subscription;
+          let companyId = subscription.metadata?.company_id;
+          if (!companyId) {
+            const { data: subRow } = await supabase
+              .from("subscriptions")
+              .select("company_id")
+              .eq("stripe_subscription_id", subscription.id)
+              .maybeSingle();
+            companyId = subRow?.company_id ?? null;
+          }
+          if (!companyId) {
+            console.warn(JSON.stringify({
+              msg: "customer.subscription.updated: no company_id found, skipping",
+              event_id: event.id,
+              stripe_subscription_id: subscription.id,
+            }));
+            break;
+          }
+
+          const newPlan = resolvePlanFromSubscription(subscription);
+          const newLimits = PLAN_LIMITS[newPlan] || PLAN_LIMITS.autonomo;
+          const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
+
+          const { error: updateError } = await supabase
             .from("subscriptions")
-            .select("company_id")
-            .eq("stripe_subscription_id", subscription.id)
-            .maybeSingle();
-          companyId = subRow?.company_id ?? null;
-        }
-        if (!companyId) break;
+            .update({
+              status: sanitizeStatus(subscription.status, event.id),
+              plan: newPlan,
+              document_limit: newLimits.document_limit,
+              user_limit: newLimits.user_limit,
+              current_period_start: new Date(
+                subscription.current_period_start * 1000
+              ).toISOString(),
+              current_period_end: currentPeriodEnd,
+              cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("company_id", companyId);
 
-        const newPlan = resolvePlanFromSubscription(subscription);
-        const newLimits = PLAN_LIMITS[newPlan] || PLAN_LIMITS.autonomo;
-
-        const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
-
-        let pendingPlan: string | null = null;
-        let pendingPlanEffectiveDate: string | null = null;
-
-        if (subscription.schedule) {
-          try {
-            const scheduleId = typeof subscription.schedule === "string"
-              ? subscription.schedule
-              : (subscription.schedule as Stripe.SubscriptionSchedule).id;
-            const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
-            if (
-              schedule.status === "active" &&
-              Array.isArray(schedule.phases) &&
-              schedule.phases.length >= 2
-            ) {
-              const nextPhase = schedule.phases[1];
-              if (nextPhase?.items?.[0]?.price) {
-                const priceId = typeof nextPhase.items[0].price === "string"
-                  ? nextPhase.items[0].price
-                  : (nextPhase.items[0].price as Stripe.Price).id;
-                pendingPlan = PRICE_TO_PLAN[priceId] ?? null;
-                if (pendingPlan && nextPhase.start_date) {
-                  pendingPlanEffectiveDate = new Date(nextPhase.start_date * 1000).toISOString();
-                }
-              }
-            }
-          } catch (scheduleErr) {
+          if (updateError) {
             console.error(JSON.stringify({
-              msg: "Failed to fetch subscription schedule",
+              msg: "Failed to update subscription in DB",
               event_id: event.id,
               event_type: event.type,
               company_id: companyId,
-              error: String(scheduleErr),
+              error: updateError.message,
             }));
+            throw updateError;
           }
-        }
 
-        const { error: updateError } = await supabase
-          .from("subscriptions")
-          .update({
-            status: sanitizeStatus(subscription.status, event.id),
-            plan: newPlan,
-            document_limit: newLimits.document_limit,
-            user_limit: newLimits.user_limit,
-            current_period_start: new Date(
-              subscription.current_period_start * 1000
-            ).toISOString(),
-            current_period_end: currentPeriodEnd,
-            cancel_at_period_end: subscription.cancel_at_period_end ?? false,
-            pending_plan: pendingPlan,
-            pending_plan_effective_date: pendingPlanEffectiveDate ?? (pendingPlan ? currentPeriodEnd : null),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("company_id", companyId);
-
-        if (updateError) {
+          if (subscription.schedule) {
+            try {
+              const scheduleId = typeof subscription.schedule === "string"
+                ? subscription.schedule
+                : (subscription.schedule as Stripe.SubscriptionSchedule).id;
+              const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
+              let pendingPlan: string | null = null;
+              let pendingPlanEffectiveDate: string | null = null;
+              if (
+                schedule.status === "active" &&
+                Array.isArray(schedule.phases) &&
+                schedule.phases.length >= 2
+              ) {
+                const nextPhase = schedule.phases[1];
+                if (nextPhase?.items?.[0]?.price) {
+                  const priceId = typeof nextPhase.items[0].price === "string"
+                    ? nextPhase.items[0].price
+                    : (nextPhase.items[0].price as Stripe.Price).id;
+                  pendingPlan = PRICE_TO_PLAN[priceId] ?? null;
+                  if (pendingPlan && nextPhase.start_date) {
+                    pendingPlanEffectiveDate = new Date(nextPhase.start_date * 1000).toISOString();
+                  }
+                }
+              }
+              await supabase
+                .from("subscriptions")
+                .update({
+                  pending_plan: pendingPlan,
+                  pending_plan_effective_date: pendingPlanEffectiveDate ?? (pendingPlan ? currentPeriodEnd : null),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("company_id", companyId);
+            } catch (scheduleErr) {
+              console.error(JSON.stringify({
+                msg: "Failed to fetch/apply subscription schedule (non-fatal)",
+                event_id: event.id,
+                company_id: companyId,
+                error: String(scheduleErr),
+              }));
+            }
+          } else {
+            await supabase
+              .from("subscriptions")
+              .update({
+                pending_plan: null,
+                pending_plan_effective_date: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("company_id", companyId);
+          }
+        } catch (subUpdatedErr) {
           console.error(JSON.stringify({
-            msg: "Failed to update subscription in DB",
+            msg: "customer.subscription.updated handler error (non-fatal, returning 200)",
             event_id: event.id,
-            event_type: event.type,
-            company_id: companyId,
-            operation: "subscription_update",
-            error: updateError.message,
+            error: String(subUpdatedErr),
           }));
-          throw updateError;
+          await supabase.from("stripe_processed_events").delete().eq("event_id", event.id);
         }
-
         break;
       }
 
