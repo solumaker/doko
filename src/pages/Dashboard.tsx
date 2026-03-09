@@ -8,7 +8,7 @@ import { es } from 'date-fns/locale';
 import { AppLayout } from '../components/AppLayout';
 import { Document, PLAN_CONFIG, PlanId } from '../lib/supabase';
 
-type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes';
+type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes' | 'configuracion';
 
 interface DashboardProps {
   onNavigate: (screen: Screen) => void;
@@ -427,6 +427,7 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
       case 'documentos': onNavigate('historial'); break;
       case 'equipo': onNavigate('equipo'); break;
       case 'lugares': onNavigate('lugares'); break;
+      case 'configuracion': onNavigate('configuracion'); break;
     }
   };
 
