@@ -137,17 +137,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [fetchUsage]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
-    const { data: { session: currentSession } } = await supabase.auth.getSession();
-    if (!currentSession) return null;
-
-    const expiresAt = currentSession.expires_at ?? 0;
-    const nowSec = Math.floor(Date.now() / 1000);
-    if (expiresAt - nowSec < 60) {
-      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-      return refreshed?.access_token ?? null;
-    }
-
-    return currentSession.access_token;
+    const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+    return refreshed?.access_token ?? null;
   }, []);
 
   const callWithRetry = useCallback(async (
@@ -157,16 +148,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     const token = await getToken();
     if (!token) return { data: null, ok: false };
 
-    const result = await callEdgeFunction(functionName, body, token);
-    if (result.ok) return result;
-
-    if (result.status === 401) {
-      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-      if (!refreshed?.access_token) return { data: null, ok: false };
-      return callEdgeFunction(functionName, body, refreshed.access_token);
-    }
-
-    return result;
+    return callEdgeFunction(functionName, body, token);
   }, [getToken]);
 
   const syncAndRefresh = useCallback(async () => {
