@@ -159,9 +159,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      fetch('https://hook.eu1.make.com/528erq5caz7vxxe00o65ujgbmdqmoqnb', {
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-registration`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
         body: JSON.stringify({
           nombre: data.fullName,
           correo: data.email,
