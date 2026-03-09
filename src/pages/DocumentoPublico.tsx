@@ -349,36 +349,6 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
                 </div>
               </section>
 
-              {(content.signatures?.origin || content.signatures?.destination) && (
-                <div className="space-y-3">
-                  {content.signatures?.origin && (
-                    <section className="border border-blue-200 bg-blue-50/50 rounded-xl p-4">
-                      <h2 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Firma — Origen</h2>
-                      <div className="flex gap-4 text-sm mb-2">
-                        <div><p className="text-slate-400">Firmante</p><p className="font-semibold text-slate-900">{content.signatures.origin.firmante}</p></div>
-                        <div><p className="text-slate-400">DNI</p><p className="font-semibold text-slate-900">{content.signatures.origin.dni}</p></div>
-                      </div>
-                      <div className="bg-white border border-slate-200 rounded-lg p-2">
-                        <img src={content.signatures.origin.firma_imagen} alt="Firma origen" className="max-h-16 w-full object-contain" />
-                      </div>
-                      <p className="text-xs text-slate-400 mt-1">{format(new Date(content.signatures.origin.fecha), "d/MM/yyyy HH:mm", { locale: es })}</p>
-                    </section>
-                  )}
-                  {content.signatures?.destination && (
-                    <section className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4">
-                      <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Firma — Destino</h2>
-                      <div className="flex gap-4 text-sm mb-2">
-                        <div><p className="text-slate-400">Firmante</p><p className="font-semibold text-slate-900">{content.signatures.destination.firmante}</p></div>
-                        <div><p className="text-slate-400">DNI</p><p className="font-semibold text-slate-900">{content.signatures.destination.dni}</p></div>
-                      </div>
-                      <div className="bg-white border border-slate-200 rounded-lg p-2">
-                        <img src={content.signatures.destination.firma_imagen} alt="Firma destino" className="max-h-16 w-full object-contain" />
-                      </div>
-                      <p className="text-xs text-slate-400 mt-1">{format(new Date(content.signatures.destination.fecha), "d/MM/yyyy HH:mm", { locale: es })}</p>
-                    </section>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="mt-6 pt-4 border-t border-slate-200 text-center">

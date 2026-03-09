@@ -379,8 +379,9 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
                         </div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Transportista Efectivo</p>
                       </div>
-                      <p className="text-base font-bold text-slate-900">{content.company.name}</p>
-                      {content.company.cif && <p className="text-sm text-slate-600 mt-0.5">CIF: {content.company.cif}</p>}
+                      <p className="text-base font-bold text-slate-900">{shipperName}</p>
+                      {shipperNif && <p className="text-sm text-slate-600 mt-0.5">NIF: {shipperNif}</p>}
+                      <p className="text-sm text-slate-500 mt-0.5">{shipperAddr}</p>
                     </div>
                   </div>
                 </div>
@@ -395,15 +396,8 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
                   )}
 
                   <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center mb-1.5">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Vehiculo</p>
-                      <button
-                        onClick={() => setShowAmendModal(true)}
-                        className="text-blue-600 hover:text-blue-700 p-1"
-                        title="Matriculas sucesivas"
-                      >
-                        <PenLine size={13} />
-                      </button>
                     </div>
                     <p className="text-lg font-bold text-slate-900 font-mono">{content.vehicle.tractor_plate}</p>
                     {trailerPlate1 && <p className="text-xs text-slate-500 mt-0.5">R1: {trailerPlate1}</p>}
@@ -466,14 +460,6 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider">Peso bruto</p>
                       <p className="text-lg font-bold text-slate-900">{content.cargo.weight_kg.toLocaleString()} kg</p>
                     </div>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Firmas</p>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    <SignatureBlock side="origin" label="Origen" />
-                    <SignatureBlock side="destination" label="Destino" />
                   </div>
                 </div>
 

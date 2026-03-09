@@ -432,10 +432,9 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
   <section class="section" aria-labelledby="sec-carrier">
     <h3 class="section-heading" id="sec-carrier">Transportista Efectivo</h3>
     <div class="section-body">
-      <p class="name">${esc(c.company.name)}</p>
-      ${c.company.cif ? `<p class="detail">CIF: ${esc(c.company.cif)}</p>` : ""}
-      <p class="detail">${esc(c.company.address)}, ${esc(c.company.postal_code)} ${esc(c.company.city)}</p>
-      ${c.company.phone ? `<p class="detail">Tel: ${esc(c.company.phone)}</p>` : ""}
+      <p class="name">${esc(shipperName)}</p>
+      <p class="detail">${esc(shipperNif)}</p>
+      <p class="detail">${esc(shipperAddr)}</p>
     </div>
   </section>
 
@@ -501,23 +500,6 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
 
 </div>
 
-<section class="section" aria-labelledby="sec-signatures" style="margin-top:12px;">
-  <h3 class="section-heading slate" id="sec-signatures">Firmas</h3>
-  <table class="sig-table" aria-label="Firmas del documento">
-    <thead>
-      <tr>
-        <th scope="col">Origen</th>
-        <th scope="col">Destino</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="height:60px;"></td>
-        <td style="height:60px;"></td>
-      </tr>
-    </tbody>
-  </table>
-</section>
 </main>
 
 <footer role="contentinfo">
