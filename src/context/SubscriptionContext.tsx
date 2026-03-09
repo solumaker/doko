@@ -137,6 +137,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [fetchUsage]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) return session.access_token;
     const { data: { session: refreshed } } = await supabase.auth.refreshSession();
     return refreshed?.access_token ?? null;
   }, []);
