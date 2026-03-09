@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
+import { LandingPage } from './pages/LandingPage';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -28,7 +29,7 @@ function getPublicDocumentId(): string | null {
   return match ? match[1] : null;
 }
 
-type AuthScreen = 'login' | 'register' | 'forgot-password';
+type AuthScreen = 'landing' | 'login' | 'register' | 'forgot-password';
 type AppScreen =
   | 'dashboard'
   | 'lugares'
@@ -72,7 +73,7 @@ function LoadingScreen() {
 function AppContent() {
   const { session, profile, loading: authLoading, isDriver, isAdmin, signOut } = useAuth();
   const { usage, isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription, syncAndRefresh } = useSubscription();
-  const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
+  const [authScreen, setAuthScreen] = useState<AuthScreen>('landing');
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [driverToken, setDriverToken] = useState<string | null>(null);
@@ -136,7 +137,7 @@ function AppContent() {
   const handleLogout = async () => {
     await signOut();
     setCurrentScreen('dashboard');
-    setAuthScreen('login');
+    setAuthScreen('landing');
     setDriverToken(null);
     setShowTrialModal(false);
     setShowSubExpiredModal(false);
@@ -183,15 +184,22 @@ function AppContent() {
 
   if (!session || !profile) {
     switch (authScreen) {
+      case 'login':
+        return (
+          <Login
+            onNavigateToRegister={() => setAuthScreen('register')}
+            onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
+          />
+        );
       case 'register':
         return <Register onNavigateToLogin={() => setAuthScreen('login')} />;
       case 'forgot-password':
         return <ForgotPassword onNavigateToLogin={() => setAuthScreen('login')} />;
       default:
         return (
-          <Login
+          <LandingPage
+            onNavigateToLogin={() => setAuthScreen('login')}
             onNavigateToRegister={() => setAuthScreen('register')}
-            onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
           />
         );
     }

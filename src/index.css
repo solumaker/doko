@@ -95,3 +95,28 @@
 .animate-scaleIn {
   animation: scaleIn 0.25s ease-out;
 }
+
+.landing-hero-gradient {
+  background: linear-gradient(135deg, #0052D4 0%, #4364F7 50%, #6FB1FC 100%);
+}
+
+.landing-blob {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: rgba(67, 100, 247, 0.1);
+  filter: blur(80px);
+  border-radius: 50%;
+  z-index: 0;
+}
+
+.landing-nav-link:hover {
+  color: #4364F7;
+}
+
+.landing-pricing-card {
+  transition: transform 0.3s ease;
+}
+.landing-pricing-card:hover {
+  transform: translateY(-10px);
+}

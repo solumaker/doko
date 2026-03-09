@@ -11,6 +11,7 @@ export default defineConfig({
       name: 'copy-public-assets',
       closeBundle() {
         try { cpSync('./public/DOKO_LOGO.jpeg', './dist/DOKO_LOGO.jpeg'); } catch {}
+        try { cpSync('./public/DOKO_Header.jpeg', './dist/DOKO_Header.jpeg'); } catch {}
         try { cpSync('./public/vite.svg', './dist/vite.svg'); } catch {}
       },
     },
