@@ -120,6 +120,8 @@ Deno.serve(async (req: Request) => {
       }));
     }
 
+    try {
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -231,9 +233,10 @@ Deno.serve(async (req: Request) => {
 
         if (subscription.schedule) {
           try {
-            const schedule = await stripe.subscriptionSchedules.retrieve(
-              subscription.schedule as string
-            );
+            const scheduleId = typeof subscription.schedule === "string"
+              ? subscription.schedule
+              : (subscription.schedule as Stripe.SubscriptionSchedule).id;
+            const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
             if (
               schedule.status === "active" &&
               Array.isArray(schedule.phases) &&
@@ -290,22 +293,24 @@ Deno.serve(async (req: Request) => {
           }));
         }
 
-        try {
-          await stripe.subscriptions.update(subscription.id, {
-            metadata: {
-              ...subscription.metadata,
+        if (!subscription.schedule) {
+          try {
+            await stripe.subscriptions.update(subscription.id, {
+              metadata: {
+                ...subscription.metadata,
+                company_id: companyId,
+                plan: newPlan,
+              },
+            });
+          } catch (metaErr) {
+            console.error(JSON.stringify({
+              msg: "Failed to update Stripe subscription metadata",
+              event_id: event.id,
+              event_type: event.type,
               company_id: companyId,
-              plan: newPlan,
-            },
-          });
-        } catch (metaErr) {
-          console.error(JSON.stringify({
-            msg: "Failed to update Stripe subscription metadata",
-            event_id: event.id,
-            event_type: event.type,
-            company_id: companyId,
-            error: String(metaErr),
-          }));
+              error: String(metaErr),
+            }));
+          }
         }
 
         break;
@@ -443,6 +448,11 @@ Deno.serve(async (req: Request) => {
           .eq("stripe_subscription_id", subscriptionId);
         break;
       }
+    }
+
+    } catch (innerErr) {
+      await supabase.from("stripe_processed_events").delete().eq("event_id", event.id);
+      throw innerErr;
     }
 
     return new Response(
