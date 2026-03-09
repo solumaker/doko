@@ -70,7 +70,7 @@ function LoadingScreen() {
 }
 
 function AppContent() {
-  const { session, profile, loading, isDriver, isAdmin, signOut } = useAuth();
+  const { session, profile, loading: authLoading, isDriver, isAdmin, signOut } = useAuth();
   const { usage, isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription, syncAndRefresh } = useSubscription();
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
@@ -101,11 +101,11 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    if (pendingPortalSync && !subLoading) {
+    if (pendingPortalSync && !authLoading && !subLoading) {
       setPendingPortalSync(false);
       syncAndRefresh(usage);
     }
-  }, [pendingPortalSync, subLoading, syncAndRefresh, usage]);
+  }, [pendingPortalSync, authLoading, subLoading, syncAndRefresh, usage]);
 
   useEffect(() => {
     if (!subLoading && isAdmin && isTrialExpired && !hasActiveSubscription && !isSubscriptionExpired && currentScreen === 'dashboard') {
@@ -158,7 +158,7 @@ function AppContent() {
   };
   const sharedNav = (screen: string) => handleNavigate((navItemToScreen[screen] ?? screen) as AppScreen);
 
-  if (loading) {
+  if (authLoading) {
     return <LoadingScreen />;
   }
 

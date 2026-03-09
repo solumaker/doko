@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (profileError) {
       console.error('Error fetching profile:', profileError);
+      setLoading(false);
       return;
     }
 
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (companyError) {
         console.error('Error fetching company:', companyError);
+        setLoading(false);
         return;
       }
 
@@ -72,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setCompany(companyData);
       }
     }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -81,8 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (initialSession?.user) {
         fetchProfileAndCompany(initialSession.user.id);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     const {
