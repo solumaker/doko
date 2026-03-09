@@ -21,13 +21,40 @@ const PRICE_TO_PLAN: Record<string, string> = {
   "price_1T7eoABnbfHLJ2lEutKrGJVV": "flotas",
 };
 
+const ALLOWED_STATUSES = new Set([
+  "active",
+  "past_due",
+  "canceled",
+  "trialing",
+  "incomplete",
+  "unpaid",
+]);
+
+function sanitizeStatus(raw: string, eventId: string): string {
+  if (raw === "unpaid") {
+    return "past_due";
+  }
+  if (ALLOWED_STATUSES.has(raw)) {
+    return raw;
+  }
+  console.warn(JSON.stringify({
+    msg: "Unknown Stripe subscription status, falling back to past_due",
+    raw_status: raw,
+    event_id: eventId,
+  }));
+  return "past_due";
+}
+
 function resolvePlanFromSubscription(subscription: Stripe.Subscription): string {
   const priceId = subscription.items?.data?.[0]?.price?.id;
   if (priceId && PRICE_TO_PLAN[priceId]) {
     return PRICE_TO_PLAN[priceId];
   }
   if (priceId) {
-    console.warn(`Unknown price ID: ${priceId}, falling back to metadata.plan`);
+    console.warn(JSON.stringify({
+      msg: "Unknown price ID, falling back to metadata.plan",
+      price_id: priceId,
+    }));
   }
   return subscription.metadata?.plan || "autonomo";
 }
@@ -62,7 +89,7 @@ Deno.serve(async (req: Request) => {
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
-      console.error("Webhook signature verification failed:", err);
+      console.error(JSON.stringify({ msg: "Webhook signature verification failed", error: String(err) }));
       return new Response(
         JSON.stringify({ error: "Invalid signature" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -74,6 +101,25 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const { error: idempotencyError } = await supabase
+      .from("stripe_processed_events")
+      .insert({ event_id: event.id });
+
+    if (idempotencyError) {
+      if (idempotencyError.code === "23505") {
+        return new Response(
+          JSON.stringify({ received: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.warn(JSON.stringify({
+        msg: "Idempotency insert failed with unexpected error, proceeding",
+        event_id: event.id,
+        event_type: event.type,
+        error: idempotencyError.message,
+      }));
+    }
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -81,12 +127,22 @@ Deno.serve(async (req: Request) => {
         if (!companyId) break;
 
         if (session.metadata?.type === "document_pack") {
-          await supabase.from("document_packs").insert({
+          const { error: packError } = await supabase.from("document_packs").insert({
             company_id: companyId,
             stripe_payment_intent_id: session.payment_intent as string,
             documents_purchased: 10,
             documents_remaining: 10,
           });
+          if (packError) {
+            console.error(JSON.stringify({
+              msg: "Failed to insert document_pack",
+              event_id: event.id,
+              event_type: event.type,
+              company_id: companyId,
+              error: packError.message,
+            }));
+            throw packError;
+          }
           break;
         }
 
@@ -97,12 +153,12 @@ Deno.serve(async (req: Request) => {
           const plan = resolvePlanFromSubscription(subscription);
           const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
 
-          await supabase.from("subscriptions").upsert(
+          const { error: upsertError } = await supabase.from("subscriptions").upsert(
             {
               company_id: companyId,
               stripe_subscription_id: subscription.id,
               plan,
-              status: subscription.status as string,
+              status: sanitizeStatus(subscription.status, event.id),
               document_limit: limits.document_limit,
               user_limit: limits.user_limit,
               current_period_start: new Date(
@@ -119,13 +175,35 @@ Deno.serve(async (req: Request) => {
             { onConflict: "company_id" }
           );
 
-          await stripe.subscriptions.update(subscription.id, {
-            metadata: {
-              ...subscription.metadata,
+          if (upsertError) {
+            console.error(JSON.stringify({
+              msg: "Failed to upsert subscription",
+              event_id: event.id,
+              event_type: event.type,
               company_id: companyId,
               plan,
-            },
-          });
+              error: upsertError.message,
+            }));
+            throw upsertError;
+          }
+
+          try {
+            await stripe.subscriptions.update(subscription.id, {
+              metadata: {
+                ...subscription.metadata,
+                company_id: companyId,
+                plan,
+              },
+            });
+          } catch (metaErr) {
+            console.error(JSON.stringify({
+              msg: "Failed to update Stripe subscription metadata",
+              event_id: event.id,
+              event_type: event.type,
+              company_id: companyId,
+              error: String(metaErr),
+            }));
+          }
         }
         break;
       }
@@ -172,15 +250,21 @@ Deno.serve(async (req: Request) => {
                 }
               }
             }
-          } catch (_scheduleErr) {
-            // schedule fetch failed, proceed without pending plan
+          } catch (scheduleErr) {
+            console.error(JSON.stringify({
+              msg: "Failed to fetch subscription schedule",
+              event_id: event.id,
+              event_type: event.type,
+              company_id: companyId,
+              error: String(scheduleErr),
+            }));
           }
         }
 
         const { error: updateError } = await supabase
           .from("subscriptions")
           .update({
-            status: subscription.status as string,
+            status: sanitizeStatus(subscription.status, event.id),
             plan: newPlan,
             document_limit: newLimits.document_limit,
             user_limit: newLimits.user_limit,
@@ -196,7 +280,14 @@ Deno.serve(async (req: Request) => {
           .eq("company_id", companyId);
 
         if (updateError) {
-          console.error("Failed to update subscription in DB:", updateError);
+          console.error(JSON.stringify({
+            msg: "Failed to update subscription in DB",
+            event_id: event.id,
+            event_type: event.type,
+            company_id: companyId,
+            operation: "subscription_update",
+            error: updateError.message,
+          }));
         }
 
         try {
@@ -208,7 +299,13 @@ Deno.serve(async (req: Request) => {
             },
           });
         } catch (metaErr) {
-          console.error("Failed to update Stripe subscription metadata:", metaErr);
+          console.error(JSON.stringify({
+            msg: "Failed to update Stripe subscription metadata",
+            event_id: event.id,
+            event_type: event.type,
+            company_id: companyId,
+            error: String(metaErr),
+          }));
         }
 
         break;
@@ -243,6 +340,47 @@ Deno.serve(async (req: Request) => {
         break;
       }
 
+      case "customer.subscription.pending_update_applied": {
+        const subscription = event.data.object as Stripe.Subscription;
+        let companyId = subscription.metadata?.company_id;
+        if (!companyId) {
+          const { data: subRow } = await supabase
+            .from("subscriptions")
+            .select("company_id")
+            .eq("stripe_subscription_id", subscription.id)
+            .maybeSingle();
+          companyId = subRow?.company_id ?? null;
+        }
+        if (!companyId) break;
+
+        const appliedPlan = resolvePlanFromSubscription(subscription);
+        const appliedLimits = PLAN_LIMITS[appliedPlan] || PLAN_LIMITS.autonomo;
+
+        const { error: appliedError } = await supabase
+          .from("subscriptions")
+          .update({
+            status: sanitizeStatus(subscription.status, event.id),
+            plan: appliedPlan,
+            document_limit: appliedLimits.document_limit,
+            user_limit: appliedLimits.user_limit,
+            pending_plan: null,
+            pending_plan_effective_date: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("company_id", companyId);
+
+        if (appliedError) {
+          console.error(JSON.stringify({
+            msg: "Failed to apply pending_update_applied",
+            event_id: event.id,
+            event_type: event.type,
+            company_id: companyId,
+            error: appliedError.message,
+          }));
+        }
+        break;
+      }
+
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
         const subscriptionId = invoice.subscription as string;
@@ -263,9 +401,24 @@ Deno.serve(async (req: Request) => {
         const subscriptionId = invoice.subscription as string;
         if (!subscriptionId) break;
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        let subscription: Stripe.Subscription;
+        try {
+          subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        } catch (retrieveErr) {
+          console.error(JSON.stringify({
+            msg: "Failed to retrieve subscription for invoice.paid",
+            event_id: event.id,
+            event_type: event.type,
+            stripe_subscription_id: subscriptionId,
+            error: String(retrieveErr),
+          }));
+          throw retrieveErr;
+        }
+
         const plan = resolvePlanFromSubscription(subscription);
         const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
+
+        const preserveSchedule = !!subscription.schedule;
 
         await supabase
           .from("subscriptions")
@@ -280,9 +433,11 @@ Deno.serve(async (req: Request) => {
             current_period_end: new Date(
               subscription.current_period_end * 1000
             ).toISOString(),
-            cancel_at_period_end: false,
-            pending_plan: null,
-            pending_plan_effective_date: null,
+            cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+            ...(preserveSchedule ? {} : {
+              pending_plan: null,
+              pending_plan_effective_date: null,
+            }),
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_subscription_id", subscriptionId);
@@ -295,7 +450,7 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("stripe-webhook error:", err);
+    console.error(JSON.stringify({ msg: "stripe-webhook unhandled error", error: String(err) }));
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

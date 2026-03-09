@@ -79,7 +79,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    let return_url = body.return_url || req.headers.get("origin") || "";
+    const origin = req.headers.get("origin") || "";
+    let return_url = body.return_url || origin;
+    if (return_url && origin && !return_url.startsWith(origin)) {
+      return_url = origin;
+    }
     const separator = return_url.includes("?") ? "&" : "?";
     return_url = `${return_url}${separator}portal_return=true`;
 
