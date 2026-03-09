@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOKO - Documento de Control Digital en 1 Minuto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
+        }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #0052D4 0%, #4364F7 50%, #6FB1FC 100%);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #4364F7;
+        }
+
+        .blob {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: rgba(67, 100, 247, 0.1);
+            filter: blur(80px);
+            border-radius: 50%;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-slate-900">
+
+    <!-- Navegación -->
+    <nav class="fixed w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <div class="flex items-center gap-2">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white font-bold text-xl">D</span>
+                    </div>
+                    <span class="text-2xl font-extrabold tracking-tight text-blue-900">DOKO</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-8 font-medium">
+                    <a href="#como-funciona" class="nav-link transition">Cómo funciona</a>
+                    <a href="#planes" class="nav-link transition">Planes</a>
+                    <a href="#faq" class="nav-link transition">FAQ</a>
+                    <a href="#" class="text-blue-600 hover:text-blue-700">Iniciar sesión</a>
+                    <a href="#" class="bg-blue-600 text-white px-6 py-3 rounded-full hover:bg-blue-700 transition shadow-lg shadow-blue-200">
+                        Pruébalo gratis
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden hero-gradient text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <span class="inline-block px-4 py-1.5 mb-6 text-sm font-semibold tracking-wide uppercase bg-white/20 rounded-full">
+                        Actualizado a la Ley de Transporte 2024
+                    </span>
+                    <h1 class="text-5xl lg:text-7xl font-extrabold leading-tight mb-6">
+                        Documento de Control Digital <span class="text-blue-200 text-opacity-90">en 1 minuto</span>
+                    </h1>
+                    <p class="text-xl text-blue-50 mb-10 leading-relaxed max-w-xl">
+                        La App más sencilla para que transportistas y empresas cumplan con la normativa española de forma digital, segura y sin complicaciones.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <a href="#" class="bg-white text-blue-700 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition text-center">
+                            Empezar ahora gratis
+                        </a>
+                        <a href="#" class="flex items-center justify-center gap-2 border-2 border-white/30 px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition">
+                            <i class="fas fa-play-circle"></i> Ver demo
+                        </a>
+                    </div>
+                    <div class="mt-8 flex items-center gap-4 text-sm text-blue-100">
+                        <span class="flex items-center gap-1"><i class="fas fa-check-circle"></i> Sin tarjeta de crédito</span>
+                        <span class="flex items-center gap-1"><i class="fas fa-check-circle"></i> Cumplimiento 100% legal</span>
+                    </div>
+                </div>
+                <div class="relative">
+                    <div class="relative z-10 rounded-2xl shadow-2xl overflow-hidden border-8 border-white/10">
+                        <img src="https://images.unsplash.com/photo-1551288049-bbda4833effb?auto=format&fit=crop&q=80&w=1000" alt="DOKO Dashboard Preview" class="w-full">
+                    </div>
+                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-yellow-400 rounded-full flex items-center justify-center text-blue-900 font-bold text-center p-4 leading-tight shadow-xl rotate-12">
+                        ¡Digitaliza tu flota hoy!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Por qué DOKO -->
+    <section class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">El cambio regulatorio es obligatorio</h2>
+                <p class="text-lg text-slate-600 max-w-2xl mx-auto">Desde ahora, el Documento de Control debe ser digital. DOKO te ayuda a transicionar sin fricciones.</p>
+            </div>
+            <div class="grid md:grid-cols-4 gap-8">
+                <div class="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-xl transition">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center mb-6 text-xl">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h3 class="font-bold text-xl mb-3">¿Qué cambia?</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Adiós al papel. La ley exige un formato digital inalterable para el transporte de mercancías.</p>
+                </div>
+                <div class="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-xl transition">
+                    <div class="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center mb-6 text-xl">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 class="font-bold text-xl mb-3">Seguridad</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Tus datos están protegidos y disponibles en la nube 24/7 para cualquier inspección.</p>
+                </div>
+                <div class="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-xl transition">
+                    <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mb-6 text-xl">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 class="font-bold text-xl mb-3">Velocidad</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Genera documentos en segundos desde el móvil. No más pérdida de tiempo en la carga.</p>
+                </div>
+                <div class="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-xl transition">
+                    <div class="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-lg flex items-center justify-center mb-6 text-xl">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <h3 class="font-bold text-xl mb-3">Validez Legal</h3>
+                    <p class="text-slate-600 text-sm leading-relaxed">Cumplimiento total con la Orden TMA/388/2021 del Ministerio de Transportes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cómo Funciona -->
+    <section id="como-funciona" class="py-24 bg-slate-50 relative overflow-hidden">
+        <div class="blob -top-20 -left-20"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-20">
+                <h2 class="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">DOKO funciona en 3 simples pasos</h2>
+                <p class="text-slate-600">Diseñado para ser usado por conductores sin experiencia previa en software.</p>
+            </div>
+            
+            <div class="grid md:grid-cols-3 gap-12 relative">
+                <div class="absolute top-1/2 left-0 w-full h-0.5 bg-blue-100 -translate-y-1/2 hidden md:block"></div>
+                
+                <div class="relative z-10 text-center">
+                    <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-8 font-bold text-2xl border-4 border-white shadow-lg">1</div>
+                    <h3 class="font-bold text-xl mb-4 text-blue-900">Regístrate</h3>
+                    <p class="text-slate-600 leading-relaxed">Crea tu cuenta de empresa o autónomo en menos de un minuto.</p>
+                </div>
+
+                <div class="relative z-10 text-center">
+                    <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-8 font-bold text-2xl border-4 border-white shadow-lg">2</div>
+                    <h3 class="font-bold text-xl mb-4 text-blue-900">Genera el documento</h3>
+                    <p class="text-slate-600 leading-relaxed">Introduce los datos de la carga, origen y destino. Todo pre-completado.</p>
+                </div>
+
+                <div class="relative z-10 text-center">
+                    <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-8 font-bold text-2xl border-4 border-white shadow-lg">3</div>
+                    <h3 class="font-bold text-xl mb-4 text-blue-900">Comparte</h3>
+                    <p class="text-slate-600 leading-relaxed">Envía el PDF al cargador y receptor mediante QR, enlace o email.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Planes de Precios -->
+    <section id="planes" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Planes simples, sin sorpresas</h2>
+                <p class="text-slate-600">Elige la opción que mejor se adapte a tu volumen de transporte.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <!-- Plan Básico -->
+                <div class="pricing-card p-10 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col">
+                    <div class="mb-8">
+                        <h3 class="font-bold text-lg text-slate-500 uppercase tracking-widest mb-4">Autónomo</h3>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-4xl font-extrabold text-slate-900">39€</span>
+                            <span class="text-slate-500">/anual</span>
+                        </div>
+                        <p class="text-sm text-slate-400 mt-2">Para 1 vehículo</p>
+                    </div>
+                    <ul class="space-y-4 mb-10 text-slate-600">
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-500"></i> Documentos ilimitados</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-500"></i> Firma digital</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-500"></i> QR de inspección</li>
+                    </ul>
+                    <a href="#" class="mt-auto block text-center border-2 border-blue-600 text-blue-600 font-bold py-4 rounded-xl hover:bg-blue-50 transition">Seleccionar</a>
+                </div>
+
+                <!-- Plan Profesional -->
+                <div class="pricing-card p-10 rounded-3xl bg-blue-600 text-white flex flex-col shadow-2xl shadow-blue-300 scale-105 relative">
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-yellow-400 text-blue-900 font-bold px-4 py-1 rounded-full text-xs uppercase tracking-widest">Recomendado</div>
+                    <div class="mb-8">
+                        <h3 class="font-bold text-lg text-blue-200 uppercase tracking-widest mb-4">Flota Media</h3>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-4xl font-extrabold">99€</span>
+                            <span class="text-blue-100">/anual</span>
+                        </div>
+                        <p class="text-sm text-blue-200 mt-2">Hasta 5 vehículos</p>
+                    </div>
+                    <ul class="space-y-4 mb-10 text-blue-50">
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-yellow-300"></i> Documentos ilimitados</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-yellow-300"></i> Panel de administración</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-yellow-300"></i> Gestión de chóferes</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-yellow-300"></i> Soporte prioritario</li>
+                    </ul>
+                    <a href="#" class="mt-auto block text-center bg-white text-blue-600 font-bold py-4 rounded-xl hover:bg-gray-100 transition">Probar gratis</a>
+                </div>
+
+                <!-- Plan Enterprise -->
+                <div class="pricing-card p-10 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col">
+                    <div class="mb-8">
+                        <h3 class="font-bold text-lg text-slate-500 uppercase tracking-widest mb-4">Gran Flota</h3>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-4xl font-extrabold text-slate-900">249€</span>
+                            <span class="text-slate-500">/anual</span>
+                        </div>
+                        <p class="text-sm text-slate-400 mt-2">Vehículos ilimitados</p>
+                    </div>
+                    <ul class="space-y-4 mb-10 text-slate-600">
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-500"></i> Integración API</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-500"></i> Facturación masiva</li>
+                        <li class="flex items-center gap-3"><i class="fas fa-check text-green-500"></i> Account Manager</li>
+                    </ul>
+                    <a href="#" class="mt-auto block text-center border-2 border-blue-600 text-blue-600 font-bold py-4 rounded-xl hover:bg-blue-50 transition">Contactar</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="py-24 bg-slate-50">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-center mb-12">Preguntas frecuentes</h2>
+            <div class="space-y-4">
+                <details class="bg-white p-6 rounded-2xl border border-slate-200 group transition">
+                    <summary class="list-none flex justify-between items-center cursor-pointer font-bold text-lg">
+                        ¿Es legalmente válido en España?
+                        <i class="fas fa-chevron-down group-open:rotate-180 transition"></i>
+                    </summary>
+                    <p class="mt-4 text-slate-600">Sí, DOKO cumple estrictamente con el Reglamento de Ordenación de los Transportes Terrestres (ROTT) y las últimas órdenes ministeriales sobre documentación digital.</p>
+                </details>
+                <details class="bg-white p-6 rounded-2xl border border-slate-200 group transition">
+                    <summary class="list-none flex justify-between items-center cursor-pointer font-bold text-lg">
+                        ¿Qué pasa si no tengo conexión a internet?
+                        <i class="fas fa-chevron-down group-open:rotate-180 transition"></i>
+                    </summary>
+                    <p class="mt-4 text-slate-600">Nuestra App permite generar borradores offline que se sincronizan automáticamente en cuanto recuperas cobertura.</p>
+                </details>
+                <details class="bg-white p-6 rounded-2xl border border-slate-200 group transition">
+                    <summary class="list-none flex justify-between items-center cursor-pointer font-bold text-lg">
+                        ¿Puedo compartir el documento con el cliente?
+                        <i class="fas fa-chevron-down group-open:rotate-180 transition"></i>
+                    </summary>
+                    <p class="mt-4 text-slate-600">Por supuesto. Al finalizar, se genera un código QR o un enlace que puedes compartir por WhatsApp o Email al cargador y consignatario.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contacto -->
+    <section class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div>
+                    <h2 class="text-4xl font-extrabold mb-6">¿Tienes dudas?<br><span class="text-blue-600">¡Escríbenos!</span></h2>
+                    <p class="text-lg text-slate-600 mb-8">Nuestro equipo de expertos en normativa de transporte te ayudará a digitalizar tu operativa en minutos.</p>
+                    <div class="space-y-6 font-medium">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center"><i class="fas fa-envelope"></i></div>
+                            <span>soporte@doko.es</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center"><i class="fas fa-phone"></i></div>
+                            <span>+34 900 000 000</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-slate-50 p-10 rounded-3xl border border-slate-200 shadow-xl">
+                    <form class="space-y-4">
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <input type="text" placeholder="Nombre" class="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-600 outline-none">
+                            <input type="email" placeholder="Email" class="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-600 outline-none">
+                        </div>
+                        <input type="text" placeholder="Empresa" class="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-600 outline-none">
+                        <textarea rows="4" placeholder="¿En qué podemos ayudarte?" class="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-600 outline-none"></textarea>
+                        <button class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition shadow-lg">Enviar mensaje</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-blue-900 text-white py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-12 mb-12">
+                <div class="col-span-1 md:col-span-1">
+                    <div class="flex items-center gap-2 mb-6">
+                        <div class="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
+                            <span class="text-white font-bold text-lg">D</span>
+                        </div>
+                        <span class="text-2xl font-bold tracking-tight">DOKO</span>
+                    </div>
+                    <p class="text-blue-200 text-sm leading-relaxed">
+                        Digitalizando el sector del transporte para hacerlo más eficiente, sostenible y legal.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-6">Producto</h4>
+                    <ul class="space-y-3 text-blue-200 text-sm">
+                        <li><a href="#" class="hover:text-white transition">Características</a></li>
+                        <li><a href="#" class="hover:text-white transition">Cómo funciona</a></li>
+                        <li><a href="#" class="hover:text-white transition">Planes de precios</a></li>
+                        <li><a href="#" class="hover:text-white transition">Actualizaciones</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-6">Compañía</h4>
+                    <ul class="space-y-3 text-blue-200 text-sm">
+                        <li><a href="#" class="hover:text-white transition">Sobre nosotros</a></li>
+                        <li><a href="#" class="hover:text-white transition">Contacto</a></li>
+                        <li><a href="#" class="hover:text-white transition">Blog</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-6">Legal</h4>
+                    <ul class="space-y-3 text-blue-200 text-sm">
+                        <li><a href="#" class="hover:text-white transition">Términos y condiciones</a></li>
+                        <li><a href="#" class="hover:text-white transition">Privacidad</a></li>
+                        <li><a href="#" class="hover:text-white transition">Normativa TMA/388/2021</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-blue-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-blue-300">
+                <p>© 2024 DOKO Software para Transporte. Todos los derechos reservados.</p>
+                <div class="flex gap-6">
+                    <a href="#" class="hover:text-white"><i class="fab fa-linkedin text-xl"></i></a>
+                    <a href="#" class="hover:text-white"><i class="fab fa-twitter text-xl"></i></a>
+                    <a href="#" class="hover:text-white"><i class="fab fa-instagram text-xl"></i></a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
