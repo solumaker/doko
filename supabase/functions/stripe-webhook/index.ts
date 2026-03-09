@@ -74,7 +74,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
 
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
@@ -291,26 +291,7 @@ Deno.serve(async (req: Request) => {
             operation: "subscription_update",
             error: updateError.message,
           }));
-        }
-
-        if (!subscription.schedule) {
-          try {
-            await stripe.subscriptions.update(subscription.id, {
-              metadata: {
-                ...subscription.metadata,
-                company_id: companyId,
-                plan: newPlan,
-              },
-            });
-          } catch (metaErr) {
-            console.error(JSON.stringify({
-              msg: "Failed to update Stripe subscription metadata",
-              event_id: event.id,
-              event_type: event.type,
-              company_id: companyId,
-              error: String(metaErr),
-            }));
-          }
+          throw updateError;
         }
 
         break;
