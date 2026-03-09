@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 import QRCode from "npm:qrcode@1.5.3";
 import { INTER_LATIN_WOFF2_BASE64 } from "./fonts.ts";
+import { DOKO_HEADER_BASE64 } from "./logo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -175,7 +176,7 @@ function buildSignatureCell(sig: SignatureData | undefined, label: string): stri
   </td>`;
 }
 
-function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
+function buildHtml(doc: DocumentRecord, qrDataUrl: string, logoDataUrl: string): string {
   const c = doc.content;
   const docId = doc.id.substring(0, 8).toUpperCase();
 
@@ -234,10 +235,25 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
   }
 
   header[role="banner"] {
-    text-align: center;
+    display: flex;
+    align-items: center;
     border-bottom: 3px solid #1e40af;
     padding-bottom: 10px;
     margin-bottom: 6px;
+    gap: 18px;
+  }
+  header .header-logo {
+    flex-shrink: 0;
+    width: 58mm;
+  }
+  header .header-logo img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  header .header-text {
+    flex: 1;
+    text-align: right;
   }
   header h1 {
     font-size: 16pt;
@@ -406,8 +422,11 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string): string {
 <body role="document">
 
 <header role="banner">
-  <h1>DOCUMENTO DE CONTROL</h1>
-  <h2 class="subtitle">Conforme a la normativa vigente de transporte de mercanc&iacute;as por carretera</h2>
+  ${logoDataUrl ? `<div class="header-logo"><img src="${logoDataUrl}" alt="DOKO" /></div>` : ""}
+  <div class="header-text">
+    <h1>DOCUMENTO DE CONTROL</h1>
+    <h2 class="subtitle">Conforme a la normativa vigente de transporte de mercanc&iacute;as por carretera</h2>
+  </div>
 </header>
 
 <div class="meta-row" aria-label="Identificaci&oacute;n del documento">
@@ -696,7 +715,9 @@ Deno.serve(async (req: Request) => {
       console.error("QR generation failed:", qrErr);
     }
 
-    const html = buildHtml(doc, qrDataUrl);
+    const logoDataUrl = `data:image/jpeg;base64,${DOKO_HEADER_BASE64}`;
+
+    const html = buildHtml(doc, qrDataUrl, logoDataUrl);
 
     let pdfBytes: ArrayBuffer;
     try {
