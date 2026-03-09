@@ -146,37 +146,6 @@ Deno.serve(async (req: Request) => {
         const newPlan = resolvePlanFromSubscription(subscription);
         const newLimits = PLAN_LIMITS[newPlan] || PLAN_LIMITS.autonomo;
 
-        const { data: existingSub } = await supabase
-          .from("subscriptions")
-          .select("plan, document_limit, current_period_start, current_period_end")
-          .eq("company_id", companyId)
-          .maybeSingle();
-
-        const oldPlan = existingSub?.plan;
-        const planChanged = existingSub && oldPlan && oldPlan !== newPlan;
-        const isDowngrade = planChanged && newLimits.document_limit < (existingSub.document_limit ?? 0);
-        const isImmediateChange = !subscription.schedule;
-
-        if (isDowngrade && isImmediateChange && existingSub.current_period_start && existingSub.current_period_end) {
-          const { count: docsUsedInPeriod } = await supabase
-            .from("documents")
-            .select("id", { count: "exact", head: true })
-            .eq("company_id", companyId)
-            .gte("created_at", existingSub.current_period_start)
-            .lt("created_at", existingSub.current_period_end);
-
-          const oldLimit = existingSub.document_limit ?? 0;
-          const remaining = oldLimit - (docsUsedInPeriod ?? 0);
-          if (remaining > 0) {
-            await supabase.from("document_packs").insert({
-              company_id: companyId,
-              stripe_payment_intent_id: `plan_change_${oldPlan}_to_${newPlan}_${Date.now()}`,
-              documents_purchased: remaining,
-              documents_remaining: remaining,
-            });
-          }
-        }
-
         const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
 
         let pendingPlan: string | null = null;
