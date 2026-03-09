@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, MapPin, Truck, Calendar, Loader2, Users, Eye, EyeOff } from 'lucide-react';
+import { FileText, MapPin, Truck, Calendar, Loader2, Users, Eye, EyeOff, Search, Building2, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
@@ -26,6 +26,7 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
   const [drivers, setDrivers] = useState<DriverWithHidden[]>([]);
   const [selectedDriver, setSelectedDriver] = useState<DriverWithHidden | null>(null);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (isAdmin && adminView === 'manage') {
@@ -94,6 +95,18 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
 
   const displayedDocs = isAdmin && adminView === 'all' ? allDocuments : documents;
 
+  const filteredDocs = searchQuery.trim() === ''
+    ? displayedDocs
+    : displayedDocs.filter((doc) => {
+        const q = searchQuery.toLowerCase();
+        const shipper = (doc.content.contractual_shipper?.nombre || doc.content.company?.name || '').toLowerCase();
+        const origin = (doc.content.origin?.poblacion || doc.content.origin?.city || doc.content.origin?.empresa || '').toLowerCase();
+        const dest = (doc.content.destination?.poblacion || doc.content.destination?.city || doc.content.destination?.empresa || '').toLowerCase();
+        const driver = (doc.content.driver?.name || doc.driver_name || '').toLowerCase();
+        const plate = (doc.content.vehicle?.tractor_plate || '').toLowerCase();
+        return shipper.includes(q) || origin.includes(q) || dest.includes(q) || driver.includes(q) || plate.includes(q);
+      });
+
   const handleNavItem = (item: string) => {
     onNavigate(item);
   };
@@ -154,6 +167,19 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
         </div>
 
         <div className="lg:hidden space-y-2">
+          {(doc.content.contractual_shipper?.nombre || doc.content.company?.name) && (
+            <div className="flex items-start gap-2.5">
+              <div className="bg-amber-50 p-1 rounded-lg mt-0.5">
+                <Building2 size={14} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Cargador</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {doc.content.contractual_shipper?.nombre || doc.content.company?.name}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="flex items-start gap-2.5">
             <div className="bg-blue-50 p-1 rounded-lg mt-0.5">
               <MapPin size={14} className="text-blue-600" />
@@ -302,6 +328,27 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
           </div>
         )}
 
+        {adminView !== 'manage' && (
+          <div className="relative">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por cargador, origen, destino, conductor o matricula..."
+              className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200/80 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+        )}
+
         {adminView === 'manage' && isAdmin ? (
           renderManageView()
         ) : loadingDocuments ? (
@@ -316,6 +363,14 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
             <p className="text-base font-semibold text-slate-600">No hay documentos</p>
             <p className="text-sm text-slate-400 mt-1">Los documentos generados apareceran aqui</p>
           </div>
+        ) : filteredDocs.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 py-20 text-center">
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Search size={28} className="text-slate-400" />
+            </div>
+            <p className="text-base font-semibold text-slate-600">Sin resultados</p>
+            <p className="text-sm text-slate-400 mt-1">Ningún documento coincide con "{searchQuery}"</p>
+          </div>
         ) : (
           <>
             <div className="hidden lg:block bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
@@ -327,7 +382,7 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
                 <span>Conductor</span>
                 <span>Matricula</span>
               </div>
-              {displayedDocs.map((doc) => {
+              {filteredDocs.map((doc) => {
                 const shipperName = doc.content.contractual_shipper?.nombre || doc.content.company?.name || '-';
                 const originCity = doc.content.origin?.poblacion || doc.content.origin?.city || doc.content.origin?.empresa || '-';
                 const destCity = doc.content.destination?.poblacion || doc.content.destination?.city || doc.content.destination?.empresa || '-';
@@ -356,7 +411,7 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
             </div>
 
             <div className="lg:hidden space-y-3">
-              {displayedDocs.map((doc) => renderDocCard(doc))}
+              {filteredDocs.map((doc) => renderDocCard(doc))}
             </div>
           </>
         )}
