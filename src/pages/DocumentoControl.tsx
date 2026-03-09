@@ -379,9 +379,9 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
                         </div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Transportista Efectivo</p>
                       </div>
-                      <p className="text-base font-bold text-slate-900">{shipperName}</p>
-                      {shipperNif && <p className="text-sm text-slate-600 mt-0.5">NIF: {shipperNif}</p>}
-                      <p className="text-sm text-slate-500 mt-0.5">{shipperAddr}</p>
+                      <p className="text-base font-bold text-slate-900">{content.company.name}</p>
+                      {content.company.cif && <p className="text-sm text-slate-600 mt-0.5">CIF: {content.company.cif}</p>}
+                      <p className="text-sm text-slate-500 mt-0.5">{[content.company.address, content.company.postal_code, content.company.city].filter(Boolean).join(', ')}</p>
                     </div>
                   </div>
                 </div>
