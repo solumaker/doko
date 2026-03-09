@@ -71,7 +71,7 @@ function LoadingScreen() {
 
 function AppContent() {
   const { session, profile, loading, isDriver, isAdmin, signOut } = useAuth();
-  const { isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription } = useSubscription();
+  const { isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription, syncAndRefresh } = useSubscription();
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
@@ -90,7 +90,7 @@ function AppContent() {
     const stripeParams = getStripeReturnParams();
     if (stripeParams) {
       if (stripeParams.portalReturn) {
-        refreshSubscription();
+        syncAndRefresh();
         window.history.replaceState({}, '', window.location.pathname);
       } else {
         setStripeReturn(stripeParams);

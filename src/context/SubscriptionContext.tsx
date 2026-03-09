@@ -17,6 +17,7 @@ interface SubscriptionContextType {
   trialDocsLeft: number;
   canCreateDocument: () => boolean;
   refreshSubscription: () => Promise<void>;
+  syncAndRefresh: () => Promise<void>;
   createCheckoutSession: (plan: PlanId) => Promise<void>;
   purchaseDocumentPack: () => Promise<void>;
   openCustomerPortal: () => Promise<void>;
@@ -133,6 +134,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     await fetchUsage();
   }, [fetchUsage]);
 
+  const syncAndRefresh = useCallback(async () => {
+    setLoading(true);
+    await callWithRetry('stripe-sync', {});
+    await fetchUsage();
+  }, [callWithRetry, fetchUsage]);
+
   const getToken = useCallback(async (): Promise<string | null> => {
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     if (!currentSession) return null;
@@ -220,6 +227,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         trialDocsLeft,
         canCreateDocument,
         refreshSubscription,
+        syncAndRefresh,
         createCheckoutSession,
         purchaseDocumentPack,
         openCustomerPortal,
