@@ -134,12 +134,6 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     await fetchUsage();
   }, [fetchUsage]);
 
-  const syncAndRefresh = useCallback(async () => {
-    setLoading(true);
-    await callWithRetry('stripe-sync', {});
-    await fetchUsage();
-  }, [callWithRetry, fetchUsage]);
-
   const getToken = useCallback(async (): Promise<string | null> => {
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     if (!currentSession) return null;
@@ -172,6 +166,12 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
     return result;
   }, [getToken]);
+
+  const syncAndRefresh = useCallback(async () => {
+    setLoading(true);
+    await callWithRetry('stripe-sync', {});
+    await fetchUsage();
+  }, [callWithRetry, fetchUsage]);
 
   const createCheckoutSession = useCallback(async (plan: PlanId) => {
     const { data, ok } = await callWithRetry('stripe-checkout', {
