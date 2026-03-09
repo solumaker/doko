@@ -158,6 +158,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: rpcData.error };
     }
 
+    try {
+      fetch('https://hook.eu1.make.com/528erq5caz7vxxe00o65ujgbmdqmoqnb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: data.fullName,
+          correo: data.email,
+          empresa: data.companyName,
+          cif: data.companyCif,
+          direccion: data.companyAddress || '',
+          poblacion: data.companyCity || '',
+          cp: data.companyPostalCode || '',
+          provincia: data.companyProvince || '',
+          telefono: data.companyPhone || '',
+        }),
+      }).catch(() => {});
+    } catch {}
+
     await fetchProfileAndCompany(authData.user.id);
 
     return { error: null };
