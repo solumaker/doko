@@ -71,7 +71,7 @@ function LoadingScreen() {
 
 function AppContent() {
   const { session, profile, loading, isDriver, isAdmin, signOut } = useAuth();
-  const { isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription, syncAndRefresh } = useSubscription();
+  const { usage, isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription, syncAndRefresh } = useSubscription();
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
@@ -79,6 +79,7 @@ function AppContent() {
   const [stripeReturn, setStripeReturn] = useState<{ success: boolean; isPack: boolean; portalReturn: boolean } | null>(null);
   const [showTrialModal, setShowTrialModal] = useState(false);
   const [showSubExpiredModal, setShowSubExpiredModal] = useState(false);
+  const [pendingPortalSync, setPendingPortalSync] = useState(false);
 
   useEffect(() => {
     const token = getAccessTokenFromUrl();
@@ -89,16 +90,22 @@ function AppContent() {
     }
     const stripeParams = getStripeReturnParams();
     if (stripeParams) {
+      window.history.replaceState({}, '', window.location.pathname);
       if (stripeParams.portalReturn) {
-        syncAndRefresh();
-        window.history.replaceState({}, '', window.location.pathname);
+        setPendingPortalSync(true);
       } else {
         setStripeReturn(stripeParams);
         setCurrentScreen('stripe-return');
-        window.history.replaceState({}, '', window.location.pathname);
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (pendingPortalSync && !subLoading) {
+      setPendingPortalSync(false);
+      syncAndRefresh(usage);
+    }
+  }, [pendingPortalSync, subLoading, syncAndRefresh, usage]);
 
   useEffect(() => {
     if (!subLoading && isAdmin && isTrialExpired && !hasActiveSubscription && !isSubscriptionExpired && currentScreen === 'dashboard') {

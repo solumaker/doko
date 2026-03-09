@@ -18,7 +18,7 @@ interface SubscriptionContextType {
   trialDocsLeft: number;
   canCreateDocument: () => boolean;
   refreshSubscription: () => Promise<void>;
-  syncAndRefresh: () => Promise<void>;
+  syncAndRefresh: (baseline?: SubscriptionUsage | null) => Promise<void>;
   createCheckoutSession: (plan: PlanId) => Promise<void>;
   purchaseDocumentPack: () => Promise<void>;
   openCustomerPortal: () => Promise<void>;
@@ -153,10 +153,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     return callEdgeFunction(functionName, body, token);
   }, [getToken]);
 
-  const syncAndRefresh = useCallback(async () => {
-    const previousPlan = usage?.plan ?? null;
-    const previousLimit = usage?.document_limit ?? null;
-    const previousPeriodEnd = usage?.current_period_end ?? null;
+  const syncAndRefresh = useCallback(async (baseline?: SubscriptionUsage | null) => {
+    const snap = baseline !== undefined ? baseline : usage;
+    const previousPlan = snap?.plan ?? null;
+    const previousLimit = snap?.document_limit ?? null;
+    const previousPeriodEnd = snap?.current_period_end ?? null;
+    const previousStatus = snap?.status ?? null;
+    const previousCancelAtPeriodEnd = snap?.cancel_at_period_end ?? null;
 
     setIsSyncing(true);
     setLoading(true);
@@ -180,7 +183,9 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         const planChanged = previousPlan !== null && result.plan !== previousPlan;
         const limitChanged = previousLimit !== null && result.document_limit !== previousLimit;
         const periodChanged = previousPeriodEnd !== null && result.current_period_end !== previousPeriodEnd;
-        const dataChanged = planChanged || limitChanged || periodChanged;
+        const statusChanged = previousStatus !== null && result.status !== previousStatus;
+        const cancelChanged = previousCancelAtPeriodEnd !== null && result.cancel_at_period_end !== previousCancelAtPeriodEnd;
+        const dataChanged = planChanged || limitChanged || periodChanged || statusChanged || cancelChanged;
         const noKnownPrevious = previousPlan === null && isActive;
 
         if (dataChanged || noKnownPrevious || attempt === maxAttempts - 1) {

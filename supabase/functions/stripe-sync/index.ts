@@ -111,22 +111,9 @@ Deno.serve(async (req: Request) => {
 
     const { data: dbSub } = await supabaseAdmin
       .from("subscriptions")
-      .select("plan, document_limit, stripe_subscription_id")
+      .select("pending_plan")
       .eq("company_id", profile.company_id)
       .maybeSingle();
-
-    const isInSync =
-      dbSub &&
-      dbSub.plan === stripePlan &&
-      dbSub.document_limit === limits.document_limit &&
-      dbSub.stripe_subscription_id === stripeSub.id;
-
-    if (isInSync) {
-      return new Response(
-        JSON.stringify({ synced: true, plan: stripePlan, already_in_sync: true }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const hasPendingPlan = !!dbSub?.pending_plan;
 
