@@ -82,12 +82,22 @@ function AppContent() {
   const [pendingPortalSync, setPendingPortalSync] = useState(false);
 
   useEffect(() => {
-    const token = getAccessTokenFromUrl();
-    if (token) {
-      setDriverToken(token);
+    const urlToken = getAccessTokenFromUrl();
+    if (urlToken) {
+      try {
+        localStorage.setItem('doko_driver_token', urlToken);
+      } catch {}
       window.history.replaceState({}, '', window.location.pathname);
+      setDriverToken(urlToken);
       return;
     }
+
+    const savedToken = (() => { try { return localStorage.getItem('doko_driver_token'); } catch { return null; } })();
+    if (savedToken) {
+      setDriverToken(savedToken);
+      return;
+    }
+
     const stripeParams = getStripeReturnParams();
     if (stripeParams) {
       window.history.replaceState({}, '', window.location.pathname);
@@ -162,11 +172,11 @@ function AppContent() {
     return <LoadingScreen />;
   }
 
-  if (driverToken && (!session || !profile)) {
+  if (driverToken && !session && !profile) {
     return (
       <DriverAccess
         accessToken={driverToken}
-        onSuccess={() => setDriverToken(null)}
+        onSuccess={() => {}}
       />
     );
   }

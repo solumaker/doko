@@ -164,6 +164,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    try {
+      localStorage.removeItem('doko_driver_token');
+    } catch {}
     await supabase.auth.signOut();
     setProfile(null);
     setCompany(null);
@@ -220,6 +223,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (verifyError || !verifyData.session) {
       return { error: verifyError?.message || 'Error al establecer sesion' };
     }
+
+    try {
+      localStorage.setItem('doko_driver_token', accessToken);
+    } catch {}
 
     return { error: null };
   };
