@@ -46,10 +46,6 @@ export interface Company {
   trial_ends_at?: string;
   created_at: string;
   driver_doc_visibility_days?: number | null;
-  default_contractual_shipper_nombre?: string;
-  default_contractual_shipper_nif?: string;
-  default_contractual_shipper_domicilio?: string;
-  default_contractual_shipper_poblacion?: string;
 }
 
 export type PlanId = 'autonomo' | 'pyme' | 'flotas';

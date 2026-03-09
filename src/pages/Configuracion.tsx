@@ -16,10 +16,10 @@ export function Configuracion({ onBack, onLogout, onNavigate }: ConfiguracionPro
   const [activeSection, setActiveSection] = useState<Section>('cargador');
 
   const [cargadorForm, setCargadorForm] = useState({
-    nombre: company?.default_contractual_shipper_nombre || '',
-    nif: company?.default_contractual_shipper_nif || '',
-    domicilio: company?.default_contractual_shipper_domicilio || '',
-    poblacion: company?.default_contractual_shipper_poblacion || '',
+    nombre: company?.name || '',
+    nif: company?.cif || '',
+    domicilio: company?.address || '',
+    poblacion: company?.city || '',
   });
   const [cargadorSaving, setCargadorSaving] = useState(false);
   const [cargadorStatus, setCargadorStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -42,10 +42,10 @@ export function Configuracion({ onBack, onLogout, onNavigate }: ConfiguracionPro
     setCargadorSaving(true);
     setCargadorStatus('idle');
     const { error } = await updateCompany({
-      default_contractual_shipper_nombre: cargadorForm.nombre.trim(),
-      default_contractual_shipper_nif: cargadorForm.nif.trim(),
-      default_contractual_shipper_domicilio: cargadorForm.domicilio.trim(),
-      default_contractual_shipper_poblacion: cargadorForm.poblacion.trim(),
+      name: cargadorForm.nombre.trim(),
+      cif: cargadorForm.nif.trim(),
+      address: cargadorForm.domicilio.trim(),
+      city: cargadorForm.poblacion.trim(),
     });
     setCargadorSaving(false);
     if (error) {
