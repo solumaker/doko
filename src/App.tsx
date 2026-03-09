@@ -18,6 +18,7 @@ import { DocumentoPublico } from './pages/DocumentoPublico';
 import { Equipo } from './pages/Equipo';
 import { Planes } from './pages/Planes';
 import { StripeReturn } from './pages/StripeReturn';
+import { Configuracion } from './pages/Configuracion';
 import { TrialExpiredModal } from './components/TrialExpiredModal';
 import { SubscriptionExpiredModal } from './components/SubscriptionExpiredModal';
 import { Document } from './lib/supabase';
@@ -37,7 +38,8 @@ type AppScreen =
   | 'documento'
   | 'equipo'
   | 'planes'
-  | 'stripe-return';
+  | 'stripe-return'
+  | 'configuracion';
 
 function getAccessTokenFromUrl(): string | null {
   const params = new URLSearchParams(window.location.search);
@@ -145,6 +147,7 @@ function AppContent() {
     'documentos': 'historial',
     'equipo': 'equipo',
     'lugares': 'lugares',
+    'configuracion': 'configuracion',
   };
   const sharedNav = (screen: string) => handleNavigate((navItemToScreen[screen] ?? screen) as AppScreen);
 
@@ -272,6 +275,9 @@ function AppContent() {
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} onViewDocument={handleViewDocument} />;
       case 'equipo':
         return <Equipo onBack={() => handleNavigate('dashboard')} onGoToPlanes={() => handleNavigate('planes')} onLogout={handleLogout} onNavigate={sharedNav} />;
+      case 'configuracion':
+        if (!isAdmin) { handleNavigate('dashboard'); return null; }
+        return <Configuracion onBack={() => handleNavigate('dashboard')} onLogout={handleLogout} onNavigate={sharedNav} />;
       default:
         return <Dashboard onNavigate={handleNavigate} onLogout={handleLogout} onViewDocument={handleViewDocument} />;
     }

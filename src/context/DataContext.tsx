@@ -378,7 +378,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments(), fetchShipperHistory()]);
   };
 
-  const documents = allDocuments.filter((d) => !hiddenDocIds.includes(d.id));
+  const documents = allDocuments.filter((d) => {
+    if (hiddenDocIds.includes(d.id)) return false;
+    if (profile?.role === 'driver' && company?.driver_doc_visibility_days != null) {
+      const days = company.driver_doc_visibility_days;
+      const docDate = new Date(d.created_at);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      if (docDate < cutoff) return false;
+    }
+    return true;
+  });
 
   return (
     <DataContext.Provider

@@ -16,6 +16,8 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
   driverLogin: (accessToken: string, pin: string) => Promise<{ error: string | null }>;
+  updateCompany: (data: Partial<Omit<Company, 'id' | 'created_at' | 'stripe_customer_id' | 'trial_ends_at'>>) => Promise<{ error: string | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
 }
 
 interface SignUpData {
@@ -181,6 +183,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateCompany = async (data: Partial<Omit<Company, 'id' | 'created_at' | 'stripe_customer_id' | 'trial_ends_at'>>) => {
+    if (!company?.id) return { error: 'No hay empresa asociada' };
+    const { error } = await supabase.from('companies').update(data).eq('id', company.id);
+    if (error) return { error: error.message };
+    setCompany((prev) => prev ? { ...prev, ...data } : prev);
+    return { error: null };
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) return { error: error.message };
+    return { error: null };
+  };
+
   const driverLogin = async (accessToken: string, pin: string) => {
     const { data: result, ok } = await callEdgeFunction('driver-auth', {
       action: 'login',
@@ -220,6 +236,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetPassword,
         refreshProfile,
         driverLogin,
+        updateCompany,
+        updatePassword,
       }}
     >
       {children}

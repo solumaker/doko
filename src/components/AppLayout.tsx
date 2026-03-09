@@ -1,10 +1,10 @@
 import { ReactNode } from 'react';
-import { Home, FolderOpen, Users, MapPin, LogOut, HelpCircle, ArrowLeft } from 'lucide-react';
+import { Home, FolderOpen, Users, MapPin, LogOut, Settings, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { PLAN_CONFIG } from '../lib/supabase';
 
-type NavItem = 'inicio' | 'documentos' | 'equipo' | 'lugares';
+type NavItem = 'inicio' | 'documentos' | 'equipo' | 'lugares' | 'configuracion';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -27,6 +27,7 @@ const pageTitleMap: Record<NavItem, string> = {
   documentos: 'Documentos',
   equipo: 'Equipo',
   lugares: 'Lugares',
+  configuracion: 'Configuracion',
 };
 
 export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout, pageTitle, onBack }: AppLayoutProps) {
@@ -72,12 +73,21 @@ export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout
           })}
         </nav>
 
-        <div className="px-3 pb-5">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-slate-200 transition-colors">
-            <HelpCircle size={18} />
-            AYUDA
-          </button>
-        </div>
+        {profile?.role === 'admin' && (
+          <div className="px-3 pb-5">
+            <button
+              onClick={() => onNavigate?.('configuracion')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold border transition-colors ${
+                activeNav === 'configuracion'
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 border-slate-200'
+              }`}
+            >
+              <Settings size={18} strokeWidth={activeNav === 'configuracion' ? 2.5 : 2} />
+              CONFIGURACION
+            </button>
+          </div>
+        )}
       </aside>
 
       <div className="hidden lg:block lg:pl-60">
@@ -173,6 +183,17 @@ export function AppLayout({ children, activeNav = 'inicio', onNavigate, onLogout
                 </button>
               );
             })}
+            {profile?.role === 'admin' && (
+              <button
+                onClick={() => onNavigate?.('configuracion')}
+                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors ${
+                  activeNav === 'configuracion' ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Settings size={22} strokeWidth={activeNav === 'configuracion' ? 2.5 : 2} />
+                <span className="text-[10px] font-semibold">Config.</span>
+              </button>
+            )}
           </nav>
         )}
       </div>
