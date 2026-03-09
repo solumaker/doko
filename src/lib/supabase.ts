@@ -11,8 +11,18 @@ export async function callEdgeFunction(functionName: string, body: Record<string
     'Content-Type': 'application/json',
     'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
   };
-  if (authToken) {
-    headers['Authorization'] = `Bearer ${authToken}`;
+  let token = authToken;
+  if (!token) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+      token = refreshed?.access_token;
+    } else {
+      token = session.access_token;
+    }
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
   try {
     const response = await fetch(url, {
