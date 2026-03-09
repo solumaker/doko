@@ -177,7 +177,7 @@ Deno.serve(async (req: Request) => {
           }
         }
 
-        await supabase
+        const { error: updateError } = await supabase
           .from("subscriptions")
           .update({
             status: subscription.status as string,
@@ -195,13 +195,21 @@ Deno.serve(async (req: Request) => {
           })
           .eq("company_id", companyId);
 
-        await stripe.subscriptions.update(subscription.id, {
-          metadata: {
-            ...subscription.metadata,
-            company_id: companyId,
-            plan: newPlan,
-          },
-        });
+        if (updateError) {
+          console.error("Failed to update subscription in DB:", updateError);
+        }
+
+        try {
+          await stripe.subscriptions.update(subscription.id, {
+            metadata: {
+              ...subscription.metadata,
+              company_id: companyId,
+              plan: newPlan,
+            },
+          });
+        } catch (metaErr) {
+          console.error("Failed to update Stripe subscription metadata:", metaErr);
+        }
 
         break;
       }
