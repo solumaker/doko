@@ -89,20 +89,22 @@ Deno.serve(async (req: Request) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
 
-    const subscriptions = await stripe.subscriptions.list({
-      customer: company.stripe_customer_id,
-      status: "active",
-      limit: 1,
-    });
+    const [activeSubs, trialingSubs] = await Promise.all([
+      stripe.subscriptions.list({ customer: company.stripe_customer_id, status: "active", limit: 1 }),
+      stripe.subscriptions.list({ customer: company.stripe_customer_id, status: "trialing", limit: 1 }),
+    ]);
 
-    if (subscriptions.data.length === 0) {
+    const allSubs = [...activeSubs.data, ...trialingSubs.data];
+    allSubs.sort((a, b) => b.created - a.created);
+
+    if (allSubs.length === 0) {
       return new Response(
         JSON.stringify({ synced: false, reason: "no_active_subscription" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const stripeSub = subscriptions.data[0];
+    const stripeSub = allSubs[0];
     const priceId = stripeSub.items?.data?.[0]?.price?.id;
     const stripePlan = (priceId && PRICE_TO_PLAN[priceId]) ? PRICE_TO_PLAN[priceId] : (stripeSub.metadata?.plan || "autonomo");
     const limits = PLAN_LIMITS[stripePlan] || PLAN_LIMITS.autonomo;

@@ -154,12 +154,18 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [getToken]);
 
   const syncAndRefresh = useCallback(async () => {
+    const previousPlan = usage?.plan ?? null;
+    const previousLimit = usage?.document_limit ?? null;
+    const previousPeriodEnd = usage?.current_period_end ?? null;
+
     setIsSyncing(true);
     setLoading(true);
     await callWithRetry('stripe-sync', {});
 
-    const maxAttempts = 6;
-    const delayMs = 2500;
+    const maxAttempts = 8;
+    const delayMs = 2000;
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       if (!profile?.company_id) break;
@@ -171,7 +177,13 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       if (!error && data && !data.error) {
         const result = data as SubscriptionUsage;
         const isActive = result.status === 'active' || result.status === 'trialing';
-        if (isActive || attempt === maxAttempts - 1) {
+        const planChanged = previousPlan !== null && result.plan !== previousPlan;
+        const limitChanged = previousLimit !== null && result.document_limit !== previousLimit;
+        const periodChanged = previousPeriodEnd !== null && result.current_period_end !== previousPeriodEnd;
+        const dataChanged = planChanged || limitChanged || periodChanged;
+        const noKnownPrevious = previousPlan === null && isActive;
+
+        if (dataChanged || noKnownPrevious || attempt === maxAttempts - 1) {
           setUsage(result);
           setLoading(false);
           break;
@@ -185,7 +197,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
     setIsSyncing(false);
     setLoading(false);
-  }, [callWithRetry, profile?.company_id]);
+  }, [callWithRetry, profile?.company_id, usage]);
 
   const createCheckoutSession = useCallback(async (plan: PlanId) => {
     const { data, ok } = await callWithRetry('stripe-checkout', {
