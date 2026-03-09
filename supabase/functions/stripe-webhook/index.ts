@@ -324,31 +324,41 @@ Deno.serve(async (req: Request) => {
       }
 
       case "customer.subscription.deleted": {
-        const subscription = event.data.object as Stripe.Subscription;
-        let companyId = subscription.metadata?.company_id;
-        if (!companyId) {
-          const { data: subRow } = await supabase
-            .from("subscriptions")
-            .select("company_id")
-            .eq("stripe_subscription_id", subscription.id)
-            .maybeSingle();
-          companyId = subRow?.company_id ?? null;
-        }
-        if (!companyId) break;
+        try {
+          const subscription = event.data.object as Stripe.Subscription;
+          let companyId = subscription.metadata?.company_id;
+          if (!companyId) {
+            const { data: subRow } = await supabase
+              .from("subscriptions")
+              .select("company_id, stripe_subscription_id")
+              .eq("stripe_subscription_id", subscription.id)
+              .maybeSingle();
+            companyId = subRow?.company_id ?? null;
+          }
+          if (!companyId) break;
 
-        await supabase
-          .from("subscriptions")
-          .update({
-            status: "canceled",
-            cancel_at_period_end: false,
-            pending_plan: null,
-            pending_plan_effective_date: null,
-            current_period_end: new Date(
-              subscription.current_period_end * 1000
-            ).toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("company_id", companyId);
+          await supabase
+            .from("subscriptions")
+            .update({
+              status: "canceled",
+              cancel_at_period_end: false,
+              pending_plan: null,
+              pending_plan_effective_date: null,
+              current_period_end: new Date(
+                subscription.current_period_end * 1000
+              ).toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("company_id", companyId)
+            .eq("stripe_subscription_id", subscription.id);
+        } catch (deletedErr) {
+          console.error(JSON.stringify({
+            msg: "customer.subscription.deleted handler error (non-fatal)",
+            event_id: event.id,
+            error: String(deletedErr),
+          }));
+          await supabase.from("stripe_processed_events").delete().eq("event_id", event.id);
+        }
         break;
       }
 
@@ -394,65 +404,139 @@ Deno.serve(async (req: Request) => {
       }
 
       case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
-        if (!subscriptionId) break;
+        try {
+          const invoice = event.data.object as Stripe.Invoice;
+          const subscriptionId = invoice.subscription as string;
+          if (!subscriptionId) break;
 
-        await supabase
-          .from("subscriptions")
-          .update({
-            status: "past_due",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_subscription_id", subscriptionId);
+          await supabase
+            .from("subscriptions")
+            .update({
+              status: "past_due",
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_subscription_id", subscriptionId);
+        } catch (payFailedErr) {
+          console.error(JSON.stringify({
+            msg: "invoice.payment_failed handler error (non-fatal)",
+            event_id: event.id,
+            error: String(payFailedErr),
+          }));
+          await supabase.from("stripe_processed_events").delete().eq("event_id", event.id);
+        }
         break;
       }
 
       case "invoice.paid": {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
-        if (!subscriptionId) break;
-
-        let subscription: Stripe.Subscription;
         try {
-          subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        } catch (retrieveErr) {
+          const invoice = event.data.object as Stripe.Invoice;
+          const subscriptionId = invoice.subscription as string;
+          if (!subscriptionId) break;
+
+          let subscription: Stripe.Subscription;
+          try {
+            subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          } catch (retrieveErr) {
+            console.error(JSON.stringify({
+              msg: "Failed to retrieve subscription for invoice.paid",
+              event_id: event.id,
+              event_type: event.type,
+              stripe_subscription_id: subscriptionId,
+              error: String(retrieveErr),
+            }));
+            throw retrieveErr;
+          }
+
+          const plan = resolvePlanFromSubscription(subscription);
+          const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
+          const preserveSchedule = !!subscription.schedule;
+
+          await supabase
+            .from("subscriptions")
+            .update({
+              status: "active",
+              plan,
+              document_limit: limits.document_limit,
+              user_limit: limits.user_limit,
+              current_period_start: new Date(
+                subscription.current_period_start * 1000
+              ).toISOString(),
+              current_period_end: new Date(
+                subscription.current_period_end * 1000
+              ).toISOString(),
+              cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+              ...(preserveSchedule ? {} : {
+                pending_plan: null,
+                pending_plan_effective_date: null,
+              }),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("stripe_subscription_id", subscriptionId);
+        } catch (invoicePaidErr) {
           console.error(JSON.stringify({
-            msg: "Failed to retrieve subscription for invoice.paid",
+            msg: "invoice.paid handler error (non-fatal)",
             event_id: event.id,
-            event_type: event.type,
-            stripe_subscription_id: subscriptionId,
-            error: String(retrieveErr),
+            error: String(invoicePaidErr),
           }));
-          throw retrieveErr;
+          await supabase.from("stripe_processed_events").delete().eq("event_id", event.id);
         }
+        break;
+      }
 
-        const plan = resolvePlanFromSubscription(subscription);
-        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
+      case "subscription_schedule.updated": {
+        try {
+          const schedule = event.data.object as Stripe.SubscriptionSchedule;
+          const subscriptionId = typeof schedule.subscription === "string"
+            ? schedule.subscription
+            : (schedule.subscription as Stripe.Subscription)?.id;
 
-        const preserveSchedule = !!subscription.schedule;
+          if (!subscriptionId) break;
 
-        await supabase
-          .from("subscriptions")
-          .update({
-            status: "active",
-            plan,
-            document_limit: limits.document_limit,
-            user_limit: limits.user_limit,
-            current_period_start: new Date(
-              subscription.current_period_start * 1000
-            ).toISOString(),
-            current_period_end: new Date(
-              subscription.current_period_end * 1000
-            ).toISOString(),
-            cancel_at_period_end: subscription.cancel_at_period_end ?? false,
-            ...(preserveSchedule ? {} : {
-              pending_plan: null,
-              pending_plan_effective_date: null,
-            }),
-            updated_at: new Date().toISOString(),
-          })
-          .eq("stripe_subscription_id", subscriptionId);
+          const { data: subRow } = await supabase
+            .from("subscriptions")
+            .select("company_id")
+            .eq("stripe_subscription_id", subscriptionId)
+            .maybeSingle();
+
+          const companyId = subRow?.company_id ?? null;
+          if (!companyId) break;
+
+          let pendingPlan: string | null = null;
+          let pendingPlanEffectiveDate: string | null = null;
+
+          if (
+            schedule.status === "active" &&
+            Array.isArray(schedule.phases) &&
+            schedule.phases.length >= 2
+          ) {
+            const nextPhase = schedule.phases[1];
+            if (nextPhase?.items?.[0]?.price) {
+              const priceId = typeof nextPhase.items[0].price === "string"
+                ? nextPhase.items[0].price
+                : (nextPhase.items[0].price as Stripe.Price).id;
+              pendingPlan = PRICE_TO_PLAN[priceId] ?? null;
+              if (pendingPlan && nextPhase.start_date) {
+                pendingPlanEffectiveDate = new Date(nextPhase.start_date * 1000).toISOString();
+              }
+            }
+          }
+
+          await supabase
+            .from("subscriptions")
+            .update({
+              pending_plan: pendingPlan,
+              pending_plan_effective_date: pendingPlanEffectiveDate,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("company_id", companyId);
+        } catch (scheduleUpdatedErr) {
+          console.error(JSON.stringify({
+            msg: "subscription_schedule.updated handler error (non-fatal)",
+            event_id: event.id,
+            error: String(scheduleUpdatedErr),
+          }));
+          await supabase.from("stripe_processed_events").delete().eq("event_id", event.id);
+        }
         break;
       }
     }
