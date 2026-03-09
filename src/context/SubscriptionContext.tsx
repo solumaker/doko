@@ -7,6 +7,7 @@ export const TRIAL_DOC_LIMIT = 50;
 interface SubscriptionContextType {
   usage: SubscriptionUsage | null;
   loading: boolean;
+  isSyncing: boolean;
   isTrialActive: boolean;
   isTrialExpired: boolean;
   hasActiveSubscription: boolean;
@@ -29,6 +30,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { profile, company } = useAuth();
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchUsage = useCallback(async () => {
     if (!profile?.company_id) {
@@ -168,10 +170,38 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [getToken]);
 
   const syncAndRefresh = useCallback(async () => {
+    setIsSyncing(true);
     setLoading(true);
     await callWithRetry('stripe-sync', {});
-    await fetchUsage();
-  }, [callWithRetry, fetchUsage]);
+
+    const maxAttempts = 6;
+    const delayMs = 2500;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (!profile?.company_id) break;
+
+      const { data, error } = await supabase.rpc('get_subscription_usage', {
+        p_company_id: profile.company_id,
+      });
+
+      if (!error && data && !data.error) {
+        const result = data as SubscriptionUsage;
+        const isActive = result.status === 'active' || result.status === 'trialing';
+        if (isActive || attempt === maxAttempts - 1) {
+          setUsage(result);
+          setLoading(false);
+          break;
+        }
+      }
+
+      if (attempt < maxAttempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    setIsSyncing(false);
+    setLoading(false);
+  }, [callWithRetry, profile?.company_id]);
 
   const createCheckoutSession = useCallback(async (plan: PlanId) => {
     const { data, ok } = await callWithRetry('stripe-checkout', {
@@ -203,7 +233,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
   const openCustomerPortal = useCallback(async () => {
     const { data, ok } = await callWithRetry('stripe-portal', {
-      return_url: window.location.origin,
+      return_url: `${window.location.origin}?portal_return=true`,
     });
 
     if (!ok) console.error('stripe-portal error:', data);
@@ -217,6 +247,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       value={{
         usage,
         loading,
+        isSyncing,
         isTrialActive,
         isTrialExpired,
         hasActiveSubscription,

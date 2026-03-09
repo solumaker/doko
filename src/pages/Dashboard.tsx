@@ -1,4 +1,4 @@
-import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Check, Loader2, Zap, AlertTriangle, CreditCard, ArrowUpCircle, Clock } from 'lucide-react';
+import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Check, Loader2, Zap, AlertTriangle, CreditCard, ArrowUpCircle, Clock, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -55,8 +55,27 @@ function CircularProgress({ value, max }: { value: number; max: number }) {
   );
 }
 
+function SkeletonPulse({ className }: { className?: string }) {
+  return <div className={`animate-pulse bg-slate-200 rounded-lg ${className ?? ''}`} />;
+}
+
 function DocumentUsageCard() {
-  const { usage, isTrialActive, trialDocsUsed, hasActiveSubscription } = useSubscription();
+  const { usage, isTrialActive, trialDocsUsed, hasActiveSubscription, isSyncing } = useSubscription();
+
+  if (isSyncing) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center min-h-[200px]">
+        <div className="flex items-center gap-2 self-start mb-4">
+          <BarChart2 size={18} className="text-blue-700" />
+          <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
+        </div>
+        <div className="flex flex-col items-center gap-4 w-full flex-1 justify-center">
+          <SkeletonPulse className="w-36 h-36 rounded-full" />
+          <SkeletonPulse className="w-48 h-4" />
+        </div>
+      </div>
+    );
+  }
 
   if (isTrialActive) {
     const trialLimit = usage?.trial_doc_limit ?? 50;
@@ -114,7 +133,23 @@ function DocumentUsageCard() {
 }
 
 function RenewalCard() {
-  const { usage, hasActiveSubscription, isTrialActive } = useSubscription();
+  const { usage, hasActiveSubscription, isTrialActive, isSyncing } = useSubscription();
+
+  if (isSyncing) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col min-h-[200px]">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarCheck size={18} className="text-emerald-600" />
+          <h3 className="text-base font-bold text-slate-800">Proxima Renovacion</h3>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-6 mb-4 gap-3">
+          <SkeletonPulse className="w-40 h-8" />
+          <SkeletonPulse className="w-20 h-6" />
+        </div>
+        <SkeletonPulse className="w-56 h-4" />
+      </div>
+    );
+  }
 
   const isCanceling = hasActiveSubscription && usage?.cancel_at_period_end;
 
@@ -417,7 +452,7 @@ function SubscriptionBanner({ onNavigatePlanes }: { onNavigatePlanes: () => void
 export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardProps) {
   const { isAdmin } = useAuth();
   const { documents } = useData();
-  const { isTrialActive, isQuotaExhausted, hasActiveSubscription, isSubscriptionExpired, canCreateDocument } = useSubscription();
+  const { isTrialActive, isQuotaExhausted, hasActiveSubscription, isSubscriptionExpired, canCreateDocument, isSyncing } = useSubscription();
 
   const recentDocs = documents.slice(0, 5);
 
@@ -445,6 +480,22 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
   return (
     <AppLayout activeNav="inicio" onNavigate={handleNavItem} onLogout={onLogout}>
       <div className="space-y-6 max-w-5xl">
+        {isSyncing && (
+          <div className="flex items-center gap-4 bg-blue-50 border border-blue-200 rounded-2xl px-6 py-4">
+            <div className="shrink-0 w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+              <RefreshCw size={20} className="text-blue-600 animate-spin" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-blue-800">Actualizando datos de tu suscripcion...</p>
+              <p className="text-xs text-blue-600 mt-0.5">Estamos sincronizando los cambios de tu plan. Esto puede tardar unos segundos.</p>
+            </div>
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        )}
         {showQuotaExhausted ? (
           <QuotaExhaustedCard onNavigatePlanes={() => onNavigate('planes')} />
         ) : (
