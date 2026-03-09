@@ -7,6 +7,7 @@ import { useData } from '../context/DataContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import { Document } from '../lib/supabase';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
+import { SaveAccessButton } from '../components/SaveAccessButton';
 
 interface DriverDashboardProps {
   onCreateDocument: () => void;
@@ -50,6 +51,7 @@ export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: 
       </header>
 
       <main className="flex-1 px-4 py-5">
+        <SaveAccessButton />
         <button
           onClick={handleCreateDocument}
           className={`w-full rounded-2xl py-6 px-6 mb-6 transition-colors shadow-md ${
