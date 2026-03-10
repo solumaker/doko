@@ -951,7 +951,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         <DocumentLimitModal
           isAdmin={isAdmin}
           onClose={() => setShowLimitModal(false)}
-          onBuyPack={() => { setShowLimitModal(false); purchaseDocumentPack(); }}
+          onBuyPack={(qty) => { setShowLimitModal(false); purchaseDocumentPack(qty); }}
           onUpgradePlan={() => { setShowLimitModal(false); onNavigatePlanes?.(); }}
         />
       )}

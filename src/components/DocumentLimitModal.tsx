@@ -1,13 +1,20 @@
+import { useState } from 'react';
 import { AlertTriangle, CreditCard, ArrowUpCircle, X } from 'lucide-react';
+import { QuantityStepper } from './QuantityStepper';
 
 interface DocumentLimitModalProps {
   isAdmin: boolean;
   onClose: () => void;
-  onBuyPack?: () => void;
+  onBuyPack?: (quantity: number) => void;
   onUpgradePlan?: () => void;
 }
 
 export function DocumentLimitModal({ isAdmin, onClose, onBuyPack, onUpgradePlan }: DocumentLimitModalProps) {
+  const [packQty, setPackQty] = useState(1);
+
+  const totalDocs = packQty * 10;
+  const totalPrice = packQty * 5;
+
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-5">
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-scaleIn">
@@ -35,12 +42,19 @@ export function DocumentLimitModal({ isAdmin, onClose, onBuyPack, onUpgradePlan 
                 Has utilizado todos los documentos disponibles en tu plan este mes.
               </p>
 
+              <div className="flex items-center justify-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+                <QuantityStepper value={packQty} onChange={setPackQty} min={1} max={50} />
+                <span className="text-sm text-slate-500">
+                  {packQty} x 5 EUR = <span className="font-bold text-slate-900">{totalPrice} EUR</span>
+                </span>
+              </div>
+
               <button
-                onClick={onBuyPack}
+                onClick={() => onBuyPack?.(packQty)}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-base flex items-center justify-center gap-3 active:bg-blue-700 transition-colors"
               >
                 <CreditCard size={18} />
-                Comprar +10 documentos
+                Comprar +{totalDocs} documentos
               </button>
 
               <button

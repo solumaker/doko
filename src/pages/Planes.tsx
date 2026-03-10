@@ -1,4 +1,5 @@
 import { Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings, ArrowRight } from 'lucide-react';
+import { QuantityStepper } from '../components/QuantityStepper';
 import { format } from 'date-fns';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
 import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
@@ -25,6 +26,7 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNaviga
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [loadingPack, setLoadingPack] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
+  const [packQty, setPackQty] = useState(1);
 
   const currentPlan = usage?.plan;
 
@@ -41,7 +43,7 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNaviga
 
   const handleBuyPack = async () => {
     setLoadingPack(true);
-    await purchaseDocumentPack();
+    await purchaseDocumentPack(packQty);
     setLoadingPack(false);
   };
 
@@ -292,16 +294,22 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNaviga
             </div>
           </div>
           <p className="text-sm text-slate-600 mb-4">
-            Anade <span className="font-bold text-slate-900">+10 documentos</span> a tu saldo por solo{' '}
-            <span className="font-bold text-slate-900">5 EUR</span>. No se pierden al renovar tu plan.
+            Anade paquetes de <span className="font-bold text-slate-900">+10 documentos</span> a tu saldo.
+            No se pierden al renovar tu plan.
           </p>
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-4">
+            <QuantityStepper value={packQty} onChange={setPackQty} min={1} max={50} />
+            <span className="text-sm text-slate-500">
+              {packQty} x 5 EUR = <span className="font-bold text-slate-900">{packQty * 5} EUR</span>
+            </span>
+          </div>
           <button
             onClick={handleBuyPack}
             disabled={loadingPack || !hasActiveSubscription}
             className="w-full bg-slate-800 hover:bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
           >
             {loadingPack ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={17} />}
-            Comprar +10 documentos
+            Comprar +{packQty * 10} documentos
           </button>
           {!hasActiveSubscription && (
             <p className="text-xs text-slate-400 text-center mt-2">Necesitas una suscripcion activa para comprar documentos extra</p>

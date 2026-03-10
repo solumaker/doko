@@ -129,11 +129,23 @@ Deno.serve(async (req: Request) => {
         if (!companyId) break;
 
         if (session.metadata?.type === "document_pack") {
+          let packQty = parseInt(session.metadata?.quantity ?? "0", 10);
+          if (!packQty || packQty < 1) {
+            try {
+              const fullSession = await stripe.checkout.sessions.retrieve(session.id, {
+                expand: ["line_items"],
+              });
+              packQty = fullSession.line_items?.data?.[0]?.quantity ?? 1;
+            } catch {
+              packQty = 1;
+            }
+          }
+          const totalDocs = packQty * 10;
           const { error: packError } = await supabase.from("document_packs").insert({
             company_id: companyId,
             stripe_payment_intent_id: session.payment_intent as string,
-            documents_purchased: 10,
-            documents_remaining: 10,
+            documents_purchased: totalDocs,
+            documents_remaining: totalDocs,
           });
           if (packError) {
             console.error(JSON.stringify({

@@ -20,7 +20,7 @@ interface SubscriptionContextType {
   refreshSubscription: () => Promise<void>;
   syncAndRefresh: (baseline?: SubscriptionUsage | null) => Promise<void>;
   createCheckoutSession: (plan: PlanId) => Promise<void>;
-  purchaseDocumentPack: () => Promise<void>;
+  purchaseDocumentPack: (quantity?: number) => Promise<void>;
   openCustomerPortal: () => Promise<void>;
 }
 
@@ -224,10 +224,11 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     }
   }, [callWithRetry]);
 
-  const purchaseDocumentPack = useCallback(async () => {
+  const purchaseDocumentPack = useCallback(async (quantity: number = 1) => {
     const { data, ok } = await callWithRetry('stripe-checkout', {
       mode: 'payment',
       pack: true,
+      quantity,
       success_url: `${window.location.origin}?checkout_success=true&type=pack`,
       cancel_url: `${window.location.origin}?checkout_cancel=true`,
     });

@@ -113,25 +113,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { mode, plan, pack, success_url, cancel_url } = body;
+    const { mode, plan, pack, quantity: rawQty, success_url, cancel_url } = body;
 
     if (mode === "payment" && pack) {
+      const qty = Math.max(1, Math.min(50, Math.floor(Number(rawQty) || 1)));
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "payment",
         line_items: [
           {
-            price_data: {
-              currency: "eur",
-              product_data: { name: "+10 Documentos extra" },
-              unit_amount: 500,
-            },
-            quantity: 1,
+            price: "price_1T9OkzBnbfHLJ2lEJjnXnmiw",
+            quantity: qty,
+            adjustable_quantity: { enabled: true, minimum: 1 },
           },
         ],
         metadata: {
           company_id: company.id,
           type: "document_pack",
+          quantity: String(qty),
         },
         success_url: success_url || `${req.headers.get("origin")}?checkout_success=true&type=pack`,
         cancel_url: cancel_url || `${req.headers.get("origin")}?checkout_cancel=true`,

@@ -1,4 +1,4 @@
-import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Check, Loader2, Zap, AlertTriangle, CreditCard, ArrowUpCircle, Clock, RefreshCw } from 'lucide-react';
+import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Check, Loader2, Zap, AlertTriangle, CreditCard, ArrowUpCircle, Clock, RefreshCw, Package } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -6,6 +6,7 @@ import { useSubscription } from '../context/SubscriptionContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AppLayout } from '../components/AppLayout';
+import { QuantityStepper } from '../components/QuantityStepper';
 import { Document, PLAN_CONFIG, PlanId } from '../lib/supabase';
 
 type Screen = 'dashboard' | 'lugares' | 'vehiculos' | 'historial' | 'crear' | 'documento' | 'equipo' | 'planes' | 'configuracion';
@@ -367,12 +368,16 @@ function TrialPricingCards() {
 function QuotaExhaustedCard({ onNavigatePlanes }: { onNavigatePlanes: () => void }) {
   const { purchaseDocumentPack } = useSubscription();
   const [loadingPack, setLoadingPack] = useState(false);
+  const [packQty, setPackQty] = useState(1);
 
   const handleBuyPack = async () => {
     setLoadingPack(true);
-    await purchaseDocumentPack();
+    await purchaseDocumentPack(packQty);
     setLoadingPack(false);
   };
+
+  const totalDocs = packQty * 10;
+  const totalPrice = packQty * 5;
 
   return (
     <div className="bg-white rounded-2xl border-2 border-amber-300 p-6">
@@ -390,22 +395,33 @@ function QuotaExhaustedCard({ onNavigatePlanes }: { onNavigatePlanes: () => void
         Para seguir creando documentos, puedes subir de plan o comprar un pack de documentos extra.
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={onNavigatePlanes}
-          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-        >
-          <ArrowUpCircle size={18} />
-          Gestionar mi suscripcion
-        </button>
-        <button
-          onClick={handleBuyPack}
-          disabled={loadingPack}
-          className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-        >
-          {loadingPack ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-          +10 documentos por 5€
-        </button>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-3">
+            <QuantityStepper value={packQty} onChange={setPackQty} min={1} max={50} />
+            <span className="text-sm text-slate-500">
+              {packQty} x 5 EUR = <span className="font-bold text-slate-900">{totalPrice} EUR</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={onNavigatePlanes}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+          >
+            <ArrowUpCircle size={18} />
+            Gestionar mi suscripcion
+          </button>
+          <button
+            onClick={handleBuyPack}
+            disabled={loadingPack}
+            className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+          >
+            {loadingPack ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+            Comprar +{totalDocs} documentos
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -445,6 +461,55 @@ function SubscriptionBanner({ onNavigatePlanes }: { onNavigatePlanes: () => void
       >
         Gestionar suscripcion
       </button>
+    </div>
+  );
+}
+
+function ExtraPacksBanner() {
+  const { purchaseDocumentPack, hasActiveSubscription } = useSubscription();
+  const { isAdmin } = useAuth();
+  const [packQty, setPackQty] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  if (!isAdmin || !hasActiveSubscription) return null;
+
+  const totalDocs = packQty * 10;
+  const totalPrice = packQty * 5;
+
+  const handleBuy = async () => {
+    setLoading(true);
+    await purchaseDocumentPack(packQty);
+    setLoading(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-5">
+      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="bg-amber-50 p-2.5 rounded-xl shrink-0">
+            <Package size={20} className="text-amber-500" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-slate-800">Documentos extra</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Compra paquetes de +10 documentos. Pago unico, no expiran.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <QuantityStepper value={packQty} onChange={setPackQty} min={1} max={50} />
+          <span className="text-sm text-slate-500 whitespace-nowrap">
+            {packQty} x 5 EUR = <span className="font-bold text-slate-900">{totalPrice} EUR</span>
+          </span>
+          <button
+            onClick={handleBuy}
+            disabled={loading}
+            className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-60 whitespace-nowrap"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+            Comprar +{totalDocs}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -533,6 +598,7 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
 
         {isAdmin && isTrialActive && <TrialPricingCards />}
         {isAdmin && !isTrialActive && hasActiveSubscription && <SubscriptionBanner onNavigatePlanes={() => onNavigate('planes')} />}
+        <ExtraPacksBanner />
       </div>
     </AppLayout>
   );
