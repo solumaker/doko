@@ -164,17 +164,12 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
               <span className="flex items-center gap-1.5"><CheckCircle size={16} className="text-doko-green" /> Cumplimiento 100% legal</span>
             </div>
           </div>
-          <div className="relative hidden lg:block">
-            <div className="relative z-10 rounded-2xl shadow-2xl overflow-hidden border-4 border-white/20">
-              <img
-                src="/DOKO_Header.jpeg"
-                alt="DOKO Dashboard Preview"
-                className="w-full"
-              />
-            </div>
-            <div className="absolute -top-8 -right-8 w-28 h-28 bg-doko-green rounded-full flex items-center justify-center text-white font-bold text-center p-4 leading-tight shadow-xl rotate-12 text-xs">
-              Digitaliza tu flota hoy!
-            </div>
+          <div className="hidden lg:flex justify-center">
+            <img
+              src="/doko_mockup_movil.png"
+              alt="DOKO App Preview"
+              className="w-72 drop-shadow-2xl"
+            />
           </div>
         </div>
       </div>
@@ -270,6 +265,13 @@ function HowItWorksSection() {
             </div>
           ))}
         </div>
+        <div className="mt-16">
+          <img
+            src="/doko_mockup_pc.png"
+            alt="DOKO Desktop Preview"
+            className="w-full rounded-2xl shadow-xl"
+          />
+        </div>
       </div>
     </section>
   );
@@ -283,20 +285,21 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
           <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Planes simples, sin sorpresas</h2>
           <p className="text-slate-500">Elige la opcion que mejor se adapte a tu volumen de transporte.</p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-start">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-stretch">
           <div className="landing-pricing-card p-8 rounded-3xl bg-white border border-slate-200 flex flex-col shadow-sm">
             <div className="mb-8">
               <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4">Autonomo</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-slate-900">39&euro;</span>
+                <span className="text-4xl text-slate-900">39&euro;</span>
                 <span className="text-slate-400 text-sm">/anual</span>
               </div>
               <p className="text-xs text-slate-400 mt-2">Para 1 vehiculo</p>
             </div>
             <ul className="space-y-3 mb-8 text-slate-600 text-sm flex-1">
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Documentos ilimitados</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Firma digital</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> QR de inspeccion</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> 100 documentos/mes</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Usuarios ilimitados</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Validez legal</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte por email</li>
             </ul>
             <button onClick={onRegister} className="mt-auto block w-full text-center bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-700 transition">
               Probar gratis
@@ -308,18 +311,18 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
               Recomendado
             </div>
             <div className="mb-8">
-              <h3 className="font-bold text-xs text-blue-200 uppercase tracking-widest mb-4">Flota Media</h3>
+              <h3 className="font-bold text-xs text-blue-200 uppercase tracking-widest mb-4">Pymes</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-white">99&euro;</span>
+                <span className="text-4xl text-white">99&euro;</span>
                 <span className="text-blue-200 text-sm">/anual</span>
               </div>
               <p className="text-xs text-blue-200 mt-2">Hasta 5 vehiculos</p>
             </div>
             <ul className="space-y-3 mb-8 text-blue-50 text-sm flex-1">
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Documentos ilimitados</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Panel de administracion</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Gestion de choferes</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte prioritario</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> 500 documentos/mes</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Usuarios ilimitados</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Validez legal</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte email prioritario</li>
             </ul>
             <button onClick={onRegister} className="mt-auto block w-full text-center bg-white text-doko-blue font-bold py-3.5 rounded-xl hover:bg-gray-50 transition shadow-md">
               Probar gratis
@@ -328,35 +331,36 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
 
           <div className="landing-pricing-card p-8 rounded-3xl bg-white border border-slate-200 flex flex-col shadow-sm">
             <div className="mb-8">
-              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4">Gran Flota</h3>
+              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4">Flotas</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold text-slate-900">249&euro;</span>
+                <span className="text-4xl text-slate-900">249&euro;</span>
                 <span className="text-slate-400 text-sm">/anual</span>
               </div>
               <p className="text-xs text-slate-400 mt-2">Vehiculos ilimitados</p>
             </div>
             <ul className="space-y-3 mb-8 text-slate-600 text-sm flex-1">
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Integracion API</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Facturacion masiva</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Account Manager</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> 2.500 documentos/mes</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Usuarios ilimitados</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Validez legal</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte por telefono y email</li>
             </ul>
             <button onClick={onRegister} className="mt-auto block w-full text-center bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-700 transition">
               Probar gratis
             </button>
           </div>
 
-          <div className="landing-pricing-card p-8 rounded-3xl bg-slate-900 border border-slate-700 flex flex-col shadow-sm">
+          <div className="landing-pricing-card p-8 rounded-3xl bg-white border border-slate-200 flex flex-col shadow-sm">
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <Building2 size={16} className="text-doko-green" />
                 <h3 className="font-bold text-xs text-doko-green uppercase tracking-widest">Grandes Empresas</h3>
               </div>
-              <p className="text-xl font-extrabold text-white mb-3">Plan a medida</p>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-xl font-bold text-slate-900 mb-3">Plan a medida</p>
+              <p className="text-sm text-slate-500 leading-relaxed">
                 Tienes mas de 200 vehiculos o necesitas una solucion personalizada? Hablemos sobre tus necesidades.
               </p>
             </div>
-            <ul className="space-y-3 mb-8 text-slate-300 text-sm flex-1">
+            <ul className="space-y-3 mb-8 text-slate-600 text-sm flex-1">
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Volumen y usuarios a medida</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Integraciones personalizadas</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte dedicado</li>
