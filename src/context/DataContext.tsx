@@ -23,7 +23,7 @@ interface DataContextType {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'company_id' | 'created_at'>) => Promise<Vehicle | null>;
   updateVehicle: (id: string, vehicle: Omit<Vehicle, 'id' | 'company_id' | 'created_at'>) => Promise<void>;
   deleteVehicle: (id: string) => Promise<void>;
-  addDocument: (content: DocumentContent, departureDate: Date) => Promise<Document | null>;
+  addDocument: (content: DocumentContent, departureDate: Date, driverOverride?: { name: string; email?: string; dni?: string }) => Promise<Document | null>;
   signDocument: (id: string, side: 'origin' | 'destination', data: SignatureData) => Promise<Document | null>;
   amendVehiclePlates: (id: string, amendment: Omit<VehicleAmendment, 'amended_at'>) => Promise<Document | null>;
   hideDocumentForProfile: (documentId: string, profileId: string) => Promise<void>;
@@ -226,8 +226,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setVehicles((prev) => prev.filter((veh) => veh.id !== id));
   };
 
-  const addDocument = async (content: DocumentContent, departureDate: Date) => {
+  const addDocument = async (content: DocumentContent, departureDate: Date, driverOverride?: { name: string; email?: string; dni?: string }) => {
     if (!profile?.company_id || !user?.id || !company) return null;
+
+    const driverData = driverOverride || {
+      name: profile.full_name,
+      email: profile.email,
+      dni: profile.dni || undefined,
+    };
 
     const fullContent: DocumentContent = {
       ...content,
@@ -240,11 +246,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         postal_code: company.postal_code,
         phone: company.phone,
       },
-      driver: {
-        name: profile.full_name,
-        email: profile.email,
-        dni: profile.dni || undefined,
-      },
+      driver: driverData,
     };
 
     const { data, error } = await supabase
@@ -254,7 +256,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         creator_id: user.id,
         content: fullContent,
         departure_date: departureDate.toISOString(),
-        driver_name: profile.full_name,
+        driver_name: driverData.name,
       })
       .select()
       .single();

@@ -12,13 +12,14 @@ import {
   Clock,
   ChevronDown,
   FileText,
+  User,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { Document, DocumentContent, ShipperHistory, Location } from '../lib/supabase';
+import { supabase, Document, DocumentContent, ShipperHistory, Location, Profile } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
@@ -177,7 +178,7 @@ function LocationAutocomplete({
 
 export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDocumentoProps) {
   const { addDocument, shipperHistory, locations } = useData();
-  const { isAdmin } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const { canCreateDocument, purchaseDocumentPack } = useSubscription();
 
   const [step, setStep] = useState<Step>(1);
@@ -199,6 +200,41 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
   const [departureDate, setDepartureDate] = useState(new Date());
   const [hasUnloadingDate, setHasUnloadingDate] = useState(false);
   const [unloadingDate, setUnloadingDate] = useState(new Date());
+
+  const [companyDrivers, setCompanyDrivers] = useState<Profile[]>([]);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>('');
+  const [driverDropdownOpen, setDriverDropdownOpen] = useState(false);
+  const [driverSearch, setDriverSearch] = useState('');
+  const driverDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isAdmin || !profile?.company_id) return;
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('company_id', profile.company_id)
+      .order('full_name')
+      .then(({ data }) => {
+        if (data) setCompanyDrivers(data);
+      });
+  }, [isAdmin, profile?.company_id]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (driverDropdownRef.current && !driverDropdownRef.current.contains(e.target as Node))
+        setDriverDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectedDriver = companyDrivers.find((d) => d.id === selectedDriverId);
+  const filteredDrivers = driverSearch.trim()
+    ? companyDrivers.filter((d) =>
+        d.full_name.toLowerCase().includes(driverSearch.toLowerCase()) ||
+        (d.dni && d.dni.toLowerCase().includes(driverSearch.toLowerCase()))
+      )
+    : companyDrivers;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -293,7 +329,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
       case 2:
         return destination.domicilio.trim() !== '' && destination.poblacion.trim() !== '';
       case 3:
-        return vehicle.tractor_plate.trim() !== '';
+        return vehicle.tractor_plate.trim() !== '' && (!isAdmin || selectedDriverId !== '');
       case 4:
         return cargo.description.trim() !== '' && cargo.weight_kg > 0;
       case 5:
@@ -341,7 +377,10 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
       unloading_date: hasUnloadingDate ? unloadingDate.toISOString() : undefined,
       company: { name: '', cif: '', address: '', city: '', province: '', postal_code: '', phone: '' },
     };
-    const newDoc = await addDocument(content, departureDate);
+    const driverOverride = isAdmin && selectedDriver
+      ? { name: selectedDriver.full_name, email: selectedDriver.email, dni: selectedDriver.dni || undefined }
+      : undefined;
+    const newDoc = await addDocument(content, departureDate, driverOverride);
     setGenerating(false);
     if (newDoc) onComplete(newDoc);
   };
@@ -576,6 +615,75 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
             />
           </div>
 
+          {isAdmin && (
+            <div className="relative" ref={driverDropdownRef}>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Conductor *</label>
+              <button
+                type="button"
+                onClick={() => { setDriverDropdownOpen(!driverDropdownOpen); setDriverSearch(''); }}
+                className="w-full flex items-center justify-between p-3.5 border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none text-slate-900 bg-white active:bg-slate-50 transition-all"
+              >
+                <span className="flex items-center gap-3 min-w-0">
+                  <User size={20} className="text-blue-700 flex-shrink-0" />
+                  {selectedDriver ? (
+                    <span className="font-medium truncate">
+                      {selectedDriver.full_name}
+                      {selectedDriver.dni && <span className="text-slate-400 ml-2 text-sm">({selectedDriver.dni})</span>}
+                    </span>
+                  ) : (
+                    <span className="text-slate-400">Seleccionar conductor</span>
+                  )}
+                </span>
+                <ChevronDown size={20} className={`text-slate-500 transition-transform flex-shrink-0 ${driverDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {driverDropdownOpen && (
+                <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                  <div className="p-2 border-b border-slate-100">
+                    <input
+                      type="text"
+                      value={driverSearch}
+                      onChange={(e) => setDriverSearch(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                      placeholder="Buscar conductor..."
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {filteredDrivers.length === 0 ? (
+                      <p className="px-4 py-3 text-sm text-slate-400 text-center">Sin resultados</p>
+                    ) : (
+                      filteredDrivers.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setSelectedDriverId(d.id);
+                            setDriverDropdownOpen(false);
+                            setDriverSearch('');
+                          }}
+                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors ${selectedDriverId === d.id ? 'bg-blue-50' : ''}`}
+                        >
+                          <div className={`p-1.5 rounded-lg flex-shrink-0 ${d.role === 'admin' ? 'bg-amber-50' : 'bg-blue-50'}`}>
+                            <User size={16} className={d.role === 'admin' ? 'text-amber-600' : 'text-blue-700'} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-slate-900 text-sm truncate">{d.full_name}</p>
+                            <p className="text-xs text-slate-500 truncate">
+                              {d.role === 'admin' ? 'Admin' : 'Conductor'}
+                              {d.dni && ` · ${d.dni}`}
+                            </p>
+                          </div>
+                          {selectedDriverId === d.id && <Check size={16} className="text-blue-600 flex-shrink-0" />}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Matricula del Remolque 1</label>
             <input
@@ -717,6 +825,16 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
             <p className="text-sm text-slate-900"><span className="font-semibold">Tractora:</span> <span className="font-mono">{vehicle.tractor_plate}</span></p>
             {vehicle.trailer_plate_1 && <p className="text-sm text-slate-900"><span className="font-semibold">Remolque 1:</span> <span className="font-mono">{vehicle.trailer_plate_1}</span></p>}
             {vehicle.trailer_plate_2 && <p className="text-sm text-slate-900"><span className="font-semibold">Remolque 2:</span> <span className="font-mono">{vehicle.trailer_plate_2}</span></p>}
+          </div>
+
+          <div className="border-b border-slate-200 pb-4">
+            <div className="flex items-center gap-2 text-blue-700 mb-2">
+              <User size={18} />
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Conductor</span>
+            </div>
+            <p className="text-lg font-bold text-slate-900">{isAdmin && selectedDriver ? selectedDriver.full_name : profile?.full_name}</p>
+            {(isAdmin && selectedDriver?.dni) && <p className="text-sm text-slate-600">DNI: {selectedDriver.dni}</p>}
+            {(!isAdmin && profile?.dni) && <p className="text-sm text-slate-600">DNI: {profile.dni}</p>}
           </div>
 
           <div className="border-b border-slate-200 pb-4">
@@ -904,6 +1022,13 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
                     <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Vehiculo</p>
                     <p className="font-semibold text-slate-900 font-mono">{vehicle.tractor_plate}</p>
                     {vehicle.trailer_plate_1 && <p className="text-slate-600 font-mono">R1: {vehicle.trailer_plate_1}</p>}
+                  </div>
+                </div>
+                <div className="px-4 py-3 flex gap-3">
+                  <User size={16} className="text-blue-700 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Conductor</p>
+                    <p className="font-semibold text-slate-900">{isAdmin && selectedDriver ? selectedDriver.full_name : profile?.full_name}</p>
                   </div>
                 </div>
                 <div className="px-4 py-3 flex gap-3">
