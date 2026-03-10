@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Users,
   Building2,
+  Loader2,
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -499,11 +500,46 @@ function FaqSection() {
 }
 
 function ContactSection() {
+  const [form, setForm] = useState({ nombre: '', telefono: '', correo: '', empresa: '', poblacion: '' });
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!form.nombre.trim() || !form.telefono.trim() || !form.correo.trim()) {
+      setError('Por favor, completa al menos nombre, telefono y correo.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const res = await fetch('https://hook.eu1.make.com/til6u8vfm624o6vj3gq79fb3a0md7vv0', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error('Error al enviar');
+      setSent(true);
+      setForm({ nombre: '', telefono: '', correo: '', empresa: '', poblacion: '' });
+    } catch {
+      setError('No se pudo enviar. Intentalo de nuevo.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">¿Tienes dudas? Escríbenos!</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">¿Tienes dudas? Escribenos!</h2>
           <p className="text-slate-500">Respondemos en menos de 24 horas.</p>
         </div>
         <div className="grid lg:grid-cols-2 gap-16 items-start max-w-5xl mx-auto">
@@ -526,23 +562,45 @@ function ContactSection() {
                   <Phone size={20} />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Teléfono</p>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Telefono</p>
                   <span className="font-semibold text-slate-800">+34 637 510 860</span>
                 </div>
               </div>
             </div>
           </div>
           <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-md">
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-              <input type="text" placeholder="Nombre" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <input type="text" placeholder="Teléfono" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <input type="email" placeholder="Correo" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <input type="text" placeholder="Nombre de Empresa" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <input type="text" placeholder="Población" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <button className="w-full bg-doko-blue text-white font-bold py-4 rounded-xl hover:bg-doko-blue-dark transition shadow-md">
-                Enviar mensaje
-              </button>
-            </form>
+            {sent ? (
+              <div className="flex flex-col items-center text-center py-8">
+                <div className="bg-green-50 p-4 rounded-full mb-4">
+                  <CheckCircle size={40} className="text-doko-green" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 mb-2">Mensaje enviado</h3>
+                <p className="text-sm text-slate-500">Te contactaremos lo antes posible.</p>
+              </div>
+            ) : (
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                    {error}
+                  </div>
+                )}
+                <input type="text" placeholder="Nombre" value={form.nombre} onChange={(e) => handleChange('nombre', e.target.value)} disabled={sending} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400 disabled:opacity-60" />
+                <input type="text" placeholder="Telefono" value={form.telefono} onChange={(e) => handleChange('telefono', e.target.value)} disabled={sending} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400 disabled:opacity-60" />
+                <input type="email" placeholder="Correo" value={form.correo} onChange={(e) => handleChange('correo', e.target.value)} disabled={sending} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400 disabled:opacity-60" />
+                <input type="text" placeholder="Nombre de Empresa" value={form.empresa} onChange={(e) => handleChange('empresa', e.target.value)} disabled={sending} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400 disabled:opacity-60" />
+                <input type="text" placeholder="Poblacion" value={form.poblacion} onChange={(e) => handleChange('poblacion', e.target.value)} disabled={sending} className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400 disabled:opacity-60" />
+                <button type="submit" disabled={sending} className="w-full bg-doko-blue text-white font-bold py-4 rounded-xl hover:bg-doko-blue-dark transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {sending ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    'Enviar mensaje'
+                  )}
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </div>
