@@ -137,10 +137,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [fetchUsage]);
 
   const getFreshToken = useCallback(async (): Promise<string | null> => {
-    const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-    if (refreshed?.access_token) return refreshed.access_token;
     const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token ?? null;
+    if (session?.access_token) return session.access_token;
+    try {
+      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+      return refreshed?.access_token ?? null;
+    } catch {
+      return null;
+    }
   }, []);
 
   const callWithRetry = useCallback(async (
