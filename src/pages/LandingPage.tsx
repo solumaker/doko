@@ -166,7 +166,7 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
           </div>
           <div className="hidden lg:flex justify-center">
             <img
-              src="/doko_mockup_movil.png"
+              src="public/doko_mockup_movil.png"
               alt="DOKO App Preview"
               className="w-72 drop-shadow-2xl"
             />
