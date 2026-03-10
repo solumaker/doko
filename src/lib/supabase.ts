@@ -13,16 +13,12 @@ export async function callEdgeFunction(functionName: string, body: Record<string
   };
   let token = authToken;
   if (!token) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) {
-      token = session.access_token;
-    } else {
-      try {
-        const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-        token = refreshed?.access_token;
-      } catch {
-        // ignore refresh failure to avoid triggering logout
-      }
+    try {
+      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+      token = refreshed?.access_token ?? undefined;
+    } catch {
+      const { data: { session } } = await supabase.auth.getSession();
+      token = session?.access_token ?? undefined;
     }
   }
   if (token) {
