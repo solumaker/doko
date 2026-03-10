@@ -156,9 +156,14 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
 
     const result = await callEdgeFunction(functionName, body, token);
     if (result.status === 401) {
-      const retryToken = await getFreshToken();
-      if (!retryToken) return { data: null, ok: false };
-      return callEdgeFunction(functionName, body, retryToken);
+      try {
+        const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+        const retryToken = refreshed?.access_token;
+        if (!retryToken) return { data: null, ok: false };
+        return callEdgeFunction(functionName, body, retryToken);
+      } catch {
+        return { data: null, ok: false };
+      }
     }
     return result;
   }, [getFreshToken]);
