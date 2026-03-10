@@ -121,6 +121,8 @@ Deno.serve(async (req: Request) => {
         customer: customerId,
         mode: "payment",
         automatic_tax: { enabled: true },
+        customer_update: { address: "auto" },
+        billing_address_collection: "required",
         line_items: [
           {
             price: "price_1T9W1WBnbfHLJ2lEUzp4s90N",
@@ -150,6 +152,8 @@ Deno.serve(async (req: Request) => {
         customer: customerId,
         mode: "subscription",
         automatic_tax: { enabled: true },
+        customer_update: { address: "auto" },
+        billing_address_collection: "required",
         line_items: [{ price: planConfig.price_id, quantity: 1 }],
         subscription_data: {
           metadata: {
