@@ -32,7 +32,7 @@ export function LandingPage({ onNavigateToLogin, onNavigateToRegister }: Landing
   };
 
   return (
-    <div className="bg-gray-50 text-slate-900 font-sans" style={{ scrollBehavior: 'smooth' }}>
+    <div className="bg-white text-slate-900 font-sans" style={{ scrollBehavior: 'smooth' }}>
       <Navbar
         mobileMenuOpen={mobileMenuOpen}
         setMobileMenuOpen={setMobileMenuOpen}
@@ -47,6 +47,7 @@ export function LandingPage({ onNavigateToLogin, onNavigateToRegister }: Landing
       <UpcomingSection />
       <FaqSection />
       <ContactSection />
+      <CallToActionBanner onRegister={onNavigateToRegister} />
       <Footer />
     </div>
   );
@@ -66,32 +67,33 @@ function Navbar({
   onRegister: () => void;
 }) {
   return (
-    <nav className="fixed w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+    <nav className="fixed w-full z-50 bg-white border-b border-gray-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-doko-blue rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">D</span>
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight text-doko-blue-900">DOKO</span>
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center">
+            <img
+              src="/DOKO_Header.jpeg"
+              alt="DOKO"
+              className="h-9 w-auto object-contain"
+            />
           </div>
 
           <div className="hidden md:flex items-center space-x-8 font-medium">
-            <button onClick={() => onScrollTo('como-funciona')} className="landing-nav-link transition text-slate-700">
+            <button onClick={() => onScrollTo('como-funciona')} className="landing-nav-link transition text-slate-600 hover:text-doko-blue text-sm">
               Como funciona
             </button>
-            <button onClick={() => onScrollTo('planes')} className="landing-nav-link transition text-slate-700">
+            <button onClick={() => onScrollTo('planes')} className="landing-nav-link transition text-slate-600 hover:text-doko-blue text-sm">
               Planes
             </button>
-            <button onClick={() => onScrollTo('faq')} className="landing-nav-link transition text-slate-700">
+            <button onClick={() => onScrollTo('faq')} className="landing-nav-link transition text-slate-600 hover:text-doko-blue text-sm">
               FAQ
             </button>
-            <button onClick={onLogin} className="text-doko-blue hover:text-doko-blue-dark font-semibold transition">
+            <button onClick={onLogin} className="text-slate-700 hover:text-doko-blue font-semibold transition text-sm">
               Iniciar sesion
             </button>
             <button
               onClick={onRegister}
-              className="bg-doko-blue text-white px-6 py-3 rounded-full hover:bg-doko-blue-dark transition shadow-lg"
+              className="bg-doko-blue text-white px-5 py-2.5 rounded-full hover:bg-doko-blue-dark transition shadow-md text-sm font-semibold"
             >
               Pruebalo gratis
             </button>
@@ -119,7 +121,7 @@ function Navbar({
           </button>
           <button
             onClick={onRegister}
-            className="block w-full bg-doko-blue text-white text-center px-6 py-3 rounded-full font-medium"
+            className="block w-full bg-doko-blue text-white text-center px-6 py-3 rounded-full font-semibold"
           >
             Pruebalo gratis
           </button>
@@ -131,41 +133,46 @@ function Navbar({
 
 function HeroSection({ onRegister }: { onRegister: () => void }) {
   return (
-    <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden landing-hero-gradient text-white">
+    <section className="relative pt-28 pb-20 lg:pt-40 lg:pb-32 overflow-hidden landing-hero-gradient text-white">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-doko-green/10 rounded-full blur-3xl" />
+      </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>
-            <span className="inline-block px-4 py-1.5 mb-6 text-sm font-semibold tracking-wide uppercase bg-white/20 rounded-full">
+            <span className="inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-widest uppercase bg-white/15 border border-white/20 rounded-full text-white">
               Actualizado a la Ley de Transporte 2024
             </span>
-            <h1 className="text-5xl lg:text-7xl font-extrabold leading-tight mb-6">
-              Documento de Control Digital <span className="text-doko-green">en 1 minuto</span>
+            <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-white">
+              Documento de Control Digital{' '}
+              <span className="text-doko-green">en 1 minuto</span>
             </h1>
-            <p className="text-xl text-blue-50 mb-10 leading-relaxed max-w-xl">
+            <p className="text-lg text-blue-100 mb-10 leading-relaxed max-w-xl">
               La App mas sencilla para que transportistas y empresas cumplan con la normativa espanola de forma digital, segura y sin complicaciones.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button
                 onClick={onRegister}
-                className="bg-white text-doko-blue px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-100 transition text-center"
+                className="bg-white text-doko-blue px-8 py-4 rounded-xl font-bold text-base hover:bg-gray-50 transition shadow-lg text-center"
               >
                 Empezar ahora gratis
               </button>
             </div>
-            <div className="mt-8 flex items-center gap-4 text-sm text-blue-100">
-              <span className="flex items-center gap-1"><CheckCircle size={16} /> Sin tarjeta de credito</span>
-              <span className="flex items-center gap-1"><CheckCircle size={16} /> Cumplimiento 100% legal</span>
+            <div className="mt-8 flex flex-wrap items-center gap-5 text-sm text-blue-100">
+              <span className="flex items-center gap-1.5"><CheckCircle size={16} className="text-doko-green" /> Sin tarjeta de credito</span>
+              <span className="flex items-center gap-1.5"><CheckCircle size={16} className="text-doko-green" /> Cumplimiento 100% legal</span>
             </div>
           </div>
           <div className="relative hidden lg:block">
-            <div className="relative z-10 rounded-2xl shadow-2xl overflow-hidden border-8 border-white/10">
+            <div className="relative z-10 rounded-2xl shadow-2xl overflow-hidden border-4 border-white/20">
               <img
                 src="/DOKO_Header.jpeg"
                 alt="DOKO Dashboard Preview"
                 className="w-full"
               />
             </div>
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-doko-green rounded-full flex items-center justify-center text-white font-bold text-center p-4 leading-tight shadow-xl rotate-12 text-sm">
+            <div className="absolute -top-8 -right-8 w-28 h-28 bg-doko-green rounded-full flex items-center justify-center text-white font-bold text-center p-4 leading-tight shadow-xl rotate-12 text-xs">
               Digitaliza tu flota hoy!
             </div>
           </div>
@@ -178,52 +185,55 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
 function WhyDokoSection() {
   const cards = [
     {
-      icon: <ArrowRightLeft size={24} />,
-      bgColor: 'bg-doko-blue-100',
-      textColor: 'text-doko-blue',
+      icon: <ArrowRightLeft size={22} />,
+      bgColor: 'bg-doko-blue',
+      textColor: 'text-white',
       title: 'Que cambia?',
       description: 'Adios al papel. La ley exige un formato digital inalterable para el transporte de mercancias.',
     },
     {
-      icon: <ShieldCheck size={24} />,
-      bgColor: 'bg-doko-green-100',
-      textColor: 'text-doko-green-dark',
+      icon: <ShieldCheck size={22} />,
+      bgColor: 'bg-doko-green',
+      textColor: 'text-white',
       title: 'Seguridad',
       description: 'Tus datos estan protegidos y disponibles en la nube 24/7 para cualquier inspeccion.',
     },
     {
-      icon: <Clock size={24} />,
-      bgColor: 'bg-doko-blue-100',
-      textColor: 'text-doko-blue',
+      icon: <Clock size={22} />,
+      bgColor: 'bg-doko-blue',
+      textColor: 'text-white',
       title: 'Velocidad',
       description: 'Genera documentos en segundos desde el movil. No mas perdida de tiempo en la carga.',
     },
     {
-      icon: <Scale size={24} />,
-      bgColor: 'bg-amber-100',
-      textColor: 'text-amber-600',
+      icon: <Scale size={22} />,
+      bgColor: 'bg-slate-800',
+      textColor: 'text-white',
       title: 'Validez Legal',
       description: 'Cumplimiento total con la Orden TMA/388/2021 del Ministerio de Transportes.',
     },
   ];
 
   return (
-    <section className="py-24 bg-white">
+    <section className="py-24 bg-doko-blue-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">El cambio regulatorio es obligatorio</h2>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Desde ahora, el Documento de Control debe ser digital. DOKO te ayuda a transicionar sin fricciones.
+          <span className="inline-block px-4 py-1.5 mb-4 text-xs font-bold tracking-widest uppercase bg-doko-blue/10 text-doko-blue rounded-full border border-doko-blue/20">
+            Cambio regulatorio
+          </span>
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">El Documento de Control ahora sera digital</h2>
+          <p className="text-base text-slate-600 max-w-2xl mx-auto">
+            A partir del 15 de octubre de 2025, aproximadamente 300.000 empresas de transporte deberan gestionar exclusivamente en formato digital en Espana.
           </p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {cards.map((card) => (
-            <div key={card.title} className="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-xl transition">
-              <div className={`w-12 h-12 ${card.bgColor} ${card.textColor} rounded-lg flex items-center justify-center mb-6`}>
+            <div key={card.title} className="p-8 rounded-2xl bg-white border border-slate-100 hover:shadow-xl transition shadow-sm">
+              <div className={`w-12 h-12 ${card.bgColor} ${card.textColor} rounded-xl flex items-center justify-center mb-6 shadow-sm`}>
                 {card.icon}
               </div>
-              <h3 className="font-bold text-xl mb-3">{card.title}</h3>
-              <p className="text-slate-600 text-sm leading-relaxed">{card.description}</p>
+              <h3 className="font-bold text-lg mb-3 text-slate-900">{card.title}</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">{card.description}</p>
             </div>
           ))}
         </div>
@@ -234,28 +244,29 @@ function WhyDokoSection() {
 
 function HowItWorksSection() {
   const steps = [
-    { number: '1', title: 'Registrate', description: 'Crea tu cuenta de empresa o autonomo en menos de un minuto.' },
-    { number: '2', title: 'Genera el documento', description: 'Introduce los datos de la carga, origen y destino. Todo pre-completado.' },
-    { number: '3', title: 'Comparte', description: 'Envia el PDF al cargador y receptor mediante QR, enlace o email.' },
+    { number: '1', label: 'PASO 1', title: 'Alta', description: 'Crea tu cuenta de empresa o autonomo en menos de un minuto. Documento en menos de 7 minutos.' },
+    { number: '2', label: 'PASO 2', title: 'Genera documentos', description: 'Introduce los datos de la carga, origen y destino. La herramienta esta lista para validez legal.' },
+    { number: '3', label: 'PASO 3', title: 'Comparte', description: 'Envia documentos por QR, enlace o email. Encuentra documentos en tu historial en segundos.' },
   ];
 
   return (
-    <section id="como-funciona" className="py-24 bg-slate-50 relative overflow-hidden">
-      <div className="landing-blob -top-20 -left-20" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="como-funciona" className="py-24 bg-white relative overflow-hidden">
+      <div className="landing-blob -top-20 -left-20 opacity-50" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-20">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">DOKO funciona en 3 simples pasos</h2>
-          <p className="text-slate-600">Disenado para ser usado por conductores sin experiencia previa en software.</p>
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Como funciona</h2>
+          <p className="text-slate-500">Disenado para ser usado por conductores sin experiencia previa en software.</p>
         </div>
-        <div className="grid md:grid-cols-3 gap-12 relative">
-          <div className="absolute top-1/2 left-0 w-full h-0.5 bg-doko-blue-100 -translate-y-1/2 hidden md:block" />
+        <div className="grid md:grid-cols-3 gap-10 relative">
+          <div className="absolute top-10 left-0 w-full h-0.5 bg-doko-blue/20 hidden md:block" />
           {steps.map((step) => (
             <div key={step.number} className="relative z-10 text-center">
-              <div className="w-16 h-16 bg-doko-blue text-white rounded-full flex items-center justify-center mx-auto mb-8 font-bold text-2xl border-4 border-white shadow-lg">
+              <p className="text-xs font-bold tracking-widest text-doko-blue uppercase mb-4">{step.label}</p>
+              <div className="w-14 h-14 bg-doko-blue text-white rounded-full flex items-center justify-center mx-auto mb-6 font-bold text-xl border-4 border-white shadow-lg">
                 {step.number}
               </div>
-              <h3 className="font-bold text-xl mb-4 text-doko-blue-900">{step.title}</h3>
-              <p className="text-slate-600 leading-relaxed">{step.description}</p>
+              <h3 className="font-bold text-lg mb-3 text-slate-900">{step.title}</h3>
+              <p className="text-slate-500 text-sm leading-relaxed px-4">{step.description}</p>
             </div>
           ))}
         </div>
@@ -266,43 +277,43 @@ function HowItWorksSection() {
 
 function PricingSection({ onRegister }: { onRegister: () => void }) {
   return (
-    <section id="planes" className="py-24 bg-white">
+    <section id="planes" className="py-24 bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Planes simples, sin sorpresas</h2>
-          <p className="text-slate-600">Elige la opcion que mejor se adapte a tu volumen de transporte.</p>
+          <p className="text-slate-500">Elige la opcion que mejor se adapte a tu volumen de transporte.</p>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-          <div className="landing-pricing-card p-8 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-start">
+          <div className="landing-pricing-card p-8 rounded-3xl bg-white border border-slate-200 flex flex-col shadow-sm">
             <div className="mb-8">
-              <h3 className="font-bold text-sm text-slate-500 uppercase tracking-widest mb-4">Autonomo</h3>
+              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4">Autonomo</h3>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold text-slate-900">39&euro;</span>
-                <span className="text-slate-500 text-sm">/anual</span>
+                <span className="text-slate-400 text-sm">/anual</span>
               </div>
-              <p className="text-sm text-slate-400 mt-2">Para 1 vehiculo</p>
+              <p className="text-xs text-slate-400 mt-2">Para 1 vehiculo</p>
             </div>
             <ul className="space-y-3 mb-8 text-slate-600 text-sm flex-1">
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Documentos ilimitados</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Firma digital</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> QR de inspeccion</li>
             </ul>
-            <button onClick={onRegister} className="mt-auto block w-full text-center border-2 border-doko-blue text-doko-blue font-bold py-3.5 rounded-xl hover:bg-doko-blue-50 transition">
+            <button onClick={onRegister} className="mt-auto block w-full text-center bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-700 transition">
               Probar gratis
             </button>
           </div>
 
-          <div className="landing-pricing-card p-8 rounded-3xl bg-doko-blue text-white flex flex-col shadow-2xl relative" style={{ boxShadow: '0 20px 60px rgba(18,100,171,0.35)' }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-doko-green text-white font-bold px-4 py-1 rounded-full text-xs uppercase tracking-widest">
+          <div className="landing-pricing-card p-8 rounded-3xl bg-doko-blue text-white flex flex-col shadow-2xl relative scale-105" style={{ boxShadow: '0 20px 60px rgba(18,100,171,0.35)' }}>
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-doko-green text-white font-bold px-4 py-1 rounded-full text-xs uppercase tracking-widest shadow-md">
               Recomendado
             </div>
             <div className="mb-8">
-              <h3 className="font-bold text-sm text-blue-200 uppercase tracking-widest mb-4">Flota Media</h3>
+              <h3 className="font-bold text-xs text-blue-200 uppercase tracking-widest mb-4">Flota Media</h3>
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-extrabold">99&euro;</span>
+                <span className="text-4xl font-extrabold text-white">99&euro;</span>
                 <span className="text-blue-200 text-sm">/anual</span>
               </div>
-              <p className="text-sm text-blue-200 mt-2">Hasta 5 vehiculos</p>
+              <p className="text-xs text-blue-200 mt-2">Hasta 5 vehiculos</p>
             </div>
             <ul className="space-y-3 mb-8 text-blue-50 text-sm flex-1">
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Documentos ilimitados</li>
@@ -310,35 +321,35 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Gestion de choferes</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte prioritario</li>
             </ul>
-            <button onClick={onRegister} className="mt-auto block w-full text-center bg-white text-doko-blue font-bold py-3.5 rounded-xl hover:bg-gray-100 transition">
+            <button onClick={onRegister} className="mt-auto block w-full text-center bg-white text-doko-blue font-bold py-3.5 rounded-xl hover:bg-gray-50 transition shadow-md">
               Probar gratis
             </button>
           </div>
 
-          <div className="landing-pricing-card p-8 rounded-3xl bg-slate-50 border border-slate-200 flex flex-col">
+          <div className="landing-pricing-card p-8 rounded-3xl bg-white border border-slate-200 flex flex-col shadow-sm">
             <div className="mb-8">
-              <h3 className="font-bold text-sm text-slate-500 uppercase tracking-widest mb-4">Gran Flota</h3>
+              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4">Gran Flota</h3>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl font-extrabold text-slate-900">249&euro;</span>
-                <span className="text-slate-500 text-sm">/anual</span>
+                <span className="text-slate-400 text-sm">/anual</span>
               </div>
-              <p className="text-sm text-slate-400 mt-2">Vehiculos ilimitados</p>
+              <p className="text-xs text-slate-400 mt-2">Vehiculos ilimitados</p>
             </div>
             <ul className="space-y-3 mb-8 text-slate-600 text-sm flex-1">
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Integracion API</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Facturacion masiva</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Account Manager</li>
             </ul>
-            <button onClick={onRegister} className="mt-auto block w-full text-center border-2 border-doko-blue text-doko-blue font-bold py-3.5 rounded-xl hover:bg-doko-blue-50 transition">
+            <button onClick={onRegister} className="mt-auto block w-full text-center bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-700 transition">
               Probar gratis
             </button>
           </div>
 
-          <div className="landing-pricing-card p-8 rounded-3xl bg-slate-900 border border-slate-700 flex flex-col">
+          <div className="landing-pricing-card p-8 rounded-3xl bg-slate-900 border border-slate-700 flex flex-col shadow-sm">
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
-                <Building2 size={18} className="text-doko-green" />
-                <h3 className="font-bold text-sm text-doko-green uppercase tracking-widest">Grandes Empresas</h3>
+                <Building2 size={16} className="text-doko-green" />
+                <h3 className="font-bold text-xs text-doko-green uppercase tracking-widest">Grandes Empresas</h3>
               </div>
               <p className="text-xl font-extrabold text-white mb-3">Plan a medida</p>
               <p className="text-sm text-slate-400 leading-relaxed">
@@ -355,6 +366,12 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
             </button>
           </div>
         </div>
+
+        <div className="mt-12 flex flex-wrap justify-center gap-8 text-sm text-slate-500">
+          <span className="flex items-center gap-2"><CheckCircle size={16} className="text-doko-green" /> Sin permanencia</span>
+          <span className="flex items-center gap-2"><CheckCircle size={16} className="text-doko-green" /> Configuracion en menos de 5 minutos</span>
+          <span className="flex items-center gap-2"><CheckCircle size={16} className="text-doko-green" /> Soporte incluido</span>
+        </div>
       </div>
     </section>
   );
@@ -366,37 +383,34 @@ function UpcomingSection() {
       icon: <FileText size={22} />,
       title: 'Carta de Porte Digital',
       description:
-        'Crea y firma contratos de transporte de mercancias de forma digital mediante firma electronica avanzada. Preparado para el cumplimiento de la normativa europea eFTI y para la digitalizacion de la documentacion del transporte por carretera.',
+        'Crea y firma contratos de transporte de mercancias de forma digital mediante firma electronica avanzada. Preparado para el cumplimiento de la normativa europea eFTI.',
     },
     {
       icon: <Globe size={22} />,
       title: 'eCMR',
       description:
-        'Genera y firma la carta de porte internacional electronica (eCMR) con firma digital avanzada. Cumple con el protocolo eCMR y facilita la gestion digital del transporte internacional de mercancias.',
+        'Genera y firma la carta de porte internacional electronica (eCMR) con firma digital avanzada. Cumple con el protocolo eCMR y facilita la gestion digital del transporte internacional.',
     },
     {
       icon: <ClipboardList size={22} />,
       title: 'Acta de Transporte',
       description:
-        'Registra los eventos del transporte en tiempo real: hora de llegada a la carga, inicio y fin de carga, llegada a descarga, finalizacion de descarga, incidencias, observaciones, fotografias y comprobantes de recogida y entrega mediante firma digital.',
+        'Registra los eventos del transporte en tiempo real: hora de llegada, inicio y fin de carga, incidencias, fotografias y comprobantes de recogida y entrega mediante firma digital.',
     },
     {
       icon: <Users size={22} />,
       title: 'Sistema de referidos',
       description:
-        'Si trabajas con transportistas colaboradores o flotas externas, podras invitarles a utilizar DOKO mediante codigos de descuento. Facilita la adopcion del sistema en toda tu red de transporte y mejora la coordinacion documental entre cargadores y transportistas.',
+        'Invita a transportistas colaboradores o flotas externas mediante codigos de descuento. Facilita la adopcion del sistema en toda tu red de transporte.',
     },
   ];
 
   return (
-    <section className="py-24 bg-slate-900">
+    <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <span className="inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-widest uppercase bg-doko-green/20 text-doko-green rounded-full border border-doko-green/30">
-            Roadmap
-          </span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-white mb-5">Proximas actualizaciones</h2>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-5">Proximas actualizaciones</h2>
+          <p className="text-base text-slate-500 max-w-2xl mx-auto leading-relaxed">
             Estamos ampliando DOKO para cubrir toda la documentacion del transporte de mercancias por carretera y facilitar el cumplimiento de la normativa digital del sector.
           </p>
         </div>
@@ -404,18 +418,18 @@ function UpcomingSection() {
           {items.map((item) => (
             <div
               key={item.title}
-              className="group relative bg-slate-800/60 border border-slate-700 hover:border-doko-blue/50 rounded-2xl p-8 transition-all duration-300 hover:bg-slate-800"
+              className="group relative bg-slate-50 border border-slate-200 hover:border-doko-blue/40 rounded-2xl p-8 transition-all duration-300 hover:shadow-lg hover:bg-white"
             >
               <div className="absolute top-6 right-6">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase bg-doko-blue/20 text-doko-blue-200 border border-doko-blue/30">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase bg-doko-blue text-white shadow-sm">
                   Proximamente
                 </span>
               </div>
-              <div className="w-12 h-12 bg-doko-blue/20 text-doko-blue-200 rounded-xl flex items-center justify-center mb-5 group-hover:bg-doko-blue/30 transition">
+              <div className="w-12 h-12 bg-doko-blue text-white rounded-xl flex items-center justify-center mb-5 shadow-sm">
                 {item.icon}
               </div>
-              <h3 className="font-bold text-xl text-white mb-3">{item.title}</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">{item.description}</p>
+              <h3 className="font-bold text-xl text-slate-900 mb-3">{item.title}</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
             </div>
           ))}
         </div>
@@ -440,27 +454,38 @@ function FaqSection() {
       question: 'Puedo compartir el documento con el cliente?',
       answer: 'Por supuesto. Al finalizar, se genera un codigo QR o un enlace que puedes compartir por WhatsApp o Email al cargador y consignatario.',
     },
+    {
+      question: 'No necesitan formacion los conductores?',
+      answer: 'No. La interfaz de DOKO esta disenada para que cualquier conductor pueda usarla sin formacion previa. En media, los conductores completan su primer documento en menos de 7 minutos.',
+    },
+    {
+      question: 'Que pasa con mis datos?',
+      answer: 'Tus datos estan almacenados de forma segura en servidores europeos y jamas son compartidos con terceros. Cumplimos con el RGPD y toda la normativa de proteccion de datos.',
+    },
   ];
 
   return (
     <section id="faq" className="py-24 bg-slate-50">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-center mb-12">Preguntas frecuentes</h2>
-        <div className="space-y-4">
+        <h2 className="text-3xl lg:text-4xl font-bold text-center text-slate-900 mb-4">Preguntas frecuentes</h2>
+        <p className="text-center text-slate-500 mb-12">Todo lo que necesitas saber antes de empezar.</p>
+        <div className="space-y-3">
           {faqs.map((faq, index) => (
-            <div key={index} className="bg-white p-6 rounded-2xl border border-slate-200 transition">
+            <div key={index} className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition shadow-sm">
               <button
                 onClick={() => setOpenIndex(openIndex === index ? null : index)}
-                className="w-full flex justify-between items-center text-left font-bold text-lg"
+                className="w-full flex justify-between items-center text-left font-semibold text-base text-slate-900 px-6 py-5"
               >
                 {faq.question}
                 <ChevronDown
                   size={20}
-                  className={`shrink-0 ml-2 transition-transform text-doko-blue ${openIndex === index ? 'rotate-180' : ''}`}
+                  className={`shrink-0 ml-4 transition-transform text-doko-blue ${openIndex === index ? 'rotate-180' : ''}`}
                 />
               </button>
               {openIndex === index && (
-                <p className="mt-4 text-slate-600">{faq.answer}</p>
+                <div className="px-6 pb-5">
+                  <p className="text-slate-600 text-sm leading-relaxed">{faq.answer}</p>
+                </div>
               )}
             </div>
           ))}
@@ -474,39 +499,44 @@ function ContactSection() {
   return (
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <h2 className="text-4xl font-extrabold mb-6">
-              Tienes dudas?<br />
-              <span className="text-doko-blue">Escribenos!</span>
-            </h2>
-            <p className="text-lg text-slate-600 mb-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Tienes dudas? Escribenos!</h2>
+          <p className="text-slate-500">Respondemos en menos de 24 horas.</p>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-16 items-start max-w-5xl mx-auto">
+          <div className="pt-4">
+            <p className="text-base text-slate-600 mb-8 leading-relaxed">
               Nuestro equipo de expertos en normativa de transporte te ayudara a digitalizar tu operativa en minutos.
             </p>
-            <div className="space-y-6 font-medium">
+            <div className="space-y-5">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-doko-blue-100 text-doko-blue rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-doko-blue-50 text-doko-blue rounded-xl flex items-center justify-center shrink-0 border border-doko-blue/10">
                   <Mail size={20} />
                 </div>
-                <span>soporte@doko.es</span>
+                <div>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Email</p>
+                  <span className="font-semibold text-slate-800">soporte@doko.es</span>
+                </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-doko-green-100 text-doko-green-dark rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-doko-green-50 text-doko-green-dark rounded-xl flex items-center justify-center shrink-0 border border-doko-green/10">
                   <Phone size={20} />
                 </div>
-                <span>+34 900 000 000</span>
+                <div>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Telefono</p>
+                  <span className="font-semibold text-slate-800">+34 900 000 000</span>
+                </div>
               </div>
             </div>
           </div>
-          <div className="bg-slate-50 p-10 rounded-3xl border border-slate-200 shadow-xl">
+          <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-md">
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-              <div className="grid md:grid-cols-2 gap-4">
-                <input type="text" placeholder="Nombre" className="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-doko-blue outline-none" />
-                <input type="email" placeholder="Email" className="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-doko-blue outline-none" />
-              </div>
-              <input type="text" placeholder="Empresa" className="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-doko-blue outline-none" />
-              <textarea rows={4} placeholder="En que podemos ayudarte?" className="w-full px-5 py-4 rounded-xl border border-slate-300 focus:ring-2 focus:ring-doko-blue outline-none resize-none" />
-              <button className="w-full bg-doko-blue text-white font-bold py-4 rounded-xl hover:bg-doko-blue-dark transition shadow-lg">
+              <input type="text" placeholder="Nombre" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <input type="text" placeholder="Apellido" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <input type="email" placeholder="Correo electronico" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <input type="text" placeholder="Nombre de Empresa" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <input type="text" placeholder="Funcion" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <button className="w-full bg-doko-blue text-white font-bold py-4 rounded-xl hover:bg-doko-blue-dark transition shadow-md">
                 Enviar mensaje
               </button>
             </form>
@@ -517,49 +547,66 @@ function ContactSection() {
   );
 }
 
+function CallToActionBanner({ onRegister }: { onRegister: () => void }) {
+  return (
+    <section className="landing-hero-gradient py-20">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <h2 className="text-3xl lg:text-5xl font-extrabold text-white mb-6 leading-tight">
+          Preparate hoy para la obligatoriedad del{' '}
+          <span className="text-doko-green">Documento de Control digital</span>
+        </h2>
+        <button
+          onClick={onRegister}
+          className="inline-block bg-white text-doko-blue font-bold px-10 py-4 rounded-full text-base hover:bg-gray-50 transition shadow-xl mt-2"
+        >
+          Comenzar gratis
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function Footer() {
   return (
-    <footer className="bg-doko-blue-900 text-white py-16">
+    <footer className="bg-slate-900 text-white py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid md:grid-cols-4 gap-12 mb-12">
           <div>
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 bg-doko-blue rounded flex items-center justify-center">
-                <span className="text-white font-bold text-lg">D</span>
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-8 h-8 bg-doko-blue rounded flex items-center justify-center shrink-0">
+                <span className="text-white font-extrabold text-base">D</span>
               </div>
-              <span className="text-2xl font-bold tracking-tight">DOKO</span>
+              <span className="text-xl font-extrabold tracking-tight text-white">DOKO</span>
             </div>
-            <p className="text-blue-200 text-sm leading-relaxed">
+            <p className="text-slate-400 text-sm leading-relaxed">
               Digitalizando el sector del transporte para hacerlo mas eficiente, sostenible y legal.
             </p>
           </div>
           <div>
-            <h4 className="font-bold mb-6">Producto</h4>
-            <ul className="space-y-3 text-blue-200 text-sm">
-              <li><a href="#" className="hover:text-white transition">Caracteristicas</a></li>
+            <h4 className="font-bold mb-6 text-white text-sm uppercase tracking-wide">Empresa</h4>
+            <ul className="space-y-3 text-slate-400 text-sm">
+              <li><a href="#" className="hover:text-white transition">Sobre nosotros</a></li>
               <li><a href="#como-funciona" className="hover:text-white transition">Como funciona</a></li>
               <li><a href="#planes" className="hover:text-white transition">Planes de precios</a></li>
-              <li><a href="#" className="hover:text-white transition">Actualizaciones</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="font-bold mb-6">Compania</h4>
-            <ul className="space-y-3 text-blue-200 text-sm">
-              <li><a href="#" className="hover:text-white transition">Sobre nosotros</a></li>
-              <li><a href="#" className="hover:text-white transition">Contacto</a></li>
-              <li><a href="#" className="hover:text-white transition">Blog</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold mb-6">Legal</h4>
-            <ul className="space-y-3 text-blue-200 text-sm">
+            <h4 className="font-bold mb-6 text-white text-sm uppercase tracking-wide">Legal</h4>
+            <ul className="space-y-3 text-slate-400 text-sm">
               <li><a href="#" className="hover:text-white transition">Terminos y condiciones</a></li>
               <li><a href="#" className="hover:text-white transition">Privacidad</a></li>
               <li><a href="#" className="hover:text-white transition">Normativa TMA/388/2021</a></li>
             </ul>
           </div>
+          <div>
+            <h4 className="font-bold mb-6 text-white text-sm uppercase tracking-wide">Contacto</h4>
+            <ul className="space-y-3 text-slate-400 text-sm">
+              <li className="flex items-center gap-2"><Mail size={14} /> soporte@doko.es</li>
+              <li className="flex items-center gap-2"><Phone size={14} /> +34 900 000 000</li>
+            </ul>
+          </div>
         </div>
-        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-blue-300">
+        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
           <p>2024 DOKO Software para Transporte. Todos los derechos reservados.</p>
         </div>
       </div>
