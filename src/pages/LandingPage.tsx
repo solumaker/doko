@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import mockupMovil from '../assets/doko_mockup_movil.png';
-import mockupPc from '../assets/doko_mockup_pc.png';
+import mockupPc from '../assets/doko_mockup.png';
 import {
   ArrowRightLeft,
   ShieldCheck,
