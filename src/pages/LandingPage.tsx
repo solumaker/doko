@@ -140,10 +140,7 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
       </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <span className="inline-block px-4 py-1.5 mb-6 text-xs font-bold tracking-widest uppercase bg-white/15 border border-white/20 rounded-full text-white">
-              Actualizado a la Ley de Transporte 2024
-            </span>
+          <div>      
             <h1 className="text-1xl lg:text-6xl font-extrabold leading-tight mb-6 text-white">
               Crea tu Documento de Control digital{' '}
               <span className="text-doko-green">en 1 minuto</span>
