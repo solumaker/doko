@@ -141,7 +141,7 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div>      
-            <h1 className="text-1xl lg:text-6xl font-extrabold leading-tight mb-6 text-white">
+            <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-white">
               Crea tu Documento de Control digital{' '}
               <span className="text-doko-green">en 1 minuto</span>
             </h1>
