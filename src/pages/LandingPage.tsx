@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import mockupMovil from '../assets/doko_mockup_movil.png';
 import {
   ArrowRightLeft,
   ShieldCheck,
@@ -163,7 +164,7 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
           </div>
           <div className="flex justify-center mt-10 lg:mt-0">
             <img
-              src="/doko_mockup_movil.png"
+              src={mockupMovil}
               alt="DOKO App Preview"
               className="w-56 sm:w-64 lg:w-72 drop-shadow-2xl"
             />
