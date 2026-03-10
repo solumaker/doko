@@ -97,21 +97,21 @@
 }
 
 .landing-hero-gradient {
-  background: linear-gradient(135deg, #0052D4 0%, #4364F7 50%, #6FB1FC 100%);
+  background: linear-gradient(135deg, #0d4f8c 0%, #1264ab 55%, #1a7acc 100%);
 }
 
 .landing-blob {
   position: absolute;
   width: 500px;
   height: 500px;
-  background: rgba(67, 100, 247, 0.1);
+  background: rgba(18, 100, 171, 0.12);
   filter: blur(80px);
   border-radius: 50%;
   z-index: 0;
 }
 
 .landing-nav-link:hover {
-  color: #4364F7;
+  color: #1264ab;
 }
 
 .landing-pricing-card {
