@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import mockupMovil from '../assets/doko_mockup_movil.png';
+import mockupPc from '../assets/doko_mockup_pc.png';
 import {
   ArrowRightLeft,
   ShieldCheck,
@@ -265,7 +266,7 @@ function HowItWorksSection() {
         </div>
         <div className="mt-16">
           <img
-            src="/doko_mockup_pc.png"
+            src={mockupPc}
             alt="DOKO Desktop Preview"
             className="w-full rounded-2xl shadow-xl"
           />
