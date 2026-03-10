@@ -145,18 +145,18 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
               Actualizado a la Ley de Transporte 2024
             </span>
             <h1 className="text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-white">
-              Documento de Control Digital{' '}
+              Crea tu Documento de Control digital{' '}
               <span className="text-doko-green">en 1 minuto</span>
             </h1>
             <p className="text-lg text-blue-100 mb-10 leading-relaxed max-w-xl">
-              La App mas sencilla para que transportistas y empresas cumplan con la normativa espanola de forma digital, segura y sin complicaciones.
+             Crea, comparte y archiva el Documento de Control desde el móvil. Sin papel, sin líos, sin versiones duplicadas.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button
                 onClick={onRegister}
                 className="bg-white text-doko-blue px-8 py-4 rounded-xl font-bold text-base hover:bg-gray-50 transition shadow-lg text-center"
               >
-                Empezar ahora gratis
+                Comenzar gratis
               </button>
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-5 text-sm text-blue-100">
@@ -166,7 +166,7 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
           </div>
           <div className="hidden lg:flex justify-center">
             <img
-              src="public/doko_mockup_movil.png"
+              src="/doko_mockup_movil.png"
               alt="DOKO App Preview"
               className="w-72 drop-shadow-2xl"
             />
@@ -181,31 +181,31 @@ function WhyDokoSection() {
   const cards = [
     {
       icon: <ArrowRightLeft size={22} />,
-      bgColor: 'bg-doko-blue',
+      bgColor: 'bg-doko-green',
       textColor: 'text-white',
-      title: 'Que cambia?',
-      description: 'Adios al papel. La ley exige un formato digital inalterable para el transporte de mercancias.',
+      title: '¿Que cambia?',
+      description: 'La Ley de Movilidad Sostenible exige el Documento de Control de Transporte de mercancías por carretera en formato electrónico a partir del 05 de octubre de 2026.',
     },
     {
       icon: <ShieldCheck size={22} />,
       bgColor: 'bg-doko-green',
       textColor: 'text-white',
-      title: 'Seguridad',
-      description: 'Tus datos estan protegidos y disponibles en la nube 24/7 para cualquier inspeccion.',
+      title: '¿Qué ocurre si esperas?',
+      description: 'Las empresas que no se preparen a tiempo pueden sufrir incidencias en inspecciones, desorden documental y más carga administrativa.',
     },
     {
       icon: <Clock size={22} />,
-      bgColor: 'bg-doko-blue',
+      bgColor: 'bg-doko-green',
       textColor: 'text-white',
-      title: 'Velocidad',
-      description: 'Genera documentos en segundos desde el movil. No mas perdida de tiempo en la carga.',
+      title: '¿Por qué anticiparse?',
+      description: 'Las empresas que se adapten con antelación evitarán sanciones, incidencias en inspecciones y duplicidad de tareas.',
     },
     {
       icon: <Scale size={22} />,
-      bgColor: 'bg-slate-800',
+      bgColor: 'bg-doko-green',
       textColor: 'text-white',
       title: 'Validez Legal',
-      description: 'Cumplimiento total con la Orden TMA/388/2021 del Ministerio de Transportes.',
+      description: 'Los documentos generados incluyen: Código QR verificable, formato PDF/A-1A e historial por 1 año.',
     },
   ];
 
@@ -218,7 +218,7 @@ function WhyDokoSection() {
           </span>
           <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">El Documento de Control ahora sera digital</h2>
           <p className="text-base text-slate-600 max-w-2xl mx-auto">
-            A partir del 15 de octubre de 2025, aproximadamente 300.000 empresas de transporte deberan gestionar exclusivamente en formato digital en Espana.
+            A partir del 5 de octubre de 2026, el Documento de Control Administrativo deberá gestionarse exclusivamente en formato digital en España.
           </p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -239,9 +239,9 @@ function WhyDokoSection() {
 
 function HowItWorksSection() {
   const steps = [
-    { number: '1', label: 'PASO 1', title: 'Alta', description: 'Crea tu cuenta de empresa o autonomo en menos de un minuto. Documento en menos de 7 minutos.' },
-    { number: '2', label: 'PASO 2', title: 'Genera documentos', description: 'Introduce los datos de la carga, origen y destino. La herramienta esta lista para validez legal.' },
-    { number: '3', label: 'PASO 3', title: 'Comparte', description: 'Envia documentos por QR, enlace o email. Encuentra documentos en tu historial en segundos.' },
+    { number: '1', label: 'PASO 1', title: 'Regístrate', description: 'Da de alta tu empresa, tus usuarios de oficina y conductores' },
+    { number: '2', label: 'PASO 2', title: 'Crea', description: 'Genera documentos desde oficina o tus conductores directamente.' },
+    { number: '3', label: 'PASO 3', title: 'Comparte', description: 'Comparte con las personas Involucradas de la formas más sencilla. Whatsapp de forma nativa.' },
   ];
 
   return (
@@ -249,8 +249,8 @@ function HowItWorksSection() {
       <div className="landing-blob -top-20 -left-20 opacity-50" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-20">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Como funciona</h2>
-          <p className="text-slate-500">Disenado para ser usado por conductores sin experiencia previa en software.</p>
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Cómo funciona</h2>
+          <p className="text-slate-500">Diseñado para ser usado por conductores sin experiencia previa en software.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-10 relative">
           <div className="absolute top-10 left-0 w-full h-0.5 bg-doko-blue/20 hidden md:block" />
@@ -288,12 +288,12 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-stretch">
           <div className="landing-pricing-card p-8 rounded-3xl bg-white border border-slate-200 flex flex-col shadow-sm">
             <div className="mb-8">
-              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4">Autonomo</h3>
+              <h3 className="font-bold text-xs text-slate-400 uppercase tracking-widest mb-4">Autónomo</h3>
               <div className="flex items-baseline gap-1">
                 <span className="text-4xl text-slate-900">39&euro;</span>
                 <span className="text-slate-400 text-sm">/anual</span>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Para 1 vehiculo</p>
+              <p className="text-xs text-slate-400 mt-2">Enfocado a 1 camión</p>
             </div>
             <ul className="space-y-3 mb-8 text-slate-600 text-sm flex-1">
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> 100 documentos/mes</li>
@@ -316,13 +316,13 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
                 <span className="text-4xl text-white">99&euro;</span>
                 <span className="text-blue-200 text-sm">/anual</span>
               </div>
-              <p className="text-xs text-blue-200 mt-2">Hasta 5 vehiculos</p>
+              <p className="text-xs text-blue-200 mt-2">Enfocado a flotas de hasta 10 camiones</p>
             </div>
             <ul className="space-y-3 mb-8 text-blue-50 text-sm flex-1">
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> 500 documentos/mes</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Usuarios ilimitados</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Validez legal</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte email prioritario</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte prioritario por email</li>
             </ul>
             <button onClick={onRegister} className="mt-auto block w-full text-center bg-white text-doko-blue font-bold py-3.5 rounded-xl hover:bg-gray-50 transition shadow-md">
               Probar gratis
@@ -336,13 +336,13 @@ function PricingSection({ onRegister }: { onRegister: () => void }) {
                 <span className="text-4xl text-slate-900">249&euro;</span>
                 <span className="text-slate-400 text-sm">/anual</span>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Vehiculos ilimitados</p>
+              <p className="text-xs text-slate-400 mt-2">Enfocado a empresas de hasta 200 camiones</p>
             </div>
             <ul className="space-y-3 mb-8 text-slate-600 text-sm flex-1">
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> 2.500 documentos/mes</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Usuarios ilimitados</li>
               <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Validez legal</li>
-              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte por telefono y email</li>
+              <li className="flex items-center gap-3"><Check size={15} className="text-doko-green shrink-0" /> Soporte prioritario por email y teléfono</li>
             </ul>
             <button onClick={onRegister} className="mt-auto block w-full text-center bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-700 transition">
               Probar gratis
@@ -413,7 +413,7 @@ function UpcomingSection() {
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-5">Proximas actualizaciones</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-5">Próximas actualizaciones</h2>
           <p className="text-base text-slate-500 max-w-2xl mx-auto leading-relaxed">
             Estamos ampliando DOKO para cubrir toda la documentacion del transporte de mercancias por carretera y facilitar el cumplimiento de la normativa digital del sector.
           </p>
@@ -426,7 +426,7 @@ function UpcomingSection() {
             >
               <div className="absolute top-6 right-6">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase bg-doko-blue text-white shadow-sm">
-                  Proximamente
+                  Próximamente
                 </span>
               </div>
               <div className="w-12 h-12 bg-doko-blue text-white rounded-xl flex items-center justify-center mb-5 shadow-sm">
@@ -447,24 +447,24 @@ function FaqSection() {
 
   const faqs = [
     {
-      question: 'Es legalmente valido en Espana?',
-      answer: 'Si, DOKO cumple estrictamente con el Reglamento de Ordenacion de los Transportes Terrestres (ROTT) y las ultimas ordenes ministeriales sobre documentacion digital.',
+      question: '¿DOKO sustituye al Documento de Control en papel?',
+      answer: 'Si, DOKO digitaliza la creación y archivo del Documento de Control. La versión digital es accesible desde cualquier dispositivo. Si la normativa requiere una copia impresa, puedes descargarla o imprimirla en cualquier momento desde la plataforma.',
     },
     {
-      question: 'Que pasa si no tengo conexion a internet?',
-      answer: 'Nuestra App permite generar borradores offline que se sincronizan automaticamente en cuanto recuperas cobertura.',
+      question: '¿Es complicado de usar?',
+      answer: 'No, DOKO está pensado para personas que no son técnicas. En 10 minutos cargas tus datos y ya puedes crear documentos. La plantilla guiada te asegura que no te dejas nada.',
     },
     {
-      question: 'Puedo compartir el documento con el cliente?',
-      answer: 'Por supuesto. Al finalizar, se genera un codigo QR o un enlace que puedes compartir por WhatsApp o Email al cargador y consignatario.',
+      question: '¿Cuánto tiempo tarda en funcionar?',
+      answer: 'El registro es inmediato y crear un Documento de Control lleva menos de 1 minuto por viaje.',
     },
     {
-      question: 'No necesitan formacion los conductores?',
-      answer: 'No. La interfaz de DOKO esta disenada para que cualquier conductor pueda usarla sin formacion previa. En media, los conductores completan su primer documento en menos de 7 minutos.',
+      question: '¿Mis conductores necesitan formación?',
+      answer: 'No. La interfaz de DOKO esta diseñada para que cualquier conductor pueda usarla. solo necesitan abrir un enlace o escanear un QR para ver el documento. No necesitan crear cuenta ni instalar nada.',
     },
     {
-      question: 'Que pasa con mis datos?',
-      answer: 'Tus datos estan almacenados de forma segura en servidores europeos y jamas son compartidos con terceros. Cumplimos con el RGPD y toda la normativa de proteccion de datos.',
+      question: '¿Qué pasa con mis datos?',
+      answer: 'Tus datos se almacenan de forma segura en la nube. No los compartimos con terceros. Solo los usamos para que DOKO funcione correctamente y para coordinar tu demo si la solicitas.',
     },
   ];
 
@@ -504,7 +504,7 @@ function ContactSection() {
     <section className="py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Tienes dudas? Escribenos!</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">¿Tienes dudas? Escríbenos!</h2>
           <p className="text-slate-500">Respondemos en menos de 24 horas.</p>
         </div>
         <div className="grid lg:grid-cols-2 gap-16 items-start max-w-5xl mx-auto">
@@ -519,7 +519,7 @@ function ContactSection() {
                 </div>
                 <div>
                   <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Email</p>
-                  <span className="font-semibold text-slate-800">soporte@doko.es</span>
+                  <span className="font-semibold text-slate-800">hola@documentocontroltransporte.com</span>
                 </div>
               </div>
               <div className="flex items-center gap-4">
@@ -527,8 +527,8 @@ function ContactSection() {
                   <Phone size={20} />
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Telefono</p>
-                  <span className="font-semibold text-slate-800">+34 900 000 000</span>
+                  <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-0.5">Teléfono</p>
+                  <span className="font-semibold text-slate-800">+34 637 510 860</span>
                 </div>
               </div>
             </div>
@@ -536,10 +536,10 @@ function ContactSection() {
           <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-md">
             <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
               <input type="text" placeholder="Nombre" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <input type="text" placeholder="Apellido" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <input type="email" placeholder="Correo electronico" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <input type="text" placeholder="Teléfono" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <input type="email" placeholder="Correo" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
               <input type="text" placeholder="Nombre de Empresa" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
-              <input type="text" placeholder="Funcion" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
+              <input type="text" placeholder="Población" className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-doko-blue outline-none text-sm text-slate-800 placeholder-slate-400" />
               <button className="w-full bg-doko-blue text-white font-bold py-4 rounded-xl hover:bg-doko-blue-dark transition shadow-md">
                 Enviar mensaje
               </button>
@@ -605,13 +605,13 @@ function Footer() {
           <div>
             <h4 className="font-bold mb-6 text-white text-sm uppercase tracking-wide">Contacto</h4>
             <ul className="space-y-3 text-slate-400 text-sm">
-              <li className="flex items-center gap-2"><Mail size={14} /> soporte@doko.es</li>
-              <li className="flex items-center gap-2"><Phone size={14} /> +34 900 000 000</li>
+              <li className="flex items-center gap-2"><Mail size={14} /> hola@documentocontroltransporte.com</li>
+              <li className="flex items-center gap-2"><Phone size={14} />+34 637 510 860</li>
             </ul>
           </div>
         </div>
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-slate-500">
-          <p>2024 DOKO Software para Transporte. Todos los derechos reservados.</p>
+          <p>2026 DOKO Software para Transporte. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>
