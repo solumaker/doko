@@ -164,11 +164,11 @@ function HeroSection({ onRegister }: { onRegister: () => void }) {
               <span className="flex items-center gap-1.5"><CheckCircle size={16} className="text-doko-green" /> Cumplimiento 100% legal</span>
             </div>
           </div>
-          <div className="hidden lg:flex justify-center">
+          <div className="flex justify-center mt-10 lg:mt-0">
             <img
               src="/doko_mockup_movil.png"
               alt="DOKO App Preview"
-              className="w-72 drop-shadow-2xl"
+              className="w-56 sm:w-64 lg:w-72 drop-shadow-2xl"
             />
           </div>
         </div>
