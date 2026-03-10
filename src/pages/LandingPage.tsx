@@ -215,7 +215,7 @@ function WhyDokoSection() {
           <span className="inline-block px-4 py-1.5 mb-4 text-xs font-bold tracking-widest uppercase bg-doko-blue/10 text-doko-blue rounded-full border border-doko-blue/20">
             Cambio regulatorio
           </span>
-          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">El Documento de Control ahora sera digital</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">El Documento de Control ahora será digital</h2>
           <p className="text-base text-slate-600 max-w-2xl mx-auto">
             A partir del 5 de octubre de 2026, el Documento de Control Administrativo deberá gestionarse exclusivamente en formato digital en España.
           </p>
