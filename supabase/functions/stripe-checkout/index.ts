@@ -120,6 +120,7 @@ Deno.serve(async (req: Request) => {
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "payment",
+        automatic_tax: { enabled: true },
         line_items: [
           {
             price: "price_1T9W1WBnbfHLJ2lEUzp4s90N",
@@ -148,6 +149,7 @@ Deno.serve(async (req: Request) => {
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "subscription",
+        automatic_tax: { enabled: true },
         line_items: [{ price: planConfig.price_id, quantity: 1 }],
         subscription_data: {
           metadata: {
