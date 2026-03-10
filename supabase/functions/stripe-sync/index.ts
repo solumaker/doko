@@ -15,9 +15,9 @@ const PLAN_LIMITS: Record<string, { document_limit: number; user_limit: number }
 };
 
 const PRICE_TO_PLAN: Record<string, string> = {
-  "price_1T7ennBnbfHLJ2lEttin2U6U": "autonomo",
-  "price_1T7HOaBnbfHLJ2lE0ks9Mm3O": "pyme",
-  "price_1T7eoABnbfHLJ2lEutKrGJVV": "flotas",
+  "price_1T9509BnbfHLJ2lEcwu2GuZu": "autonomo",
+  "price_1T7HFABnbfHLJ2lE8Q916Xrm": "pyme",
+  "price_1T950eBnbfHLJ2lEAZOFRDIf": "flotas",
 };
 
 Deno.serve(async (req: Request) => {
