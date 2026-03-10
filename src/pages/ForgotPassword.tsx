@@ -4,9 +4,10 @@ import { useAuth } from '../context/AuthContext';
 
 interface ForgotPasswordProps {
   onNavigateToLogin: () => void;
+  onNavigateToLanding: () => void;
 }
 
-export function ForgotPassword({ onNavigateToLogin }: ForgotPasswordProps) {
+export function ForgotPassword({ onNavigateToLogin, onNavigateToLanding }: ForgotPasswordProps) {
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -84,7 +85,9 @@ export function ForgotPassword({ onNavigateToLogin }: ForgotPasswordProps) {
           </button>
 
           <div className="flex flex-col items-center mb-8">
-            <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain mb-4" />
+            <button onClick={onNavigateToLanding} className="focus:outline-none">
+              <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain mb-4 cursor-pointer" />
+            </button>
             <h2 className="text-lg font-bold text-slate-900 text-center">
               ¿Olvidaste tu contrasena?
             </h2>

@@ -4,11 +4,12 @@ import { useAuth } from '../context/AuthContext';
 
 interface RegisterProps {
   onNavigateToLogin: () => void;
+  onNavigateToLanding: () => void;
 }
 
 type Step = 1 | 2;
 
-export function Register({ onNavigateToLogin }: RegisterProps) {
+export function Register({ onNavigateToLogin, onNavigateToLanding }: RegisterProps) {
   const { signUp } = useAuth();
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState('');
@@ -117,13 +118,15 @@ export function Register({ onNavigateToLogin }: RegisterProps) {
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
           <div className="flex flex-col items-center mb-6">
             <button
-              onClick={step === 1 ? onNavigateToLogin : handleBack}
+              onClick={step === 1 ? onNavigateToLanding : handleBack}
               className="self-start mb-4 p-2 text-slate-600 hover:text-slate-900 -ml-2"
             >
               <ArrowLeft size={24} />
             </button>
 
-            <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain mb-1" />
+            <button onClick={onNavigateToLanding} className="focus:outline-none">
+              <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain mb-1 cursor-pointer" />
+            </button>
             <h2 className="text-lg font-bold text-slate-900 mt-4">Crear Cuenta</h2>
             <p className="text-slate-600 text-sm text-center">
               Paso {step} de 2: {step === 1 ? 'Tus datos' : 'Datos de empresa'}

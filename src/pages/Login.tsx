@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginProps {
   onNavigateToRegister: () => void;
   onNavigateToForgotPassword: () => void;
+  onNavigateToLanding: () => void;
 }
 
-export function Login({ onNavigateToRegister, onNavigateToForgotPassword }: LoginProps) {
+export function Login({ onNavigateToRegister, onNavigateToForgotPassword, onNavigateToLanding }: LoginProps) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,8 +42,17 @@ export function Login({ onNavigateToRegister, onNavigateToForgotPassword }: Logi
     <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
+          <button
+            onClick={onNavigateToLanding}
+            className="mb-4 p-2 text-slate-600 hover:text-slate-900 -ml-2"
+          >
+            <ArrowLeft size={24} />
+          </button>
+
           <div className="flex flex-col items-center mb-8">
-            <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-16 w-auto object-contain mb-2" />
+            <button onClick={onNavigateToLanding} className="focus:outline-none">
+              <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-16 w-auto object-contain mb-2 cursor-pointer" />
+            </button>
             <p className="text-slate-500 text-sm mt-1 text-center">
               Tu documento de control digital
             </p>

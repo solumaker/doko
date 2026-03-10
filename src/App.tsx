@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
@@ -30,6 +30,24 @@ function getPublicDocumentId(): string | null {
 }
 
 type AuthScreen = 'landing' | 'login' | 'register' | 'forgot-password';
+
+const AUTH_ROUTE_TO_SCREEN: Record<string, AuthScreen> = {
+  '/': 'landing',
+  '/inicio': 'login',
+  '/registro': 'register',
+  '/recuperar': 'forgot-password',
+};
+
+const AUTH_SCREEN_TO_ROUTE: Record<AuthScreen, string> = {
+  'landing': '/',
+  'login': '/inicio',
+  'register': '/registro',
+  'forgot-password': '/recuperar',
+};
+
+function getInitialAuthScreen(): AuthScreen {
+  return AUTH_ROUTE_TO_SCREEN[window.location.pathname] ?? 'landing';
+}
 type AppScreen =
   | 'dashboard'
   | 'lugares'
@@ -73,7 +91,7 @@ function LoadingScreen() {
 function AppContent() {
   const { session, profile, loading: authLoading, isDriver, isAdmin, signOut } = useAuth();
   const { usage, isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription, syncAndRefresh } = useSubscription();
-  const [authScreen, setAuthScreen] = useState<AuthScreen>('landing');
+  const [authScreen, setAuthScreen] = useState<AuthScreen>(getInitialAuthScreen);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [driverToken, setDriverToken] = useState<string | null>(null);
@@ -134,6 +152,28 @@ function AppContent() {
     }
   }, [subLoading, isAdmin, isSubscriptionExpired, currentScreen]);
 
+  const navigateAuth = useCallback((screen: AuthScreen) => {
+    setAuthScreen(screen);
+    window.history.pushState({}, '', AUTH_SCREEN_TO_ROUTE[screen]);
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const screen = AUTH_ROUTE_TO_SCREEN[window.location.pathname];
+      if (screen) {
+        setAuthScreen(screen);
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (session && profile) {
+      window.history.replaceState({}, '', '/');
+    }
+  }, [session, profile]);
+
   const handleLogout = async () => {
     await signOut();
     setCurrentScreen('dashboard');
@@ -141,6 +181,7 @@ function AppContent() {
     setDriverToken(null);
     setShowTrialModal(false);
     setShowSubExpiredModal(false);
+    window.history.replaceState({}, '', '/');
   };
 
   const handleNavigate = (screen: AppScreen) => {
@@ -187,19 +228,30 @@ function AppContent() {
       case 'login':
         return (
           <Login
-            onNavigateToRegister={() => setAuthScreen('register')}
-            onNavigateToForgotPassword={() => setAuthScreen('forgot-password')}
+            onNavigateToRegister={() => navigateAuth('register')}
+            onNavigateToForgotPassword={() => navigateAuth('forgot-password')}
+            onNavigateToLanding={() => navigateAuth('landing')}
           />
         );
       case 'register':
-        return <Register onNavigateToLogin={() => setAuthScreen('login')} />;
+        return (
+          <Register
+            onNavigateToLogin={() => navigateAuth('login')}
+            onNavigateToLanding={() => navigateAuth('landing')}
+          />
+        );
       case 'forgot-password':
-        return <ForgotPassword onNavigateToLogin={() => setAuthScreen('login')} />;
+        return (
+          <ForgotPassword
+            onNavigateToLogin={() => navigateAuth('login')}
+            onNavigateToLanding={() => navigateAuth('landing')}
+          />
+        );
       default:
         return (
           <LandingPage
-            onNavigateToLogin={() => setAuthScreen('login')}
-            onNavigateToRegister={() => setAuthScreen('register')}
+            onNavigateToLogin={() => navigateAuth('login')}
+            onNavigateToRegister={() => navigateAuth('register')}
           />
         );
     }
