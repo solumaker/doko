@@ -3,7 +3,6 @@ import { Loader2 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
-import { LandingPage } from './pages/LandingPage';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -29,24 +28,23 @@ function getPublicDocumentId(): string | null {
   return match ? match[1] : null;
 }
 
-type AuthScreen = 'landing' | 'login' | 'register' | 'forgot-password';
+type AuthScreen = 'login' | 'register' | 'forgot-password';
 
 const AUTH_ROUTE_TO_SCREEN: Record<string, AuthScreen> = {
-  '/': 'landing',
+  '/': 'login',
   '/inicio': 'login',
   '/registro': 'register',
   '/recuperar': 'forgot-password',
 };
 
 const AUTH_SCREEN_TO_ROUTE: Record<AuthScreen, string> = {
-  'landing': '/',
-  'login': '/inicio',
+  'login': '/',
   'register': '/registro',
   'forgot-password': '/recuperar',
 };
 
 function getInitialAuthScreen(): AuthScreen {
-  return AUTH_ROUTE_TO_SCREEN[window.location.pathname] ?? 'landing';
+  return AUTH_ROUTE_TO_SCREEN[window.location.pathname] ?? 'login';
 }
 type AppScreen =
   | 'dashboard'
@@ -177,7 +175,7 @@ function AppContent() {
   const handleLogout = async () => {
     await signOut();
     setCurrentScreen('dashboard');
-    setAuthScreen('landing');
+    setAuthScreen('login');
     setDriverToken(null);
     setShowTrialModal(false);
     setShowSubExpiredModal(false);
@@ -225,33 +223,23 @@ function AppContent() {
 
   if (!session || !profile) {
     switch (authScreen) {
-      case 'login':
-        return (
-          <Login
-            onNavigateToRegister={() => navigateAuth('register')}
-            onNavigateToForgotPassword={() => navigateAuth('forgot-password')}
-            onNavigateToLanding={() => navigateAuth('landing')}
-          />
-        );
       case 'register':
         return (
           <Register
             onNavigateToLogin={() => navigateAuth('login')}
-            onNavigateToLanding={() => navigateAuth('landing')}
           />
         );
       case 'forgot-password':
         return (
           <ForgotPassword
             onNavigateToLogin={() => navigateAuth('login')}
-            onNavigateToLanding={() => navigateAuth('landing')}
           />
         );
       default:
         return (
-          <LandingPage
-            onNavigateToLogin={() => navigateAuth('login')}
+          <Login
             onNavigateToRegister={() => navigateAuth('register')}
+            onNavigateToForgotPassword={() => navigateAuth('forgot-password')}
           />
         );
     }

@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { ArrowLeft, Loader2, Mail, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface ForgotPasswordProps {
   onNavigateToLogin: () => void;
-  onNavigateToLanding: () => void;
 }
 
-export function ForgotPassword({ onNavigateToLogin, onNavigateToLanding }: ForgotPasswordProps) {
+export function ForgotPassword({ onNavigateToLogin }: ForgotPasswordProps) {
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -85,9 +84,9 @@ export function ForgotPassword({ onNavigateToLogin, onNavigateToLanding }: Forgo
           </button>
 
           <div className="flex flex-col items-center mb-8">
-            <button onClick={onNavigateToLanding} className="focus:outline-none">
+            <a href="https://documentocontroltransporte.com" className="focus:outline-none">
               <img src="/DOKO_LOGO.jpeg" alt="DOKO" className="h-12 w-auto object-contain mb-4 cursor-pointer" />
-            </button>
+            </a>
             <h2 className="text-lg font-bold text-slate-900 text-center">
               ¿Olvidaste tu contrasena?
             </h2>
