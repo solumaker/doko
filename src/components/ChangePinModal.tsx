@@ -17,18 +17,18 @@ export function ChangePinModal({ onClose }: ChangePinModalProps) {
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
   const autoSubmitRef = useRef(false);
+  const currentDigitsRef = useRef<string[]>(['', '', '', '']);
+  const newDigitsRef = useRef<string[]>(['', '', '', '']);
 
   const activeDigits = step === 'current' ? currentDigits : newDigits;
   const setActiveDigits = step === 'current' ? setCurrentDigits : setNewDigits;
+  const activeRef = step === 'current' ? currentDigitsRef : newDigitsRef;
 
-  const handleSubmitPin = async () => {
+  const handleSubmitPin = async (currentPin: string, newPin: string) => {
     if (autoSubmitRef.current) return;
     autoSubmitRef.current = true;
     setLoading(true);
     setError('');
-
-    const currentPin = currentDigits.join('');
-    const newPin = newDigits.join('');
 
     const result = await driverChangePin(currentPin, newPin);
 
@@ -40,9 +40,12 @@ export function ChangePinModal({ onClose }: ChangePinModalProps) {
         if (result.error?.includes('actual')) {
           setCurrentDigits(['', '', '', '']);
           setNewDigits(['', '', '', '']);
+          currentDigitsRef.current = ['', '', '', ''];
+          newDigitsRef.current = ['', '', '', ''];
           setStep('current');
         } else {
           setNewDigits(['', '', '', '']);
+          newDigitsRef.current = ['', '', '', ''];
         }
         autoSubmitRef.current = false;
       }, 600);
@@ -62,12 +65,15 @@ export function ChangePinModal({ onClose }: ChangePinModalProps) {
       const emptyIdx = next.findIndex(d => d === '');
       if (emptyIdx === -1) return prev;
       next[emptyIdx] = digit;
+      activeRef.current = next;
 
       if (emptyIdx === 3) {
         if (step === 'current') {
           setTimeout(() => setStep('new'), 200);
         } else {
-          setTimeout(() => handleSubmitPin(), 200);
+          const cp = currentDigitsRef.current.join('');
+          const np = next.join('');
+          setTimeout(() => handleSubmitPin(cp, np), 200);
         }
       }
 
@@ -84,6 +90,7 @@ export function ChangePinModal({ onClose }: ChangePinModalProps) {
       if (lastFilledIdx !== undefined && lastFilledIdx >= 0) {
         next[lastFilledIdx] = '';
       }
+      activeRef.current = next;
       return next;
     });
   };
