@@ -149,6 +149,11 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
       return;
     }
 
+    if (!driverForm.dni.trim()) {
+      setError('El DNI / NIE es obligatorio para el acceso del conductor');
+      return;
+    }
+
     const pin = driverForm.pin.join('');
     if (pin.length !== 4) {
       setError('Introduce un PIN de 4 digitos');
@@ -447,7 +452,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
 
               <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3.5">
                 <p className="text-blue-800 text-xs font-medium">
-                  Al crear el conductor se generara un enlace unico. Compartelo por WhatsApp para que pueda acceder con su PIN.
+                  El conductor iniciara sesion en <span className="font-bold">{window.location.origin}/conductor</span> con su DNI y PIN. El conductor podra cambiar su PIN en cualquier momento.
                 </p>
               </div>
 
@@ -465,7 +470,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  DNI / NIE <span className="text-slate-400 font-normal text-xs">(opcional)</span>
+                  DNI / NIE
                 </label>
                 <input
                   type="text"
@@ -478,7 +483,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">PIN de acceso (4 digitos)</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">PIN inicial (4 digitos)</label>
                 <div className="flex gap-3 justify-center">
                   {driverForm.pin.map((digit, i) => (
                     <input
@@ -500,7 +505,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
                     />
                   ))}
                 </div>
-                <p className="text-slate-500 text-xs mt-2 text-center">El conductor usara este PIN para acceder</p>
+                <p className="text-slate-500 text-xs mt-2 text-center">El conductor podra cambiar este PIN despues</p>
               </div>
 
               <button

@@ -9,6 +9,7 @@ import { ForgotPassword } from './pages/ForgotPassword';
 import { Dashboard } from './pages/Dashboard';
 import { DriverDashboard } from './pages/DriverDashboard';
 import { DriverAccess } from './pages/DriverAccess';
+import { DriverLogin } from './pages/DriverLogin';
 import { Lugares } from './pages/Lugares';
 import { Vehiculos } from './pages/Vehiculos';
 import { Historial } from './pages/Historial';
@@ -28,19 +29,21 @@ function getPublicDocumentId(): string | null {
   return match ? match[1] : null;
 }
 
-type AuthScreen = 'login' | 'register' | 'forgot-password';
+type AuthScreen = 'login' | 'register' | 'forgot-password' | 'driver-login';
 
 const AUTH_ROUTE_TO_SCREEN: Record<string, AuthScreen> = {
   '/': 'login',
   '/inicio': 'login',
   '/registro': 'register',
   '/recuperar': 'forgot-password',
+  '/conductor': 'driver-login',
 };
 
 const AUTH_SCREEN_TO_ROUTE: Record<AuthScreen, string> = {
   'login': '/',
   'register': '/registro',
   'forgot-password': '/recuperar',
+  'driver-login': '/conductor',
 };
 
 function getInitialAuthScreen(): AuthScreen {
@@ -173,13 +176,19 @@ function AppContent() {
   }, [session, profile]);
 
   const handleLogout = async () => {
+    const wasDriver = isDriver;
     await signOut();
     setCurrentScreen('dashboard');
-    setAuthScreen('login');
     setDriverToken(null);
     setShowTrialModal(false);
     setShowSubExpiredModal(false);
-    window.history.replaceState({}, '', '/');
+    if (wasDriver) {
+      setAuthScreen('driver-login');
+      window.history.replaceState({}, '', '/conductor');
+    } else {
+      setAuthScreen('login');
+      window.history.replaceState({}, '', '/');
+    }
   };
 
   const handleNavigate = (screen: AppScreen) => {
@@ -235,11 +244,18 @@ function AppContent() {
             onNavigateToLogin={() => navigateAuth('login')}
           />
         );
+      case 'driver-login':
+        return (
+          <DriverLogin
+            onNavigateToLogin={() => navigateAuth('login')}
+          />
+        );
       default:
         return (
           <Login
             onNavigateToRegister={() => navigateAuth('register')}
             onNavigateToForgotPassword={() => navigateAuth('forgot-password')}
+            onNavigateToDriverLogin={() => navigateAuth('driver-login')}
           />
         );
     }

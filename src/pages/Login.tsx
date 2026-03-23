@@ -5,9 +5,10 @@ import { useAuth } from '../context/AuthContext';
 interface LoginProps {
   onNavigateToRegister: () => void;
   onNavigateToForgotPassword: () => void;
+  onNavigateToDriverLogin?: () => void;
 }
 
-export function Login({ onNavigateToRegister, onNavigateToForgotPassword }: LoginProps) {
+export function Login({ onNavigateToRegister, onNavigateToForgotPassword, onNavigateToDriverLogin }: LoginProps) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -139,6 +140,17 @@ export function Login({ onNavigateToRegister, onNavigateToForgotPassword }: Logi
               Registrate aqui
             </button>
           </p>
+
+          {onNavigateToDriverLogin && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <button
+                onClick={onNavigateToDriverLogin}
+                className="w-full text-center text-slate-500 hover:text-slate-700 text-sm font-medium transition-colors"
+              >
+                Soy conductor
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

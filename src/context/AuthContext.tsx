@@ -16,6 +16,8 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
   driverLogin: (accessToken: string, pin: string) => Promise<{ error: string | null }>;
+  driverLoginByDni: (dni: string, pin: string) => Promise<{ error: string | null }>;
+  driverChangePin: (currentPin: string, newPin: string) => Promise<{ error: string | null }>;
   updateCompany: (data: Partial<Omit<Company, 'id' | 'created_at' | 'stripe_customer_id' | 'trial_ends_at'>>) => Promise<{ error: string | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
 }
@@ -258,6 +260,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
+  const driverLoginByDni = async (dni: string, pin: string) => {
+    const { data: result, ok } = await callEdgeFunction('driver-auth', {
+      action: 'login_dni',
+      dni,
+      pin,
+    });
+
+    if (!ok || result.error) {
+      return { error: result.error || 'Error de autenticacion' };
+    }
+
+    const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: result.token_hash,
+      type: 'magiclink',
+    });
+
+    if (verifyError || !verifyData.session) {
+      return { error: verifyError?.message || 'Error al establecer sesion' };
+    }
+
+    try {
+      localStorage.setItem('doko_driver_token', result.access_token);
+    } catch {}
+
+    return { error: null };
+  };
+
+  const driverChangePin = async (currentPin: string, newPin: string) => {
+    const { data: result, ok } = await callEdgeFunction('driver-auth', {
+      action: 'driver_change_pin',
+      current_pin: currentPin,
+      new_pin: newPin,
+    });
+
+    if (!ok || result.error) {
+      return { error: result.error || 'Error al cambiar PIN' };
+    }
+
+    return { error: null };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -274,6 +317,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetPassword,
         refreshProfile,
         driverLogin,
+        driverLoginByDni,
+        driverChangePin,
         updateCompany,
         updatePassword,
       }}

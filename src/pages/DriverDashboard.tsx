@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, LogOut, Clock, Loader2, ChevronRight, AlertTriangle, FilePlus } from 'lucide-react';
+import { FileText, LogOut, Clock, Loader2, ChevronRight, AlertTriangle, FilePlus, Key } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +8,7 @@ import { useSubscription } from '../context/SubscriptionContext';
 import { Document } from '../lib/supabase';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
 import { SaveAccessButton } from '../components/SaveAccessButton';
+import { ChangePinModal } from '../components/ChangePinModal';
 
 interface DriverDashboardProps {
   onCreateDocument: () => void;
@@ -20,6 +21,7 @@ export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: 
   const { documents, loadingDocuments } = useData();
   const { canCreateDocument } = useSubscription();
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
 
   const recentDocs = documents.slice(0, 10);
   const limitReached = !canCreateDocument();
@@ -40,13 +42,22 @@ export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: 
             <h1 className="text-lg font-bold text-slate-800">{profile?.full_name || 'Conductor'}</h1>
             <p className="text-xs text-slate-400 mt-0.5">{company?.name || ''}</p>
           </div>
-          <button
-            onClick={onLogout}
-            className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors"
-            title="Cerrar sesion"
-          >
-            <LogOut size={22} className="text-slate-600" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowChangePinModal(true)}
+              className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors"
+              title="Cambiar PIN"
+            >
+              <Key size={20} className="text-slate-500" />
+            </button>
+            <button
+              onClick={onLogout}
+              className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors"
+              title="Cerrar sesion"
+            >
+              <LogOut size={22} className="text-slate-600" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -126,6 +137,10 @@ export function DriverDashboard({ onCreateDocument, onViewDocument, onLogout }: 
           isAdmin={false}
           onClose={() => setShowLimitModal(false)}
         />
+      )}
+
+      {showChangePinModal && (
+        <ChangePinModal onClose={() => setShowChangePinModal(false)} />
       )}
     </div>
   );

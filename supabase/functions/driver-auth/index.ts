@@ -15,7 +15,7 @@ function jsonResponse(data: unknown, status = 200) {
   });
 }
 
-async function getAdminProfile(
+async function getAuthProfile(
   adminClient: ReturnType<typeof createClient>,
   req: Request
 ) {
@@ -35,6 +35,14 @@ async function getAdminProfile(
     .eq("id", user.id)
     .maybeSingle();
 
+  return profile || null;
+}
+
+async function getAdminProfile(
+  adminClient: ReturnType<typeof createClient>,
+  req: Request
+) {
+  const profile = await getAuthProfile(adminClient, req);
   if (!profile || profile.role !== "admin") return null;
   return profile;
 }
@@ -377,6 +385,97 @@ async function handleDeleteAdmin(
   return jsonResponse({ success: true });
 }
 
+async function handleLoginDni(
+  adminClient: ReturnType<typeof createClient>,
+  body: { dni: string; pin: string }
+) {
+  const { dni, pin } = body;
+  if (!dni || !pin) {
+    return jsonResponse({ error: "Se requiere DNI y PIN" }, 400);
+  }
+
+  if (!/^\d{4}$/.test(pin)) {
+    return jsonResponse({ error: "El PIN debe ser de 4 digitos" }, 400);
+  }
+
+  const { data: rows, error: verifyError } = await adminClient.rpc(
+    "verify_driver_pin_by_dni",
+    { p_dni: dni.trim(), p_pin: pin }
+  );
+
+  if (verifyError || !rows || rows.length === 0) {
+    return jsonResponse({ error: "DNI o PIN incorrecto" }, 401);
+  }
+
+  const match = rows[0];
+
+  const { data: profile } = await adminClient
+    .from("profiles")
+    .select("email")
+    .eq("id", match.driver_id)
+    .maybeSingle();
+
+  if (!profile) {
+    return jsonResponse({ error: "Perfil de conductor no encontrado" }, 500);
+  }
+
+  await adminClient
+    .from("profiles")
+    .update({ company_id: match.company_id })
+    .eq("id", match.driver_id);
+
+  const { data: linkData, error: linkError } =
+    await adminClient.auth.admin.generateLink({
+      type: "magiclink",
+      email: profile.email,
+    });
+
+  if (linkError || !linkData) {
+    return jsonResponse({ error: "Error al generar sesion" }, 500);
+  }
+
+  return jsonResponse({
+    token_hash: linkData.properties.hashed_token,
+    email: profile.email,
+    access_token: match.access_token,
+  });
+}
+
+async function handleDriverChangePin(
+  adminClient: ReturnType<typeof createClient>,
+  req: Request,
+  body: { current_pin: string; new_pin: string }
+) {
+  const profile = await getAuthProfile(adminClient, req);
+  if (!profile || profile.role !== "driver") {
+    return jsonResponse({ error: "No autorizado" }, 401);
+  }
+
+  const { current_pin, new_pin } = body;
+  if (!current_pin || !new_pin) {
+    return jsonResponse({ error: "Se requiere PIN actual y nuevo PIN" }, 400);
+  }
+
+  if (!/^\d{4}$/.test(new_pin)) {
+    return jsonResponse({ error: "El nuevo PIN debe ser de 4 digitos" }, 400);
+  }
+
+  const { data: result, error } = await adminClient.rpc(
+    "change_own_driver_pin",
+    {
+      p_driver_id: profile.id,
+      p_current_pin: current_pin,
+      p_new_pin: new_pin,
+    }
+  );
+
+  if (error || !result) {
+    return jsonResponse({ error: "PIN actual incorrecto" }, 401);
+  }
+
+  return jsonResponse({ success: true });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -408,6 +507,10 @@ Deno.serve(async (req: Request) => {
         return await handleCreateAdmin(adminClient, req, body);
       case "delete_admin":
         return await handleDeleteAdmin(adminClient, req, body);
+      case "login_dni":
+        return await handleLoginDni(adminClient, body);
+      case "driver_change_pin":
+        return await handleDriverChangePin(adminClient, req, body);
       default:
         return jsonResponse({ error: "Accion no valida" }, 400);
     }
