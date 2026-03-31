@@ -6,6 +6,7 @@ import { SubscriptionProvider, useSubscription } from './context/SubscriptionCon
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { DriverDashboard } from './pages/DriverDashboard';
 import { DriverAccess } from './pages/DriverAccess';
@@ -29,10 +30,10 @@ function getPublicDocumentId(): string | null {
   return match ? match[1] : null;
 }
 
-type AuthScreen = 'login' | 'register' | 'forgot-password' | 'driver-login';
+type AuthScreen = 'landing' | 'login' | 'register' | 'forgot-password' | 'driver-login';
 
 const AUTH_ROUTE_TO_SCREEN: Record<string, AuthScreen> = {
-  '/': 'login',
+  '/': 'landing',
   '/inicio': 'login',
   '/registro': 'register',
   '/recuperar': 'forgot-password',
@@ -40,14 +41,15 @@ const AUTH_ROUTE_TO_SCREEN: Record<string, AuthScreen> = {
 };
 
 const AUTH_SCREEN_TO_ROUTE: Record<AuthScreen, string> = {
-  'login': '/',
+  'landing': '/',
+  'login': '/inicio',
   'register': '/registro',
   'forgot-password': '/recuperar',
   'driver-login': '/conductor',
 };
 
 function getInitialAuthScreen(): AuthScreen {
-  return AUTH_ROUTE_TO_SCREEN[window.location.pathname] ?? 'login';
+  return AUTH_ROUTE_TO_SCREEN[window.location.pathname] ?? 'landing';
 }
 type AppScreen =
   | 'dashboard'
@@ -250,11 +252,19 @@ function AppContent() {
             onNavigateToLogin={() => navigateAuth('login')}
           />
         );
-      default:
+      case 'login':
         return (
           <Login
             onNavigateToRegister={() => navigateAuth('register')}
             onNavigateToForgotPassword={() => navigateAuth('forgot-password')}
+            onNavigateToDriverLogin={() => navigateAuth('driver-login')}
+          />
+        );
+      default:
+        return (
+          <LandingPage
+            onNavigateToLogin={() => navigateAuth('login')}
+            onNavigateToRegister={() => navigateAuth('register')}
             onNavigateToDriverLogin={() => navigateAuth('driver-login')}
           />
         );

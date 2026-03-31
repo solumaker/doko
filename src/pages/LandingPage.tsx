@@ -24,9 +24,10 @@ import {
 interface LandingPageProps {
   onNavigateToLogin: () => void;
   onNavigateToRegister: () => void;
+  onNavigateToDriverLogin?: () => void;
 }
 
-export function LandingPage({ onNavigateToLogin, onNavigateToRegister }: LandingPageProps) {
+export function LandingPage({ onNavigateToLogin, onNavigateToRegister, onNavigateToDriverLogin }: LandingPageProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const scrollTo = (id: string) => {
@@ -42,6 +43,7 @@ export function LandingPage({ onNavigateToLogin, onNavigateToRegister }: Landing
         onScrollTo={scrollTo}
         onLogin={onNavigateToLogin}
         onRegister={onNavigateToRegister}
+        onDriverLogin={onNavigateToDriverLogin}
       />
       <HeroSection onRegister={onNavigateToRegister} />
       <WhyDokoSection />
@@ -62,12 +64,14 @@ function Navbar({
   onScrollTo,
   onLogin,
   onRegister,
+  onDriverLogin,
 }: {
   mobileMenuOpen: boolean;
   setMobileMenuOpen: (v: boolean) => void;
   onScrollTo: (id: string) => void;
   onLogin: () => void;
   onRegister: () => void;
+  onDriverLogin?: () => void;
 }) {
   return (
     <nav className="fixed w-full z-50 bg-white border-b border-gray-100 shadow-sm">
@@ -91,6 +95,11 @@ function Navbar({
             <button onClick={() => onScrollTo('faq')} className="landing-nav-link transition text-slate-600 hover:text-doko-blue text-sm">
               FAQ
             </button>
+            {onDriverLogin && (
+              <button onClick={onDriverLogin} className="text-slate-500 hover:text-slate-700 font-medium transition text-sm">
+                Soy conductor
+              </button>
+            )}
             <button onClick={onLogin} className="text-slate-700 hover:text-doko-blue font-semibold transition text-sm">
               Iniciar sesion
             </button>
@@ -128,6 +137,13 @@ function Navbar({
           >
             Pruebalo gratis
           </button>
+          {onDriverLogin && (
+            <div className="pt-2 border-t border-slate-100">
+              <button onClick={onDriverLogin} className="block w-full text-center py-2 text-slate-500 font-medium text-sm">
+                Soy conductor
+              </button>
+            </div>
+          )}
         </div>
       )}
     </nav>
