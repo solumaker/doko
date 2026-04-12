@@ -380,7 +380,8 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
     const driverOverride = isAdmin && selectedDriver
       ? { name: selectedDriver.full_name, email: selectedDriver.email, dni: selectedDriver.dni || undefined }
       : undefined;
-    const newDoc = await addDocument(content, departureDate, driverOverride);
+    const creatorId = isAdmin && selectedDriver ? selectedDriver.id : undefined;
+    const newDoc = await addDocument(content, departureDate, driverOverride, creatorId);
     setGenerating(false);
     if (newDoc) onComplete(newDoc);
   };
