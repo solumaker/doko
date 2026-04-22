@@ -13,6 +13,7 @@ const PAGE_SIZE = 1000;
 async function fetchAll<T>(
   client: ReturnType<typeof createClient>,
   table: string,
+  columns: string,
 ): Promise<T[]> {
   const results: T[] = [];
   let from = 0;
@@ -20,7 +21,7 @@ async function fetchAll<T>(
     const to = from + PAGE_SIZE - 1;
     const { data, error } = await client
       .from(table)
-      .select("*")
+      .select(columns)
       .range(from, to);
     if (error) throw new Error(`Error fetching ${table}: ${error.message}`);
     if (!data || data.length === 0) break;
@@ -99,9 +100,21 @@ Deno.serve(async (req: Request) => {
     });
 
     const [companies, profiles, documents] = await Promise.all([
-      fetchAll<Record<string, unknown>>(admin, "companies"),
-      fetchAll<Record<string, unknown>>(admin, "profiles"),
-      fetchAll<Record<string, unknown>>(admin, "documents"),
+      fetchAll<Record<string, unknown>>(
+        admin,
+        "companies",
+        "id, name, cif, created_at, stripe_customer_id, trial_ends_at",
+      ),
+      fetchAll<Record<string, unknown>>(
+        admin,
+        "profiles",
+        "id, company_id, role, full_name, created_at",
+      ),
+      fetchAll<Record<string, unknown>>(
+        admin,
+        "documents",
+        "id, company_id, creator_id, created_at, pdf_url, driver_name",
+      ),
     ]);
 
     const usersByCompany = new Map<string, Record<string, unknown>[]>();
