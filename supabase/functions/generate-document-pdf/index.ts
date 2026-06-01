@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
+import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import QRCode from "npm:qrcode@1.5.3";
-import { INTER_LATIN_WOFF2_BASE64 } from "./fonts.ts";
 import { DOKO_HEADER_BASE64 } from "./logo.ts";
 
 const corsHeaders = {
@@ -10,13 +10,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
-
-interface SignatureData {
-  firmante: string;
-  dni: string;
-  firma_imagen: string;
-  fecha: string;
-}
 
 interface VehicleAmendment {
   tractor_plate?: string;
@@ -84,10 +77,6 @@ interface DocumentContent {
     dni?: string;
   };
   unloading_date?: string;
-  signatures?: {
-    origin?: SignatureData;
-    destination?: SignatureData;
-  };
 }
 
 interface DocumentRecord {
@@ -100,14 +89,22 @@ interface DocumentRecord {
   driver_name?: string;
 }
 
-function esc(str: string | undefined | null): string {
-  if (!str) return "";
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+// Colors
+const TEAL = rgb(0.02, 0.47, 0.55);
+const DARK_TEAL = rgb(0.01, 0.35, 0.42);
+const EMERALD = rgb(0.01, 0.47, 0.35);
+const SLATE_DARK = rgb(0.13, 0.16, 0.22);
+const SLATE_MED = rgb(0.28, 0.33, 0.42);
+const SLATE_LIGHT = rgb(0.58, 0.64, 0.72);
+const AMBER = rgb(0.7, 0.33, 0.04);
+const WHITE = rgb(1, 1, 1);
+const LIGHT_BG = rgb(0.97, 0.98, 0.99);
+const BORDER_GRAY = rgb(0.88, 0.9, 0.92);
+
+const PAGE_W = 595.28;
+const PAGE_H = 841.89;
+const MARGIN_X = 45;
+const CONTENT_W = PAGE_W - MARGIN_X * 2;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -128,506 +125,315 @@ function formatWeight(kg: number): string {
   return kg.toLocaleString("es-ES");
 }
 
-function buildOriginBlock(origin: DocumentContent["origin"]): string {
+function getOriginText(origin: DocumentContent["origin"]): string[] {
   const lines: string[] = [];
-  if (origin.empresa) lines.push(`<p class="name">${esc(origin.empresa)}</p>`);
+  if (origin.empresa) lines.push(origin.empresa);
   if (origin.domicilio) {
-    const parts = [origin.domicilio, origin.poblacion].filter(Boolean);
-    parts.forEach((p) => lines.push(`<p>${esc(p)}</p>`));
-    return lines.join("");
+    lines.push(origin.domicilio);
+    if (origin.poblacion) lines.push(origin.poblacion);
+    return lines;
   }
-  if (origin.name) lines.push(`<p>${esc(origin.name)}</p>`);
-  if (origin.address) lines.push(`<p>${esc(origin.address)}</p>`);
+  if (origin.name) lines.push(origin.name);
+  if (origin.address) lines.push(origin.address);
   const loc = [origin.postal_code, origin.city, origin.province ? `(${origin.province})` : ""].filter(Boolean).join(" ");
-  if (loc.trim()) lines.push(`<p>${esc(loc)}</p>`);
-  if (origin.contact_name) lines.push(`<p>Contacto: ${esc(origin.contact_name)}</p>`);
-  if (origin.phone) lines.push(`<p>Tel: ${esc(origin.phone)}</p>`);
-  return lines.join("");
+  if (loc.trim()) lines.push(loc);
+  if (origin.contact_name) lines.push(`Contacto: ${origin.contact_name}`);
+  if (origin.phone) lines.push(`Tel: ${origin.phone}`);
+  return lines;
 }
 
-function buildDestinationBlock(dest: DocumentContent["destination"], unloadingDate?: string): string {
+function getDestinationText(dest: DocumentContent["destination"]): string[] {
   const lines: string[] = [];
-  if (dest.empresa) lines.push(`<p class="name">${esc(dest.empresa)}</p>`);
+  if (dest.empresa) lines.push(dest.empresa);
   if (dest.domicilio) {
-    const parts = [dest.domicilio, dest.poblacion].filter(Boolean);
-    parts.forEach((p) => lines.push(`<p>${esc(p)}</p>`));
-    if (unloadingDate) lines.push(`<p class="detail" style="margin-top:4px;font-weight:600;">Descarga: ${esc(formatDate(unloadingDate))}</p>`);
-    return lines.join("");
+    lines.push(dest.domicilio);
+    if (dest.poblacion) lines.push(dest.poblacion);
+    return lines;
   }
-  if (dest.name) lines.push(`<p>${esc(dest.name)}</p>`);
-  if (dest.address) lines.push(`<p>${esc(dest.address)}</p>`);
+  if (dest.name) lines.push(dest.name);
+  if (dest.address) lines.push(dest.address);
   const loc = [dest.postal_code, dest.city, dest.province ? `(${dest.province})` : ""].filter(Boolean).join(" ");
-  if (loc.trim()) lines.push(`<p>${esc(loc)}</p>`);
-  if (dest.contact_name) lines.push(`<p>Contacto: ${esc(dest.contact_name)}</p>`);
-  if (dest.phone) lines.push(`<p>Tel: ${esc(dest.phone)}</p>`);
-  if (unloadingDate) lines.push(`<p class="detail" style="margin-top:4px;font-weight:600;">Descarga: ${esc(formatDate(unloadingDate))}</p>`);
-  return lines.join("");
+  if (loc.trim()) lines.push(loc);
+  if (dest.contact_name) lines.push(`Contacto: ${dest.contact_name}`);
+  if (dest.phone) lines.push(`Tel: ${dest.phone}`);
+  return lines;
 }
 
-function buildSignatureCell(sig: SignatureData | undefined, label: string): string {
-  if (!sig) {
-    return `<td><p style="color:#94a3b8;font-style:italic;font-size:8pt;">Sin firma</p></td>`;
+function drawSection(
+  page: ReturnType<typeof PDFDocument.prototype.addPage>,
+  x: number,
+  y: number,
+  w: number,
+  title: string,
+  accentColor: ReturnType<typeof rgb>,
+  lines: { text: string; bold?: boolean; size?: number }[],
+  fontRegular: Awaited<ReturnType<typeof PDFDocument.prototype.embedFont>>,
+  fontBold: Awaited<ReturnType<typeof PDFDocument.prototype.embedFont>>,
+): number {
+  const headerH = 20;
+  const lineHeight = 14;
+  const padding = 10;
+  const bodyH = lines.length * lineHeight + padding * 2;
+  const totalH = headerH + bodyH;
+
+  // Section background
+  page.drawRectangle({ x, y: y - totalH, width: w, height: totalH, color: WHITE });
+  // Border
+  page.drawRectangle({ x, y: y - totalH, width: w, height: totalH, borderColor: BORDER_GRAY, borderWidth: 1 });
+  // Header bar
+  page.drawRectangle({ x, y: y - headerH, width: w, height: headerH, color: accentColor });
+  // Header text
+  page.drawText(title.toUpperCase(), {
+    x: x + 8,
+    y: y - headerH + 6,
+    size: 7.5,
+    font: fontBold,
+    color: WHITE,
+  });
+
+  // Body lines
+  let lineY = y - headerH - padding - 10;
+  for (const line of lines) {
+    const font = line.bold ? fontBold : fontRegular;
+    const size = line.size || 9;
+    page.drawText(line.text, {
+      x: x + padding,
+      y: lineY,
+      size,
+      font,
+      color: line.bold ? SLATE_DARK : SLATE_MED,
+      maxWidth: w - padding * 2,
+    });
+    lineY -= lineHeight;
   }
-  return `<td>
-    <p style="font-weight:700;font-size:9.5pt;color:#0f172a;">${esc(sig.firmante)}</p>
-    <p style="font-size:8.5pt;color:#475569;">DNI: ${esc(sig.dni)}</p>
-    <p style="font-size:7.5pt;color:#94a3b8;">${esc(formatDateTime(sig.fecha))}</p>
-    ${sig.firma_imagen ? `<img src="${sig.firma_imagen}" alt="Firma ${esc(label)}" style="max-width:160px;max-height:70px;margin-top:6px;display:block;" />` : ""}
-  </td>`;
+
+  return totalH;
 }
 
-function buildHtml(doc: DocumentRecord, qrDataUrl: string, logoDataUrl: string): string {
+async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   const c = doc.content;
   const docId = doc.id.substring(0, 8).toUpperCase();
 
+  // === HEADER BAND ===
+  const headerH = 60;
+  page.drawRectangle({
+    x: 0, y: PAGE_H - headerH,
+    width: PAGE_W, height: headerH,
+    color: TEAL,
+  });
+
+  // Logo
+  let logoEndX = MARGIN_X;
+  try {
+    const logoBytes = Uint8Array.from(atob(DOKO_HEADER_BASE64), (ch) => ch.charCodeAt(0));
+    const logoImg = await pdfDoc.embedJpg(logoBytes);
+    const logoDims = logoImg.scaleToFit(130, 40);
+    page.drawImage(logoImg, {
+      x: MARGIN_X,
+      y: PAGE_H - headerH + (headerH - logoDims.height) / 2,
+      width: logoDims.width,
+      height: logoDims.height,
+    });
+    logoEndX = MARGIN_X + logoDims.width + 15;
+  } catch (e) {
+    console.error("Logo embed failed:", e);
+  }
+
+  // Title
+  page.drawText("DOCUMENTO DE CONTROL", {
+    x: logoEndX,
+    y: PAGE_H - 30,
+    size: 16,
+    font: fontBold,
+    color: WHITE,
+  });
+  page.drawText("Transporte de mercancias por carretera", {
+    x: logoEndX,
+    y: PAGE_H - 45,
+    size: 8,
+    font: fontRegular,
+    color: rgb(0.8, 0.92, 0.95),
+  });
+
+  // Doc ID badge (right)
+  const idText = `DOC-${docId}`;
+  const idWidth = fontBold.widthOfTextAtSize(idText, 10);
+  page.drawRectangle({
+    x: PAGE_W - MARGIN_X - idWidth - 16,
+    y: PAGE_H - 40,
+    width: idWidth + 16,
+    height: 20,
+    color: DARK_TEAL,
+  });
+  page.drawText(idText, {
+    x: PAGE_W - MARGIN_X - idWidth - 8,
+    y: PAGE_H - 35,
+    size: 10,
+    font: fontBold,
+    color: WHITE,
+  });
+
+  // === META ROW ===
+  let cursorY = PAGE_H - headerH - 18;
+  const driverName = c.driver?.name || doc.driver_name || "";
+  const metaLeft = `Salida: ${formatDate(doc.departure_date)}`;
+  const metaRight = driverName ? `Conductor: ${driverName}` : `Generado: ${formatDateTime(doc.created_at)}`;
+
+  page.drawText(metaLeft, { x: MARGIN_X, y: cursorY, size: 8, font: fontRegular, color: SLATE_LIGHT });
+  const mrWidth = fontRegular.widthOfTextAtSize(metaRight, 8);
+  page.drawText(metaRight, { x: PAGE_W - MARGIN_X - mrWidth, y: cursorY, size: 8, font: fontRegular, color: SLATE_LIGHT });
+
+  cursorY -= 22;
+
+  // === CARGADOR / TRANSPORTISTA (two columns) ===
+  const colW = (CONTENT_W - 12) / 2;
+
   const shipperName = c.contractual_shipper?.nombre || c.company.name;
-  const shipperNif = c.contractual_shipper
-    ? `NIF: ${c.contractual_shipper.nif}`
-    : `CIF: ${c.company.cif}`;
+  const shipperNif = c.contractual_shipper ? `NIF: ${c.contractual_shipper.nif}` : `CIF: ${c.company.cif}`;
   const shipperAddr = c.contractual_shipper
     ? `${c.contractual_shipper.domicilio}, ${c.contractual_shipper.poblacion}`
-    : `${c.company.address}, ${c.company.postal_code} ${c.company.city} (${c.company.province})`;
+    : `${c.company.address}, ${c.company.postal_code} ${c.company.city}`;
 
+  const shipperLines = [
+    { text: shipperName, bold: true, size: 10 },
+    { text: shipperNif },
+    { text: shipperAddr },
+  ];
+
+  const carrierLines = [
+    { text: c.company.name, bold: true, size: 10 },
+    { text: `CIF: ${c.company.cif}` },
+    { text: `${c.company.address}, ${c.company.postal_code} ${c.company.city}` },
+    ...(c.company.phone ? [{ text: `Tel: ${c.company.phone}` }] : []),
+  ];
+
+  const h1 = drawSection(page, MARGIN_X, cursorY, colW, "Cargador Contractual", TEAL, shipperLines, fontRegular, fontBold);
+  const h2 = drawSection(page, MARGIN_X + colW + 12, cursorY, colW, "Transportista Efectivo", TEAL, carrierLines, fontRegular, fontBold);
+  cursorY -= Math.max(h1, h2) + 12;
+
+  // === ORIGEN / DESTINO (two columns) ===
+  const originTextLines = getOriginText(c.origin);
+  const originLines = originTextLines.map((t, i) => ({ text: t, bold: i === 0, size: i === 0 ? 10 : 9 }));
+  originLines.push({ text: `Salida: ${formatDate(doc.departure_date)}`, bold: true, size: 8.5 });
+
+  const destTextLines = getDestinationText(c.destination);
+  const destLines = destTextLines.map((t, i) => ({ text: t, bold: i === 0, size: i === 0 ? 10 : 9 }));
+  if (c.unloading_date) {
+    destLines.push({ text: `Descarga: ${formatDate(c.unloading_date)}`, bold: true, size: 8.5 });
+  }
+
+  const h3 = drawSection(page, MARGIN_X, cursorY, colW, "Origen", EMERALD, originLines, fontRegular, fontBold);
+  const h4 = drawSection(page, MARGIN_X + colW + 12, cursorY, colW, "Destino", EMERALD, destLines, fontRegular, fontBold);
+  cursorY -= Math.max(h3, h4) + 12;
+
+  // === VEHICULO (full width) ===
   const trailerPlate1 = c.vehicle.trailer_plate_1 || c.vehicle.trailer_plate || "";
-
-  const vehicleRows: string[] = [];
-  vehicleRows.push(`<tr><th scope="row">Cabeza Tractora</th><td>${esc(c.vehicle.tractor_plate)}</td></tr>`);
+  const vehicleLines: { text: string; bold?: boolean; size?: number }[] = [
+    { text: `Cabeza Tractora:  ${c.vehicle.tractor_plate}`, bold: true, size: 11 },
+  ];
   if (trailerPlate1) {
-    vehicleRows.push(`<tr><th scope="row">Remolque 1</th><td>${esc(trailerPlate1)}</td></tr>`);
+    vehicleLines.push({ text: `Remolque 1:  ${trailerPlate1}`, bold: true, size: 11 });
   }
   if (c.vehicle.trailer_plate_2) {
-    vehicleRows.push(`<tr><th scope="row">Remolque 2</th><td>${esc(c.vehicle.trailer_plate_2)}</td></tr>`);
+    vehicleLines.push({ text: `Remolque 2:  ${c.vehicle.trailer_plate_2}`, bold: true, size: 11 });
   }
 
-  const driverName = c.driver?.name || doc.driver_name || "";
-  const driverDni = c.driver?.dni || "";
+  const h5 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Vehiculo", SLATE_DARK, vehicleLines, fontRegular, fontBold);
+  cursorY -= h5 + 12;
 
-  return `<!DOCTYPE html>
-<html lang="es-ES">
-<head>
-<meta charset="UTF-8">
-<title>Documento de Control DOC-${esc(docId)}</title>
-<meta name="author" content="DOKO - Sistema de Control de Transporte">
-<meta name="description" content="Documento de control de transporte de mercancias">
-<style>
-  @font-face {
-    font-family: 'Inter';
-    font-style: normal;
-    font-weight: 100 900;
-    font-display: block;
-    src: url(data:font/woff2;base64,${INTER_LATIN_WOFF2_BASE64}) format('woff2');
-    unicode-range: U+0000-024F, U+0259, U+1E00-1EFF, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  // === CONDUCTOR (full width, if present) ===
+  if (driverName) {
+    const driverDni = c.driver?.dni || "";
+    const driverLines: { text: string; bold?: boolean; size?: number }[] = [
+      { text: driverName, bold: true, size: 10 },
+    ];
+    if (driverDni) driverLines.push({ text: `DNI: ${driverDni}` });
+
+    const h6 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Conductor", SLATE_DARK, driverLines, fontRegular, fontBold);
+    cursorY -= h6 + 12;
   }
 
-  @page { size: A4; margin: 0; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Inter', sans-serif;
-    color: #1e293b;
-    background: #fff;
-    width: 210mm;
-    min-height: 297mm;
-    padding: 18mm 16mm 14mm 16mm;
-    font-size: 10.5pt;
-    line-height: 1.45;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  // === MERCANCIA (full width) ===
+  const cargoLines: { text: string; bold?: boolean; size?: number }[] = [
+    { text: c.cargo.description, bold: true, size: 10 },
+  ];
+  if (c.cargo.packages != null && c.cargo.packages > 0) {
+    cargoLines.push({ text: `Bultos: ${c.cargo.packages}` });
+  }
+  cargoLines.push({ text: `Peso bruto: ${formatWeight(c.cargo.weight_kg)} kg`, bold: true, size: 12 });
+
+  const h7 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Mercancia", AMBER, cargoLines, fontRegular, fontBold);
+  cursorY -= h7 + 30;
+
+  // === QR CODE (large, centered) ===
+  try {
+    const qrImg = await pdfDoc.embedPng(qrPngBytes);
+    const qrSize = 140;
+    const qrX = (PAGE_W - qrSize) / 2;
+    const qrY = cursorY - qrSize;
+
+    // Light background behind QR
+    page.drawRectangle({
+      x: qrX - 12,
+      y: qrY - 12,
+      width: qrSize + 24,
+      height: qrSize + 24,
+      color: LIGHT_BG,
+      borderColor: BORDER_GRAY,
+      borderWidth: 1,
+    });
+
+    page.drawImage(qrImg, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+
+    const captionText = "Escanea para verificar la autenticidad";
+    const captionW = fontRegular.widthOfTextAtSize(captionText, 8);
+    page.drawText(captionText, {
+      x: (PAGE_W - captionW) / 2,
+      y: qrY - 16,
+      size: 8,
+      font: fontRegular,
+      color: SLATE_LIGHT,
+    });
+
+    cursorY = qrY - 35;
+  } catch (e) {
+    console.error("QR embed failed:", e);
   }
 
-  header[role="banner"] {
-    display: flex;
-    align-items: center;
-    border-bottom: 3px solid #1e40af;
-    padding-bottom: 10px;
-    margin-bottom: 6px;
-    gap: 18px;
-  }
-  header .header-logo {
-    flex-shrink: 0;
-    width: 58mm;
-  }
-  header .header-logo img {
-    width: 100%;
-    height: auto;
-    display: block;
-  }
-  header .header-text {
-    flex: 1;
-    text-align: right;
-  }
-  header h1 {
-    font-size: 16pt;
-    font-weight: 800;
-    color: #1e40af;
-    letter-spacing: 1.5px;
-    margin-bottom: 2px;
-  }
-  header h2.subtitle {
-    font-size: 8.5pt;
-    color: #64748b;
-    font-weight: 400;
-  }
-
-  .meta-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 8.5pt;
-    color: #64748b;
-    margin-bottom: 14px;
-    padding-top: 6px;
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .section {
-    border: 1.5px solid #cbd5e1;
-    border-radius: 6px;
-    overflow: hidden;
-  }
-  .section-heading {
-    background: #1e40af;
-    color: #fff;
-    font-size: 8pt;
-    font-weight: 700;
-    letter-spacing: 1.2px;
-    text-transform: uppercase;
-    padding: 5px 10px;
-    margin: 0;
-  }
-  .section-heading.green { background: #047857; }
-  .section-heading.slate { background: #334155; }
-  .section-heading.amber { background: #b45309; }
-
-  .section-body {
-    padding: 8px 10px;
-    font-size: 9.5pt;
-  }
-  .section-body p {
-    margin-bottom: 1px;
-  }
-  .section-body .name {
-    font-weight: 700;
-    font-size: 10.5pt;
-    color: #0f172a;
-    margin-bottom: 2px;
-  }
-  .section-body .detail {
-    color: #475569;
-  }
-
-  .full-width { grid-column: 1 / -1; }
-
-  table.vehicle-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  table.vehicle-table th {
-    font-size: 8pt;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: left;
-    padding: 2px 10px;
-    font-weight: 400;
-    width: 40%;
-  }
-  table.vehicle-table td {
-    font-family: 'Inter', monospace;
-    font-weight: 600;
-    font-size: 11pt;
-    letter-spacing: 1px;
-    color: #0f172a;
-    padding: 2px 10px;
-  }
-
-  table.cargo-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  table.cargo-table th {
-    font-size: 8pt;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: left;
-    padding: 2px 0;
-    font-weight: 400;
-  }
-  table.cargo-table td {
-    padding: 2px 0;
-  }
-  table.cargo-table td.cargo-desc {
-    font-weight: 700;
-    font-size: 10.5pt;
-    color: #0f172a;
-  }
-  table.cargo-table td.cargo-weight {
-    font-size: 13pt;
-    font-weight: 800;
-    color: #0f172a;
-    text-align: right;
-  }
-
-  table.sig-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  table.sig-table th {
-    font-size: 8pt;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: left;
-    padding: 10px 10px 4px;
-    font-weight: 400;
-    width: 50%;
-    border-right: 1px solid #e2e8f0;
-  }
-  table.sig-table th:last-child { border-right: none; }
-  table.sig-table td {
-    font-size: 9pt;
-    font-weight: 600;
-    color: #334155;
-    padding: 0 10px 30px;
-    vertical-align: top;
-    border-right: 1px solid #e2e8f0;
-  }
-  table.sig-table td:last-child { border-right: none; }
-
-  footer[role="contentinfo"] {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 7.5pt;
-    color: #94a3b8;
-    border-top: 1px solid #e2e8f0;
-    padding-top: 8px;
-  }
-  footer .brand {
-    font-weight: 700;
-    color: #64748b;
-    letter-spacing: 2px;
-  }
-
-  @media print {
-    body { background: #fff; }
-    section { break-inside: avoid; }
-  }
-</style>
-</head>
-<body role="document">
-
-<header role="banner">
-  ${logoDataUrl ? `<div class="header-logo"><img src="${logoDataUrl}" alt="DOKO" /></div>` : ""}
-  <div class="header-text">
-    <h1>DOCUMENTO DE CONTROL</h1>
-    <h2 class="subtitle">Conforme a la normativa vigente de transporte de mercanc&iacute;as por carretera</h2>
-  </div>
-</header>
-
-<div class="meta-row" aria-label="Identificaci&oacute;n del documento">
-  <span>DOC-${esc(docId)}</span>
-  <span>${c.driver?.name ? `Conductor: ${esc(c.driver.name)} &middot; ` : ""}Generado: ${esc(formatDateTime(doc.created_at))}</span>
-  ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR Documento" style="width:60px;height:60px;margin-left:auto;" />` : ""}
-</div>
-
-<main role="main">
-<div class="grid">
-
-  <section class="section" aria-labelledby="sec-shipper">
-    <h3 class="section-heading" id="sec-shipper">Cargador Contractual</h3>
-    <div class="section-body">
-      <p class="name">${esc(shipperName)}</p>
-      <p class="detail">${esc(shipperNif)}</p>
-      <p class="detail">${esc(shipperAddr)}</p>
-      ${c.company.phone && !c.contractual_shipper ? `<p class="detail">Tel: ${esc(c.company.phone)}</p>` : ""}
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="sec-carrier">
-    <h3 class="section-heading" id="sec-carrier">Transportista Efectivo</h3>
-    <div class="section-body">
-      <p class="name">${esc(c.company.name)}</p>
-      <p class="detail">CIF: ${esc(c.company.cif)}</p>
-      <p class="detail">${esc([c.company.address, c.company.postal_code, c.company.city, c.company.province ? `(${c.company.province})` : ""].filter(Boolean).join(", "))}</p>
-      ${c.company.phone ? `<p class="detail">Tel: ${esc(c.company.phone)}</p>` : ""}
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="sec-origin">
-    <h3 class="section-heading green" id="sec-origin">Origen</h3>
-    <div class="section-body">
-      ${buildOriginBlock(c.origin)}
-      <p class="detail" style="margin-top:4px;font-weight:600;">Salida: ${esc(formatDate(doc.departure_date))}</p>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="sec-dest">
-    <h3 class="section-heading green" id="sec-dest">Destino</h3>
-    <div class="section-body">
-      ${buildDestinationBlock(c.destination, c.unloading_date)}
-    </div>
-  </section>
-
-  <section class="section full-width" aria-labelledby="sec-vehicle">
-    <h3 class="section-heading slate" id="sec-vehicle">Veh&iacute;culo</h3>
-    <div class="section-body">
-      <table class="vehicle-table" aria-label="Matr&iacute;culas del veh&iacute;culo">
-        <tbody>
-          ${vehicleRows.join("\n          ")}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  ${driverName ? `<section class="section full-width" aria-labelledby="sec-driver">
-    <h3 class="section-heading slate" id="sec-driver">Conductor</h3>
-    <div class="section-body">
-      <table class="vehicle-table" aria-label="Datos del conductor">
-        <tbody>
-          <tr><th scope="row">Nombre</th><td>${esc(driverName)}</td></tr>
-          ${driverDni ? `<tr><th scope="row">DNI</th><td>${esc(driverDni)}</td></tr>` : ""}
-        </tbody>
-      </table>
-    </div>
-  </section>` : ""}
-
-  <section class="section full-width" aria-labelledby="sec-cargo">
-    <h3 class="section-heading amber" id="sec-cargo">Mercanc&iacute;a</h3>
-    <div class="section-body">
-      <table class="cargo-table" aria-label="Datos de la mercanc&iacute;a">
-        <thead>
-          <tr>
-            <th scope="col">Descripci&oacute;n</th>
-            ${c.cargo.packages != null && c.cargo.packages > 0 ? `<th scope="col">Bultos</th>` : ""}
-            <th scope="col" style="text-align:right;">Peso bruto</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="cargo-desc">${esc(c.cargo.description)}</td>
-            ${c.cargo.packages != null && c.cargo.packages > 0 ? `<td>${c.cargo.packages}</td>` : ""}
-            <td class="cargo-weight">${formatWeight(c.cargo.weight_kg)} kg</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-</div>
-
-</main>
-
-<footer role="contentinfo">
-  <p>Este documento ha sido generado digitalmente &mdash; <span class="brand">DOKO</span></p>
-  <p>Verificable mediante c&oacute;digo QR</p>
-</footer>
-
-</body>
-</html>`;
-}
-
-function buildMetadataJson(doc: DocumentRecord): string {
-  const docId = doc.id.substring(0, 8).toUpperCase();
-  return JSON.stringify({
-    "dc:title": `Documento de Control DOC-${docId}`,
-    "dc:creator": ["DOKO - Sistema de Control de Transporte"],
-    "dc:description": "Documento de control de transporte de mercancias",
-    "dc:language": "es-ES",
-    "dc:subject": "Documento de control de transporte de mercancias por carretera",
-    "dc:date": new Date(doc.created_at).toISOString(),
-    "pdf:Producer": "DOKO - Sistema de Control de Transporte",
-    "Marked": true,
+  // === FOOTER ===
+  const footerText = "Este documento ha sido generado digitalmente — DOKO";
+  const footerW = fontRegular.widthOfTextAtSize(footerText, 7.5);
+  page.drawText(footerText, {
+    x: (PAGE_W - footerW) / 2,
+    y: 30,
+    size: 7.5,
+    font: fontRegular,
+    color: SLATE_LIGHT,
   });
-}
 
-async function convertHtmlToPdf(html: string, doc: DocumentRecord): Promise<ArrayBuffer> {
-  const gotenbergUrl = Deno.env.get("GOTENBERG_URL");
-  if (!gotenbergUrl) {
-    throw new Error("GOTENBERG_URL environment variable is not set");
-  }
+  // Thin line above footer
+  page.drawLine({
+    start: { x: MARGIN_X, y: 45 },
+    end: { x: PAGE_W - MARGIN_X, y: 45 },
+    thickness: 0.5,
+    color: BORDER_GRAY,
+  });
 
-  const MAX_ATTEMPTS = 3;
-  const RETRY_DELAYS = [2000, 5000];
+  // Set metadata
+  pdfDoc.setTitle(`Documento de Control DOC-${docId}`);
+  pdfDoc.setAuthor("DOKO - Sistema de Control de Transporte");
+  pdfDoc.setSubject("Documento de control de transporte de mercancias por carretera");
+  pdfDoc.setCreator("DOKO");
+  pdfDoc.setProducer("pdf-lib");
+  pdfDoc.setCreationDate(new Date(doc.created_at));
 
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const formData = new FormData();
-
-    const htmlBlob = new Blob([html], { type: "text/html" });
-    formData.append("files", htmlBlob, "index.html");
-
-    formData.append("paperWidth", "8.27");
-    formData.append("paperHeight", "11.69");
-    formData.append("marginTop", "0");
-    formData.append("marginBottom", "0");
-    formData.append("marginLeft", "0");
-    formData.append("marginRight", "0");
-    formData.append("preferCssPageSize", "false");
-    formData.append("printBackground", "true");
-
-    formData.append("emulatedMediaType", "print");
-    formData.append("waitDelay", "1s");
-    formData.append("failOnConsoleExceptions", "true");
-    formData.append("generateTaggedPDF", "true");
-
-    const metadataBlob = new Blob([buildMetadataJson(doc)], { type: "application/json" });
-    formData.append("metadata", metadataBlob, "metadata.json");
-
-    let response: Response;
-    try {
-      response = await fetch(
-        `${gotenbergUrl}/forms/chromium/convert/html`,
-        { method: "POST", body: formData, signal: AbortSignal.timeout(30000) }
-      );
-    } catch (fetchErr) {
-      if (attempt < MAX_ATTEMPTS - 1) {
-        console.log(`Gotenberg fetch failed (attempt ${attempt + 1}), retrying in ${RETRY_DELAYS[attempt]}ms...`);
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
-        continue;
-      }
-      throw fetchErr;
-    }
-
-    if (response.status === 503 || response.status === 429) {
-      if (attempt < MAX_ATTEMPTS - 1) {
-        console.log(`Gotenberg returned ${response.status} (attempt ${attempt + 1}), retrying in ${RETRY_DELAYS[attempt]}ms...`);
-        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
-        continue;
-      }
-    }
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      const contentType = response.headers.get("content-type") || "unknown";
-      throw new Error(
-        `Gotenberg error: status=${response.status} content-type=${contentType} body=${errorText.substring(0, 500)}`
-      );
-    }
-
-    const pdfBuffer = await response.arrayBuffer();
-
-    if (pdfBuffer.byteLength < 1024) {
-      throw new Error(
-        `Gotenberg returned suspiciously small PDF: ${pdfBuffer.byteLength} bytes`
-      );
-    }
-
-    const pdfHeader = new Uint8Array(pdfBuffer.slice(0, 5));
-    const headerStr = String.fromCharCode(...pdfHeader);
-    if (headerStr !== "%PDF-") {
-      throw new Error(
-        `Gotenberg response is not a valid PDF (header: ${headerStr})`
-      );
-    }
-
-    return pdfBuffer;
-  }
-
-  throw new Error("Gotenberg: max retry attempts exceeded");
+  return await pdfDoc.save();
 }
 
 Deno.serve(async (req: Request) => {
@@ -676,28 +482,27 @@ Deno.serve(async (req: Request) => {
       .from("document-pdfs")
       .getPublicUrl(originalFileName);
 
-    let qrDataUrl = "";
+    // Generate QR as PNG buffer
+    let qrPngBytes = new Uint8Array(0);
     try {
-      qrDataUrl = await QRCode.toDataURL(origUrlData.publicUrl, { width: 120, margin: 1 });
+      const qrBuffer = await QRCode.toBuffer(origUrlData.publicUrl, {
+        width: 400,
+        margin: 1,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      });
+      qrPngBytes = new Uint8Array(qrBuffer);
     } catch (qrErr) {
       console.error("QR generation failed:", qrErr);
     }
 
-    const logoDataUrl = `data:image/jpeg;base64,${DOKO_HEADER_BASE64}`;
-
-    const html = buildHtml(doc, qrDataUrl, logoDataUrl);
-
-    let pdfBytes: ArrayBuffer;
+    let pdfBytes: Uint8Array;
     try {
-      pdfBytes = await convertHtmlToPdf(html, doc);
+      pdfBytes = await generatePdf(doc, qrPngBytes);
     } catch (pdfError) {
       const errorMsg = pdfError instanceof Error ? pdfError.message : String(pdfError);
       console.error("PDF generation failed:", errorMsg);
       return new Response(
-        JSON.stringify({
-          error: "PDF generation failed",
-          details: errorMsg,
-        }),
+        JSON.stringify({ error: "PDF generation failed", details: errorMsg }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
