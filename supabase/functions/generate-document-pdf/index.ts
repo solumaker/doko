@@ -551,58 +551,83 @@ async function convertHtmlToPdf(html: string, doc: DocumentRecord): Promise<Arra
     throw new Error("GOTENBERG_URL environment variable is not set");
   }
 
-  const formData = new FormData();
+  const MAX_ATTEMPTS = 3;
+  const RETRY_DELAYS = [2000, 5000];
 
-  const htmlBlob = new Blob([html], { type: "text/html" });
-  formData.append("files", htmlBlob, "index.html");
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const formData = new FormData();
 
-  formData.append("paperWidth", "8.27");
-  formData.append("paperHeight", "11.69");
-  formData.append("marginTop", "0");
-  formData.append("marginBottom", "0");
-  formData.append("marginLeft", "0");
-  formData.append("marginRight", "0");
-  formData.append("preferCssPageSize", "false");
-  formData.append("printBackground", "true");
+    const htmlBlob = new Blob([html], { type: "text/html" });
+    formData.append("files", htmlBlob, "index.html");
 
-  formData.append("emulatedMediaType", "print");
-  formData.append("waitDelay", "1s");
-  formData.append("failOnConsoleExceptions", "true");
-  formData.append("generateTaggedPDF", "true");
+    formData.append("paperWidth", "8.27");
+    formData.append("paperHeight", "11.69");
+    formData.append("marginTop", "0");
+    formData.append("marginBottom", "0");
+    formData.append("marginLeft", "0");
+    formData.append("marginRight", "0");
+    formData.append("preferCssPageSize", "false");
+    formData.append("printBackground", "true");
 
-  const metadataBlob = new Blob([buildMetadataJson(doc)], { type: "application/json" });
-  formData.append("metadata", metadataBlob, "metadata.json");
+    formData.append("emulatedMediaType", "print");
+    formData.append("waitDelay", "1s");
+    formData.append("failOnConsoleExceptions", "true");
+    formData.append("generateTaggedPDF", "true");
 
-  const response = await fetch(
-    `${gotenbergUrl}/forms/chromium/convert/html`,
-    { method: "POST", body: formData }
-  );
+    const metadataBlob = new Blob([buildMetadataJson(doc)], { type: "application/json" });
+    formData.append("metadata", metadataBlob, "metadata.json");
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    const contentType = response.headers.get("content-type") || "unknown";
-    throw new Error(
-      `Gotenberg error: status=${response.status} content-type=${contentType} body=${errorText.substring(0, 500)}`
-    );
+    let response: Response;
+    try {
+      response = await fetch(
+        `${gotenbergUrl}/forms/chromium/convert/html`,
+        { method: "POST", body: formData, signal: AbortSignal.timeout(30000) }
+      );
+    } catch (fetchErr) {
+      if (attempt < MAX_ATTEMPTS - 1) {
+        console.log(`Gotenberg fetch failed (attempt ${attempt + 1}), retrying in ${RETRY_DELAYS[attempt]}ms...`);
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+        continue;
+      }
+      throw fetchErr;
+    }
+
+    if (response.status === 503 || response.status === 429) {
+      if (attempt < MAX_ATTEMPTS - 1) {
+        console.log(`Gotenberg returned ${response.status} (attempt ${attempt + 1}), retrying in ${RETRY_DELAYS[attempt]}ms...`);
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+        continue;
+      }
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const contentType = response.headers.get("content-type") || "unknown";
+      throw new Error(
+        `Gotenberg error: status=${response.status} content-type=${contentType} body=${errorText.substring(0, 500)}`
+      );
+    }
+
+    const pdfBuffer = await response.arrayBuffer();
+
+    if (pdfBuffer.byteLength < 1024) {
+      throw new Error(
+        `Gotenberg returned suspiciously small PDF: ${pdfBuffer.byteLength} bytes`
+      );
+    }
+
+    const pdfHeader = new Uint8Array(pdfBuffer.slice(0, 5));
+    const headerStr = String.fromCharCode(...pdfHeader);
+    if (headerStr !== "%PDF-") {
+      throw new Error(
+        `Gotenberg response is not a valid PDF (header: ${headerStr})`
+      );
+    }
+
+    return pdfBuffer;
   }
 
-  const pdfBuffer = await response.arrayBuffer();
-
-  if (pdfBuffer.byteLength < 1024) {
-    throw new Error(
-      `Gotenberg returned suspiciously small PDF: ${pdfBuffer.byteLength} bytes`
-    );
-  }
-
-  const pdfHeader = new Uint8Array(pdfBuffer.slice(0, 5));
-  const headerStr = String.fromCharCode(...pdfHeader);
-  if (headerStr !== "%PDF-") {
-    throw new Error(
-      `Gotenberg response is not a valid PDF (header: ${headerStr})`
-    );
-  }
-
-  return pdfBuffer;
+  throw new Error("Gotenberg: max retry attempts exceeded");
 }
 
 Deno.serve(async (req: Request) => {

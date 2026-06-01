@@ -14,6 +14,7 @@ import {
   FileText,
   ShieldCheck,
   MapPin,
+  RotateCcw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -72,12 +73,46 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
     (initialDoc.pdf_url || initialDoc.pdf_original_url) ? 100 : 3
   );
   const resolvedRef = useRef(false);
+  const [pdfFailed, setPdfFailed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const resolvePdf = (updatedDoc: Partial<Document>) => {
     if (resolvedRef.current) return;
     resolvedRef.current = true;
     setPdfProgress(100);
+    setPdfFailed(false);
     setDoc((prev) => ({ ...prev, ...updatedDoc }));
+  };
+
+  const handleRetryPdf = async () => {
+    setRetrying(true);
+    setPdfFailed(false);
+    resolvedRef.current = false;
+    setPdfProgress(10);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setPdfFailed(true); setRetrying(false); return; }
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-document-pdf`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ documentId: doc.id }),
+        }
+      );
+      if (response.ok) {
+        const result = await response.json();
+        resolvePdf({ pdf_url: result.pdf_url, pdf_original_url: result.pdf_original_url });
+      } else {
+        setPdfFailed(true);
+      }
+    } catch {
+      setPdfFailed(true);
+    }
+    setRetrying(false);
   };
 
   useEffect(() => {
@@ -136,9 +171,18 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
       }
     }, 4000);
 
+    const failTimeout = setTimeout(() => {
+      if (!resolvedRef.current) {
+        clearTimeout(animFrameId);
+        clearInterval(pollInterval);
+        setPdfFailed(true);
+      }
+    }, 60000);
+
     return () => {
       clearTimeout(animFrameId);
       clearInterval(pollInterval);
+      clearTimeout(failTimeout);
       supabase.removeChannel(channel);
     };
   }, [doc.id]);
@@ -291,7 +335,23 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
               </div>
             </div>
 
-            {pdfProgress < 100 ? (
+            {pdfFailed ? (
+              <div className="bg-white rounded-2xl border border-red-200 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={16} className="text-red-500 shrink-0" />
+                  <span className="text-xs font-semibold text-slate-700">La generacion del PDF tardo mas de lo esperado</span>
+                </div>
+                <p className="text-[10px] text-slate-500">Puede deberse a un arranque temporal del servidor. Pulsa reintentar para volver a generar el documento.</p>
+                <button
+                  onClick={handleRetryPdf}
+                  disabled={retrying}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors text-sm"
+                >
+                  {retrying ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />}
+                  {retrying ? 'Reintentando...' : 'Reintentar'}
+                </button>
+              </div>
+            ) : pdfProgress < 100 ? (
               <div className="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
