@@ -524,7 +524,7 @@ function buildHtml(doc: DocumentRecord, qrDataUrl: string, logoDataUrl: string):
 
 <footer role="contentinfo">
   <p>Este documento ha sido generado digitalmente &mdash; <span class="brand">DOKO</span></p>
-  <p>Formato PDF/A &middot; V&aacute;lido para archivo y cumplimiento normativo</p>
+  <p>Verificable mediante c&oacute;digo QR</p>
 </footer>
 
 </body>
@@ -603,63 +603,6 @@ async function convertHtmlToPdf(html: string, doc: DocumentRecord): Promise<Arra
   }
 
   return pdfBuffer;
-}
-
-async function convertToPdfA(pdfBytes: ArrayBuffer): Promise<ArrayBuffer> {
-  const convertApiToken = Deno.env.get("CONVERTAPI_TOKEN");
-  if (!convertApiToken) {
-    throw new Error("CONVERTAPI_TOKEN environment variable is not set");
-  }
-
-  const formData = new FormData();
-  const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
-  formData.append("File", pdfBlob, "document.pdf");
-  formData.append("PdfaVersion", "PdfA1a");
-
-  const response = await fetch("https://v2.convertapi.com/convert/pdf/to/pdfa", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${convertApiToken}`,
-    },
-    body: formData,
-    signal: AbortSignal.timeout(45000),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `ConvertAPI error: status=${response.status} body=${errorText.substring(0, 500)}`
-    );
-  }
-
-  const result = await response.json();
-  const file = result.Files?.[0];
-
-  if (!file) {
-    const keys = Object.keys(result).join(", ");
-    throw new Error(`ConvertAPI response has no Files array. Keys: ${keys}`);
-  }
-
-  if (file.FileData) {
-    const binaryString = atob(file.FileData);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-  }
-
-  if (file.Url) {
-    console.log("FileData absent, downloading from ConvertAPI Url...");
-    const downloadResp = await fetch(file.Url, { signal: AbortSignal.timeout(30000) });
-    if (!downloadResp.ok) {
-      throw new Error(`Failed to download PDF/A from ConvertAPI Url: status=${downloadResp.status}`);
-    }
-    return await downloadResp.arrayBuffer();
-  }
-
-  const fileKeys = Object.keys(file).join(", ");
-  throw new Error(`ConvertAPI file has neither FileData nor Url. Keys: ${fileKeys}`);
 }
 
 Deno.serve(async (req: Request) => {
@@ -748,58 +691,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    let pdfaUrl: string | null = null;
-    let pdfaError: string | null = null;
-
-    try {
-      console.log("Starting PDF/A conversion...");
-      const pdfaBytes = await convertToPdfA(pdfBytes);
-      console.log(`PDF/A conversion done, size: ${pdfaBytes.byteLength} bytes`);
-
-      const pdfaHeader = new Uint8Array(pdfaBytes.slice(0, 5));
-      const pdfaHeaderStr = String.fromCharCode(...pdfaHeader);
-      if (pdfaHeaderStr !== "%PDF-") {
-        throw new Error(`Converted file is not a valid PDF (header: ${pdfaHeaderStr})`);
-      }
-
-      const pdfaFileName = `converted/${doc.id}.pdf`;
-      const { error: pdfaUploadError } = await supabase.storage
-        .from("document-pdfs")
-        .upload(pdfaFileName, pdfaBytes, {
-          contentType: "application/pdf",
-          upsert: true,
-        });
-
-      if (pdfaUploadError) {
-        throw new Error(`Storage upload failed: ${pdfaUploadError.message}`);
-      }
-
-      const { data: pdfaUrlData } = supabase.storage
-        .from("document-pdfs")
-        .getPublicUrl(pdfaFileName);
-
-      pdfaUrl = pdfaUrlData.publicUrl;
-      console.log("PDF/A uploaded successfully:", pdfaUrl);
-    } catch (convError) {
-      pdfaError = convError instanceof Error ? convError.message : String(convError);
-      console.error("PDF/A-1a conversion failed:", pdfaError);
-    }
-
-    const dbUpdate: Record<string, string> = {
-      pdf_original_url: origUrlData.publicUrl,
-    };
-    if (pdfaUrl) {
-      dbUpdate.pdf_url = pdfaUrl;
-    }
+    const pdfUrl = origUrlData.publicUrl;
 
     const { error: updateError } = await supabase
       .from("documents")
-      .update(dbUpdate)
+      .update({ pdf_url: pdfUrl, pdf_original_url: pdfUrl })
       .eq("id", documentId);
 
     if (updateError) {
       return new Response(
-        JSON.stringify({ error: "Failed to update document with PDF URLs", details: updateError }),
+        JSON.stringify({ error: "Failed to update document with PDF URL", details: updateError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -807,10 +708,8 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        pdf_original_url: origUrlData.publicUrl,
-        pdf_url: pdfaUrl,
-        pdfa_conversion_failed: pdfaUrl === null,
-        pdfa_error: pdfaError,
+        pdf_original_url: pdfUrl,
+        pdf_url: pdfUrl,
         sizeBytes: pdfBytes.byteLength,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

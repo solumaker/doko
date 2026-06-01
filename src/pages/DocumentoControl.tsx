@@ -54,7 +54,7 @@ const PDF_PHASES = [
   { label: 'Preparando documento', threshold: 0 },
   { label: 'Generando estructura PDF', threshold: 20 },
   { label: 'Aplicando formato legal', threshold: 40 },
-  { label: 'Convirtiendo a PDF/A', threshold: 60 },
+  { label: 'Finalizando documento', threshold: 60 },
   { label: 'Subiendo archivo', threshold: 78 },
 ];
 
@@ -317,7 +317,7 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
                 className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 transition-colors shadow-md shadow-emerald-500/20"
               >
                 <Download size={20} />
-                Descargar PDF{!doc.pdf_url && doc.pdf_original_url ? ' (Original)' : ''}
+                Descargar PDF
               </button>
             )}
 

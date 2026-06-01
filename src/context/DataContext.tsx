@@ -49,9 +49,6 @@ async function triggerPdfRegen(documentId: string, onSuccess: (result: { pdf_ori
     if (response.ok) {
       const result = await response.json();
       onSuccess(result);
-      if (result.pdfa_conversion_failed) {
-        console.error('PDF/A conversion failed:', result.pdfa_error);
-      }
     } else {
       const errorText = await response.text();
       console.error('Edge function error:', errorText);
