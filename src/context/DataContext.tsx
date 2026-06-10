@@ -252,7 +252,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         company_id: profile.company_id,
         creator_id: creatorId || user.id,
         content: fullContent,
-        departure_date: departureDate.toISOString(),
+        departure_date: `${departureDate.getFullYear()}-${String(departureDate.getMonth() + 1).padStart(2, '0')}-${String(departureDate.getDate()).padStart(2, '0')}`,
         driver_name: driverData.name,
       })
       .select()

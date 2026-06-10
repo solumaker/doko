@@ -374,7 +374,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         description: cargo.description,
         weight_kg: cargo.weight_kg,
       },
-      unloading_date: hasUnloadingDate ? unloadingDate.toISOString() : undefined,
+      unloading_date: hasUnloadingDate ? format(unloadingDate, 'yyyy-MM-dd') : undefined,
       company: { name: '', cif: '', address: '', city: '', province: '', postal_code: '', phone: '' },
     };
     const driverOverride = isAdmin && selectedDriver

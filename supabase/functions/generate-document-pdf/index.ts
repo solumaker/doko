@@ -107,8 +107,9 @@ const MARGIN_X = 45;
 const CONTENT_W = PAGE_W - MARGIN_X * 2;
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
+  const d = new Date(iso.length === 10 ? iso + "T12:00:00" : iso);
   return d.toLocaleDateString("es-ES", {
+    timeZone: "Europe/Madrid",
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -118,7 +119,7 @@ function formatDate(iso: string): string {
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString("es-ES")} ${d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`;
+  return `${d.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} ${d.toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })}`;
 }
 
 function formatWeight(kg: number): string {
