@@ -175,16 +175,26 @@ export interface VehicleAmendment {
 }
 
 export interface DocumentContent {
+  acting_as?: 'transportista' | 'cargador';
   contractual_shipper?: {
     nombre: string;
     nif: string;
     domicilio: string;
     poblacion: string;
+    postal_code?: string;
+  };
+  transportista_efectivo?: {
+    nombre: string;
+    nif: string;
+    domicilio: string;
+    poblacion: string;
+    postal_code?: string;
   };
   origin: {
     empresa?: string;
     domicilio?: string;
     poblacion?: string;
+    nif?: string;
     name?: string;
     address?: string;
     city?: string;
@@ -197,6 +207,7 @@ export interface DocumentContent {
     empresa?: string;
     domicilio?: string;
     poblacion?: string;
+    nif?: string;
     name?: string;
     address?: string;
     city?: string;
@@ -211,6 +222,7 @@ export interface DocumentContent {
     trailer_plate_2?: string;
     trailer_plate?: string;
     alias?: string;
+    special_authorization?: string;
     amendments?: VehicleAmendment[];
   };
   cargo: {
@@ -218,6 +230,7 @@ export interface DocumentContent {
     packages?: number;
     weight_kg: number;
   };
+  observations?: string;
   unloading_date?: string;
   company: {
     name: string;

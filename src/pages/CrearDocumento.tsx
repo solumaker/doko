@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,7 +9,6 @@ import {
   Calendar,
   Check,
   Loader2,
-  Clock,
   ChevronDown,
   FileText,
   User,
@@ -19,7 +18,7 @@ import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { supabase, Document, DocumentContent, ShipperHistory, Location, Profile } from '../lib/supabase';
+import { supabase, Document, DocumentContent, Profile } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
@@ -30,30 +29,21 @@ interface CrearDocumentoProps {
 }
 
 type Step = 1 | 2 | 3 | 4 | 5;
+type ActingAs = 'transportista' | 'cargador';
 
-interface ShipperForm {
+interface PartyForm {
   nombre: string;
+  domicilio: string;
+  postal_code: string;
+  poblacion: string;
   nif: string;
-  domicilio: string;
-  poblacion: string;
-}
-
-interface OriginForm {
-  empresa: string;
-  domicilio: string;
-  poblacion: string;
-}
-
-interface DestinationForm {
-  empresa: string;
-  domicilio: string;
-  poblacion: string;
 }
 
 interface VehicleForm {
   tractor_plate: string;
   trailer_plate_1: string;
   trailer_plate_2: string;
+  special_authorization: string;
 }
 
 interface CargoForm {
@@ -61,10 +51,56 @@ interface CargoForm {
   weight_kg: number;
 }
 
-const inputClass =
-  'w-full p-3.5 border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none text-slate-900 placeholder:text-slate-400 transition-all';
+const emptyParty: PartyForm = { nombre: '', domicilio: '', postal_code: '', poblacion: '', nif: '' };
 
-function DateDropdown({ selected, onChange, label }: { selected: Date; onChange: (d: Date) => void; label: string }) {
+const inputClass =
+  'w-full px-4 py-3 border border-slate-300 rounded-lg text-sm focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 focus:outline-none text-slate-900 placeholder:text-slate-400 transition-all bg-white';
+
+const sectionTitle = 'text-2xl font-extrabold text-slate-900 tracking-tight';
+const sectionSubtitle = 'text-sm text-slate-500 mt-1';
+const fieldLabel = 'block text-sm font-bold text-slate-900 mb-1.5';
+
+function StepBadge({ step }: { step: Step }) {
+  return (
+    <span className="inline-block bg-blue-50 text-blue-700 font-bold text-xs px-3 py-1 rounded-full">
+      Paso {step}
+    </span>
+  );
+}
+
+function ProgressBars({ step }: { step: Step }) {
+  return (
+    <div className="grid grid-cols-5 gap-2 mt-4 mb-6">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          className={`h-1 rounded-full transition-colors ${i <= step ? 'bg-blue-700' : 'bg-slate-200'}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <label className="flex items-center gap-3 cursor-pointer select-none">
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors shrink-0 ${
+          checked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white hover:border-slate-400'
+        }`}
+      >
+        {checked && <Check size={16} className="text-white" strokeWidth={3} />}
+      </button>
+      <span className="text-sm text-slate-700 font-medium" onClick={() => onChange(!checked)}>
+        {label}
+      </span>
+    </label>
+  );
+}
+
+function DateDropdown({ selected, onChange }: { selected: Date; onChange: (d: Date) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -81,13 +117,13 @@ function DateDropdown({ selected, onChange, label }: { selected: Date; onChange:
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-3.5 border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none text-slate-900 bg-white active:bg-slate-50 transition-all"
+        className="w-full flex items-center justify-between px-4 py-3 border border-slate-300 rounded-lg focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 focus:outline-none text-slate-900 bg-white hover:bg-slate-50 transition-all"
       >
         <span className="flex items-center gap-3">
-          <Calendar size={20} className="text-blue-700 flex-shrink-0" />
-          <span className="font-medium">{format(selected, "d 'de' MMMM, yyyy", { locale: es })}</span>
+          <Calendar size={18} className="text-blue-700 shrink-0" />
+          <span className="font-bold text-sm">{format(selected, "d 'de' MMMM, yyyy", { locale: es })}</span>
         </span>
-        <ChevronDown size={20} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={18} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
@@ -100,106 +136,107 @@ function DateDropdown({ selected, onChange, label }: { selected: Date; onChange:
   );
 }
 
-function LocationAutocomplete({
-  value,
+function PartyFields({
+  data,
   onChange,
-  locations,
-  placeholder,
+  showNombre = true,
+  nombreLabel = 'Nombre de empresa',
+  nombreRequired = true,
+  nifRequired = true,
 }: {
-  value: string;
-  onChange: (val: string, loc?: Location) => void;
-  locations: Location[];
-  placeholder: string;
+  data: PartyForm;
+  onChange: (next: PartyForm) => void;
+  showNombre?: boolean;
+  nombreLabel?: string;
+  nombreRequired?: boolean;
+  nifRequired?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const [suggestions, setSuggestions] = useState<Location[]>([]);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const handleChange = (v: string) => {
-    onChange(v);
-    if (v.trim().length >= 1) {
-      const q = v.toLowerCase();
-      const matches = locations.filter(
-        (l) =>
-          l.name.toLowerCase().includes(q) ||
-          l.city.toLowerCase().includes(q) ||
-          l.address.toLowerCase().includes(q)
-      );
-      setSuggestions(matches.slice(0, 5));
-      setOpen(matches.length > 0);
-    } else {
-      setSuggestions([]);
-      setOpen(false);
-    }
-  };
-
   return (
-    <div className="relative" ref={ref}>
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => handleChange(e.target.value)}
-        onFocus={() => { if (value.trim().length >= 1) setOpen(suggestions.length > 0); }}
-        className={inputClass}
-        placeholder={placeholder}
-        autoComplete="off"
-      />
-      {open && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-          {suggestions.map((loc) => (
-            <button
-              key={loc.id}
-              type="button"
-              onMouseDown={(e) => { e.preventDefault(); onChange(loc.name, loc); setOpen(false); }}
-              className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors"
-            >
-              <div className="bg-blue-50 p-1.5 rounded-lg flex-shrink-0">
-                <MapPin size={16} className="text-blue-700" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-slate-900 text-sm truncate">{loc.name}</p>
-                <p className="text-xs text-slate-500 truncate">{loc.address}, {loc.city}</p>
-              </div>
-            </button>
-          ))}
+    <div className="space-y-5">
+      {showNombre && (
+        <div>
+          <label className={fieldLabel}>{nombreLabel}{nombreRequired ? ' *' : ''}</label>
+          <input
+            type="text"
+            value={data.nombre}
+            onChange={(e) => onChange({ ...data, nombre: e.target.value })}
+            className={inputClass}
+            placeholder="Ingrese el nombre de la empresa"
+          />
         </div>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+          <label className={fieldLabel}>Domicilio *</label>
+          <input
+            type="text"
+            value={data.domicilio}
+            onChange={(e) => onChange({ ...data, domicilio: e.target.value })}
+            className={inputClass}
+            placeholder="Ingrese el domicilio"
+          />
+        </div>
+        <div>
+          <label className={fieldLabel}>Codigo Postal *</label>
+          <input
+            type="text"
+            value={data.postal_code}
+            onChange={(e) => onChange({ ...data, postal_code: e.target.value })}
+            className={inputClass}
+            placeholder="Ingresa el codigo postal"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+          <label className={fieldLabel}>Poblacion *</label>
+          <input
+            type="text"
+            value={data.poblacion}
+            onChange={(e) => onChange({ ...data, poblacion: e.target.value })}
+            className={inputClass}
+            placeholder="Ingrese la poblacion"
+          />
+        </div>
+        <div>
+          <label className={fieldLabel}>NIF{nifRequired ? ' *' : ''}</label>
+          <input
+            type="text"
+            value={data.nif}
+            onChange={(e) => onChange({ ...data, nif: e.target.value })}
+            className={inputClass}
+            placeholder="Ingresa el NIF"
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
 export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDocumentoProps) {
-  const { addDocument, shipperHistory, locations } = useData();
-  const { isAdmin, profile } = useAuth();
+  const { addDocument } = useData();
+  const { isAdmin, profile, company, isCargador } = useAuth();
   const { canCreateDocument, purchaseDocumentPack } = useSubscription();
 
   const [step, setStep] = useState<Step>(1);
   const [generating, setGenerating] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
 
-  const [shipper, setShipper] = useState<ShipperForm>({ nombre: '', nif: '', domicilio: '', poblacion: '' });
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestions, setSuggestions] = useState<ShipperHistory[]>([]);
-  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const [actingAs, setActingAs] = useState<ActingAs>(isCargador ? 'cargador' : 'transportista');
 
+  const [counterparty, setCounterparty] = useState<PartyForm>(emptyParty);
   const [originSameAsShipper, setOriginSameAsShipper] = useState(false);
-  const [origin, setOrigin] = useState<OriginForm>({ empresa: '', domicilio: '', poblacion: '' });
-
-  const [destination, setDestination] = useState<DestinationForm>({ empresa: '', domicilio: '', poblacion: '' });
-  const [vehicle, setVehicle] = useState<VehicleForm>({ tractor_plate: '', trailer_plate_1: '', trailer_plate_2: '' });
+  const [destinationSameAsShipper, setDestinationSameAsShipper] = useState(false);
+  const [origin, setOrigin] = useState<PartyForm>(emptyParty);
+  const [destination, setDestination] = useState<PartyForm>(emptyParty);
+  const [vehicle, setVehicle] = useState<VehicleForm>({ tractor_plate: '', trailer_plate_1: '', trailer_plate_2: '', special_authorization: '' });
   const [cargo, setCargo] = useState<CargoForm>({ description: '', weight_kg: 0 });
   const [departureDate, setDepartureDate] = useState(new Date());
   const [hasUnloadingDate, setHasUnloadingDate] = useState(false);
   const [unloadingDate, setUnloadingDate] = useState(new Date());
+  const [observations, setObservations] = useState('');
 
   const [companyDrivers, setCompanyDrivers] = useState<Profile[]>([]);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
@@ -236,102 +273,47 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
       )
     : companyDrivers;
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const counterpartyLabel = actingAs === 'transportista' ? 'CARGADOR CONTRACTUAL' : 'TRANSPORTISTA EFECTIVO';
+  const counterpartySubtitle = actingAs === 'transportista' ? 'Ingresa los datos del cargador contractual' : 'Ingresa los datos del transportista efectivo';
 
-  const handleShipperNombreChange = (value: string) => {
-    setShipper((s) => ({ ...s, nombre: value }));
-    if (value.trim().length >= 1) {
-      const q = value.toLowerCase();
-      const historyMatches = shipperHistory.filter(
-        (h) =>
-          h.nombre.toLowerCase().includes(q) ||
-          h.nif.toLowerCase().includes(q) ||
-          h.poblacion.toLowerCase().includes(q)
-      );
-      const locationMatches = locations
-        .filter(
-          (l) =>
-            l.name.toLowerCase().includes(q) ||
-            l.city.toLowerCase().includes(q) ||
-            l.address.toLowerCase().includes(q)
-        )
-        .filter((l) => !historyMatches.some((h) => h.nombre.toLowerCase() === l.name.toLowerCase()))
-        .map((l) => ({
-          id: `loc-${l.id}`,
-          nombre: l.name,
-          nif: l.nif || '',
-          domicilio: l.address,
-          poblacion: l.city,
-          company_id: '',
-          created_at: '',
-        } as ShipperHistory));
-      const combined = [...historyMatches, ...locationMatches].slice(0, 6);
-      setSuggestions(combined);
-      setShowSuggestions(combined.length > 0);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
-  };
+  const ownParty: PartyForm = useMemo(() => ({
+    nombre: company?.name || '',
+    domicilio: company?.address || '',
+    postal_code: company?.postal_code || '',
+    poblacion: company?.city || '',
+    nif: company?.cif || '',
+  }), [company]);
 
-  const applyShipperSuggestion = (h: ShipperHistory) => {
-    setShipper({ nombre: h.nombre, nif: h.nif, domicilio: h.domicilio, poblacion: h.poblacion });
-    setShowSuggestions(false);
-  };
+  const cargadorContractual: PartyForm = actingAs === 'cargador' ? ownParty : counterparty;
+  const transportistaEfectivo: PartyForm = actingAs === 'transportista' ? ownParty : counterparty;
 
-  const applyOriginLocation = (locName: string, loc?: Location) => {
-    if (loc) {
-      setOrigin({
-        empresa: loc.name,
-        domicilio: loc.address,
-        poblacion: loc.city,
-      });
-    } else {
-      setOrigin((o) => ({ ...o, empresa: locName }));
-    }
-  };
+  const effectiveOrigin: PartyForm = originSameAsShipper ? cargadorContractual : origin;
+  const effectiveDestination: PartyForm = destinationSameAsShipper ? cargadorContractual : destination;
 
-  const applyDestinationLocation = (locName: string, loc?: Location) => {
-    if (loc) {
-      setDestination({
-        empresa: loc.name,
-        domicilio: loc.address,
-        poblacion: loc.city,
-      });
-    } else {
-      setDestination((d) => ({ ...d, empresa: locName }));
-    }
-  };
-
-  const effectiveOrigin: OriginForm = originSameAsShipper
-    ? { empresa: shipper.nombre, domicilio: shipper.domicilio, poblacion: shipper.poblacion }
-    : origin;
+  const validParty = (p: PartyForm) =>
+    p.domicilio.trim() !== '' && p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
 
   const canProceed = () => {
     switch (step) {
       case 1:
         return (
-          shipper.nombre.trim() !== '' &&
-          shipper.nif.trim() !== '' &&
-          shipper.domicilio.trim() !== '' &&
-          shipper.poblacion.trim() !== '' &&
-          effectiveOrigin.domicilio.trim() !== '' &&
-          effectiveOrigin.poblacion.trim() !== ''
+          counterparty.nombre.trim() !== '' &&
+          counterparty.domicilio.trim() !== '' &&
+          counterparty.postal_code.trim() !== '' &&
+          counterparty.poblacion.trim() !== '' &&
+          counterparty.nif.trim() !== ''
         );
       case 2:
-        return destination.domicilio.trim() !== '' && destination.poblacion.trim() !== '';
+        return validParty(effectiveOrigin) && validParty(effectiveDestination);
       case 3:
-        return vehicle.tractor_plate.trim() !== '' && (!isAdmin || selectedDriverId !== '');
+        return (
+          vehicle.tractor_plate.trim() !== '' &&
+          cargo.description.trim() !== '' &&
+          cargo.weight_kg > 0 &&
+          (!isAdmin || selectedDriverId !== '')
+        );
       case 4:
-        return cargo.description.trim() !== '' && cargo.weight_kg > 0;
+        return true;
       case 5:
         return true;
       default:
@@ -339,7 +321,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
     }
   };
 
-  const handleNext = () => { if (step < 5) setStep((step + 1) as Step); };
+  const handleNext = () => { if (step < 5 && canProceed()) setStep((step + 1) as Step); };
   const handleBack = () => { if (step > 1) setStep((step - 1) as Step); else onBack(); };
 
   const handleGenerate = async () => {
@@ -348,35 +330,52 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
       return;
     }
     setGenerating(true);
+
     const content: DocumentContent = {
+      acting_as: actingAs,
       contractual_shipper: {
-        nombre: shipper.nombre,
-        nif: shipper.nif,
-        domicilio: shipper.domicilio,
-        poblacion: shipper.poblacion,
+        nombre: cargadorContractual.nombre,
+        nif: cargadorContractual.nif,
+        domicilio: cargadorContractual.domicilio,
+        poblacion: cargadorContractual.poblacion,
+        postal_code: cargadorContractual.postal_code,
+      },
+      transportista_efectivo: {
+        nombre: transportistaEfectivo.nombre,
+        nif: transportistaEfectivo.nif,
+        domicilio: transportistaEfectivo.domicilio,
+        poblacion: transportistaEfectivo.poblacion,
+        postal_code: transportistaEfectivo.postal_code,
       },
       origin: {
-        empresa: effectiveOrigin.empresa || undefined,
+        empresa: effectiveOrigin.nombre || undefined,
         domicilio: effectiveOrigin.domicilio,
         poblacion: effectiveOrigin.poblacion,
+        postal_code: effectiveOrigin.postal_code,
+        nif: effectiveOrigin.nif || undefined,
       },
       destination: {
-        empresa: destination.empresa || undefined,
-        domicilio: destination.domicilio,
-        poblacion: destination.poblacion,
+        empresa: effectiveDestination.nombre || undefined,
+        domicilio: effectiveDestination.domicilio,
+        poblacion: effectiveDestination.poblacion,
+        postal_code: effectiveDestination.postal_code,
+        nif: effectiveDestination.nif || undefined,
       },
       vehicle: {
         tractor_plate: vehicle.tractor_plate,
         trailer_plate_1: vehicle.trailer_plate_1 || undefined,
         trailer_plate_2: vehicle.trailer_plate_2 || undefined,
+        special_authorization: vehicle.special_authorization || undefined,
       },
       cargo: {
         description: cargo.description,
         weight_kg: cargo.weight_kg,
       },
+      observations: observations.trim() || undefined,
       unloading_date: hasUnloadingDate ? format(unloadingDate, 'yyyy-MM-dd') : undefined,
       company: { name: '', cif: '', address: '', city: '', province: '', postal_code: '', phone: '' },
     };
+
     const driverOverride = isAdmin && selectedDriver
       ? { name: selectedDriver.full_name, email: selectedDriver.email, dni: selectedDriver.dni || undefined }
       : undefined;
@@ -386,307 +385,169 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
     if (newDoc) onComplete(newDoc);
   };
 
-  const stepTitles = ['Cargador y Origen', 'Destino', 'Vehiculo', 'Carga y Fechas', 'Confirmar'];
+  const renderRoleSelector = () => (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <h2 className={sectionTitle}>Situacion profesional</h2>
+      <p className={sectionSubtitle}>Selecciona una opcion para continuar</p>
 
-  const renderProgressBar = () => {
-    const progress = (step / 5) * 100;
-    return (
-      <div className="bg-white border-b border-slate-200/80 px-4 py-3 md:border-b-0 md:bg-transparent md:px-0 md:py-0 md:mb-6">
-        <div className="md:max-w-4xl md:mx-auto md:px-4">
-          <div className="md:bg-white md:rounded-2xl md:border md:border-slate-200/80 md:shadow-sm md:px-6 md:py-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Progreso de Creacion</span>
-              <span className="text-sm font-medium text-slate-600">Paso {step} de 5</span>
-            </div>
-            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full bg-blue-700 transition-all duration-300 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+        <button
+          type="button"
+          onClick={() => setActingAs('transportista')}
+          className={`relative text-left rounded-xl border-2 p-4 transition-all flex items-center gap-4 ${
+            actingAs === 'transportista'
+              ? 'border-blue-600 bg-blue-50/40'
+              : 'border-slate-200 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center ${
+            actingAs === 'transportista' ? 'bg-blue-100' : 'bg-slate-100'
+          }`}>
+            <Truck size={24} className={actingAs === 'transportista' ? 'text-blue-700' : 'text-slate-500'} />
           </div>
-        </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-slate-900">Transportista</p>
+            <p className="text-xs text-slate-500 leading-relaxed mt-0.5">
+              Genero el documento como transportista
+            </p>
+          </div>
+          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+            actingAs === 'transportista' ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'
+          }`}>
+            {actingAs === 'transportista' && <Check size={12} className="text-white" strokeWidth={3} />}
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActingAs('cargador')}
+          className={`relative text-left rounded-xl border-2 p-4 transition-all flex items-center gap-4 ${
+            actingAs === 'cargador'
+              ? 'border-blue-600 bg-blue-50/40'
+              : 'border-slate-200 bg-white hover:border-slate-300'
+          }`}
+        >
+          <div className={`shrink-0 w-12 h-12 rounded-lg flex items-center justify-center ${
+            actingAs === 'cargador' ? 'bg-blue-100' : 'bg-slate-100'
+          }`}>
+            <Building2 size={24} className={actingAs === 'cargador' ? 'text-blue-700' : 'text-slate-500'} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-bold text-slate-900">Cargador</p>
+            <p className="text-xs text-slate-500 leading-relaxed mt-0.5">
+              Genero el documento como cargador
+            </p>
+          </div>
+          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+            actingAs === 'cargador' ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'
+          }`}>
+            {actingAs === 'cargador' && <Check size={12} className="text-white" strokeWidth={3} />}
+          </div>
+        </button>
       </div>
-    );
-  };
+    </div>
+  );
 
   const renderStep1 = () => (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+    <div className="space-y-5">
+      {renderRoleSelector()}
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <StepBadge step={1} />
+        <ProgressBars step={step} />
+
         <div className="mb-6">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">CARGADOR CONTRACTUAL</h2>
-          <p className="text-sm text-slate-500">Ingresa los datos del cargador contractual</p>
+          <h2 className={sectionTitle}>{counterpartyLabel}</h2>
+          <p className={sectionSubtitle}>{counterpartySubtitle}</p>
         </div>
 
-        <div className="space-y-4">
-          <div className="relative" ref={suggestionsRef}>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre de empresa</label>
-            <input
-              type="text"
-              value={shipper.nombre}
-              onChange={(e) => handleShipperNombreChange(e.target.value)}
-              onFocus={() => { if (shipper.nombre.trim().length >= 1) setShowSuggestions(suggestions.length > 0); }}
-              className={inputClass}
-              placeholder="Buscar o escribir nombre"
-              autoComplete="off"
-            />
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-                {suggestions.map((h) => (
-                  <button
-                    key={h.id}
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); applyShipperSuggestion(h); }}
-                    className="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors"
-                  >
-                    <div className="bg-blue-50 p-1.5 rounded-lg flex-shrink-0">
-                      <Building2 size={16} className="text-blue-700" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900 text-sm truncate">{h.nombre}</p>
-                      <p className="text-xs text-slate-500 truncate">{h.nif} · {h.poblacion}</p>
-                    </div>
-                    <ChevronDown size={16} className="text-slate-400 flex-shrink-0 -rotate-90" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">NIF</label>
-            <input
-              type="text"
-              value={shipper.nif}
-              onChange={(e) => setShipper({ ...shipper, nif: e.target.value })}
-              className={inputClass}
-              placeholder="NIF de la empresa"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Domicilio</label>
-            <input
-              type="text"
-              value={shipper.domicilio}
-              onChange={(e) => setShipper({ ...shipper, domicilio: e.target.value })}
-              className={inputClass}
-              placeholder="Direccion completa"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Poblacion</label>
-            <input
-              type="text"
-              value={shipper.poblacion}
-              onChange={(e) => setShipper({ ...shipper, poblacion: e.target.value })}
-              className={inputClass}
-              placeholder="Ciudad o poblacion"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <div className="mb-4">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">ORIGEN</h2>
-          <p className="text-sm text-slate-500">Lugar donde se realiza la carga</p>
-        </div>
-
-        <label className="flex items-center gap-3 mb-5 cursor-pointer select-none">
-          <div
-            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${originSameAsShipper ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'}`}
-            onClick={() => setOriginSameAsShipper(!originSameAsShipper)}
-          >
-            {originSameAsShipper && <Check size={16} className="text-white" />}
-          </div>
-          <span className="text-sm text-slate-700 font-medium" onClick={() => setOriginSameAsShipper(!originSameAsShipper)}>
-            El Origen es igual que el Cargador contractual
-          </span>
-        </label>
-
-        {originSameAsShipper ? (
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
-            <p className="text-sm text-slate-600"><span className="font-semibold text-slate-800">Empresa:</span> {shipper.nombre || '—'}</p>
-            <p className="text-sm text-slate-600"><span className="font-semibold text-slate-800">Domicilio:</span> {shipper.domicilio || '—'}</p>
-            <p className="text-sm text-slate-600"><span className="font-semibold text-slate-800">Poblacion:</span> {shipper.poblacion || '—'}</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre de empresa</label>
-              <LocationAutocomplete
-                value={origin.empresa}
-                onChange={applyOriginLocation}
-                locations={locations}
-                placeholder="Buscar en Mis Lugares..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Domicilio</label>
-              <input
-                type="text"
-                value={origin.domicilio}
-                onChange={(e) => setOrigin({ ...origin, domicilio: e.target.value })}
-                className={inputClass}
-                placeholder="Direccion completa"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Poblacion</label>
-              <input
-                type="text"
-                value={origin.poblacion}
-                onChange={(e) => setOrigin({ ...origin, poblacion: e.target.value })}
-                className={inputClass}
-                placeholder="Ciudad o poblacion"
-              />
-            </div>
-          </div>
-        )}
+        <PartyFields data={counterparty} onChange={setCounterparty} />
       </div>
     </div>
   );
 
   const renderStep2 = () => (
-    <div className="p-4 md:p-6">
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <div className="mb-6">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">DESTINO</h2>
-          <p className="text-sm text-slate-500">Lugar donde se realiza la entrega</p>
-        </div>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <StepBadge step={2} />
+      <ProgressBars step={step} />
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre de empresa</label>
-            <LocationAutocomplete
-              value={destination.empresa}
-              onChange={applyDestinationLocation}
-              locations={locations}
-              placeholder="Buscar en Mis Lugares..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Domicilio</label>
-            <input
-              type="text"
-              value={destination.domicilio}
-              onChange={(e) => setDestination({ ...destination, domicilio: e.target.value })}
-              className={inputClass}
-              placeholder="Direccion completa"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Poblacion</label>
-            <input
-              type="text"
-              value={destination.poblacion}
-              onChange={(e) => setDestination({ ...destination, poblacion: e.target.value })}
-              className={inputClass}
-              placeholder="Ciudad o poblacion"
-            />
-          </div>
-        </div>
+      <div className="mb-4">
+        <h2 className={sectionTitle}>ORIGEN</h2>
+        <p className={sectionSubtitle}>Lugar donde se realiza la carga</p>
       </div>
+
+      <div className="mb-5">
+        <Checkbox
+          checked={originSameAsShipper}
+          onChange={setOriginSameAsShipper}
+          label="El origen es igual que el cargador contractual"
+        />
+      </div>
+
+      {!originSameAsShipper ? (
+        <PartyFields data={origin} onChange={setOrigin} nombreRequired={false} nifRequired={false} />
+      ) : (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
+          <p className="font-bold text-slate-900">{cargadorContractual.nombre || '—'}</p>
+          <p>{cargadorContractual.nif || '—'}</p>
+          <p>{cargadorContractual.domicilio || '—'}</p>
+          <p>{cargadorContractual.postal_code} {cargadorContractual.poblacion}</p>
+        </div>
+      )}
+
+      <hr className="my-7 border-slate-200" />
+
+      <div className="mb-4">
+        <h2 className={sectionTitle}>DESTINO</h2>
+        <p className={sectionSubtitle}>Lugar donde se realiza la descarga</p>
+      </div>
+
+      <div className="mb-5">
+        <Checkbox
+          checked={destinationSameAsShipper}
+          onChange={setDestinationSameAsShipper}
+          label="El destino es igual que el cargador contractual"
+        />
+      </div>
+
+      {!destinationSameAsShipper ? (
+        <PartyFields data={destination} onChange={setDestination} nombreRequired={false} nifRequired={false} />
+      ) : (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
+          <p className="font-bold text-slate-900">{cargadorContractual.nombre || '—'}</p>
+          <p>{cargadorContractual.nif || '—'}</p>
+          <p>{cargadorContractual.domicilio || '—'}</p>
+          <p>{cargadorContractual.postal_code} {cargadorContractual.poblacion}</p>
+        </div>
+      )}
     </div>
   );
 
   const renderStep3 = () => (
-    <div className="p-4 md:p-6">
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <div className="mb-6">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">VEHICULO</h2>
-          <p className="text-sm text-slate-500">Matriculas del vehiculo de transporte</p>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <StepBadge step={3} />
+      <ProgressBars step={step} />
+
+      <div className="mb-5">
+        <h2 className={sectionTitle}>VEHICULO</h2>
+        <p className={sectionSubtitle}>Matriculas de los vehiculos de transporte</p>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <label className={fieldLabel}>Matricula de la cabeza tractora *</label>
+          <input
+            type="text"
+            value={vehicle.tractor_plate}
+            onChange={(e) => setVehicle({ ...vehicle, tractor_plate: e.target.value.toUpperCase() })}
+            className={inputClass}
+            placeholder="Ej: 1234ABC"
+          />
         </div>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Matricula de la Cabeza Tractora *</label>
-            <input
-              type="text"
-              value={vehicle.tractor_plate}
-              onChange={(e) => setVehicle({ ...vehicle, tractor_plate: e.target.value.toUpperCase() })}
-              className={inputClass}
-              placeholder="Ej: 1234 ABC"
-            />
-          </div>
-
-          {isAdmin && (
-            <div className="relative" ref={driverDropdownRef}>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Conductor *</label>
-              <button
-                type="button"
-                onClick={() => { setDriverDropdownOpen(!driverDropdownOpen); setDriverSearch(''); }}
-                className="w-full flex items-center justify-between p-3.5 border border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none text-slate-900 bg-white active:bg-slate-50 transition-all"
-              >
-                <span className="flex items-center gap-3 min-w-0">
-                  <User size={20} className="text-blue-700 flex-shrink-0" />
-                  {selectedDriver ? (
-                    <span className="font-medium truncate">
-                      {selectedDriver.full_name}
-                      {selectedDriver.dni && <span className="text-slate-400 ml-2 text-sm">({selectedDriver.dni})</span>}
-                    </span>
-                  ) : (
-                    <span className="text-slate-400">Seleccionar conductor</span>
-                  )}
-                </span>
-                <ChevronDown size={20} className={`text-slate-500 transition-transform flex-shrink-0 ${driverDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {driverDropdownOpen && (
-                <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-                  <div className="p-2 border-b border-slate-100">
-                    <input
-                      type="text"
-                      value={driverSearch}
-                      onChange={(e) => setDriverSearch(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
-                      placeholder="Buscar conductor..."
-                      autoFocus
-                    />
-                  </div>
-                  <div className="max-h-60 overflow-y-auto">
-                    {filteredDrivers.length === 0 ? (
-                      <p className="px-4 py-3 text-sm text-slate-400 text-center">Sin resultados</p>
-                    ) : (
-                      filteredDrivers.map((d) => (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            setSelectedDriverId(d.id);
-                            setDriverDropdownOpen(false);
-                            setDriverSearch('');
-                          }}
-                          className={`w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors ${selectedDriverId === d.id ? 'bg-blue-50' : ''}`}
-                        >
-                          <div className={`p-1.5 rounded-lg flex-shrink-0 ${d.role === 'admin' ? 'bg-amber-50' : 'bg-blue-50'}`}>
-                            <User size={16} className={d.role === 'admin' ? 'text-amber-600' : 'text-blue-700'} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-slate-900 text-sm truncate">{d.full_name}</p>
-                            <p className="text-xs text-slate-500 truncate">
-                              {d.role === 'admin' ? 'Admin' : 'Conductor'}
-                              {d.dni && ` · ${d.dni}`}
-                            </p>
-                          </div>
-                          {selectedDriverId === d.id && <Check size={16} className="text-blue-600 flex-shrink-0" />}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Matricula del Remolque 1</label>
+            <label className={fieldLabel}>Matricula del remolque</label>
             <input
               type="text"
               value={vehicle.trailer_plate_1}
@@ -695,9 +556,8 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
               placeholder="Opcional"
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Matricula del Remolque 2</label>
+            <label className={fieldLabel}>Matricula del remolque 2</label>
             <input
               type="text"
               value={vehicle.trailer_plate_2}
@@ -707,371 +567,321 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
             />
           </div>
         </div>
+
+        {isAdmin && (
+          <div className="relative" ref={driverDropdownRef}>
+            <label className={fieldLabel}>Conductor *</label>
+            <button
+              type="button"
+              onClick={() => { setDriverDropdownOpen(!driverDropdownOpen); setDriverSearch(''); }}
+              className="w-full flex items-center justify-between px-4 py-3 border border-slate-300 rounded-lg focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 focus:outline-none text-slate-900 bg-white hover:bg-slate-50 transition-all"
+            >
+              <span className="flex items-center gap-3 min-w-0">
+                <User size={18} className="text-blue-700 shrink-0" />
+                {selectedDriver ? (
+                  <span className="font-bold truncate text-sm">
+                    {selectedDriver.full_name}
+                    {selectedDriver.dni && <span className="text-slate-400 ml-2 font-normal">({selectedDriver.dni})</span>}
+                  </span>
+                ) : (
+                  <span className="text-slate-400 text-sm">Seleccionar conductor</span>
+                )}
+              </span>
+              <ChevronDown size={18} className={`text-slate-500 transition-transform shrink-0 ${driverDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {driverDropdownOpen && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                <div className="p-2 border-b border-slate-100">
+                  <input
+                    type="text"
+                    value={driverSearch}
+                    onChange={(e) => setDriverSearch(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 focus:outline-none placeholder:text-slate-400"
+                    placeholder="Buscar conductor..."
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {filteredDrivers.length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-slate-400 text-center">Sin resultados</p>
+                  ) : (
+                    filteredDrivers.map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSelectedDriverId(d.id);
+                          setDriverDropdownOpen(false);
+                          setDriverSearch('');
+                        }}
+                        className={`w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0 flex items-center gap-3 transition-colors ${selectedDriverId === d.id ? 'bg-blue-50' : ''}`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${d.role === 'admin' ? 'bg-amber-50' : 'bg-blue-50'}`}>
+                          <User size={16} className={d.role === 'admin' ? 'text-amber-600' : 'text-blue-700'} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-900 text-sm truncate">{d.full_name}</p>
+                          <p className="text-xs text-slate-500 truncate">
+                            {d.role === 'admin' ? 'Admin' : 'Conductor'}
+                            {d.dni && ` · ${d.dni}`}
+                          </p>
+                        </div>
+                        {selectedDriverId === d.id && <Check size={16} className="text-blue-600 shrink-0" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <hr className="my-7 border-slate-200" />
+
+      <div className="mb-5">
+        <h2 className={sectionTitle}>MERCANCIA</h2>
+        <p className={sectionSubtitle}>Descripcion y peso de la mercancia</p>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <label className={fieldLabel}>Descripcion de la mercancia *</label>
+          <input
+            type="text"
+            value={cargo.description}
+            onChange={(e) => setCargo({ ...cargo, description: e.target.value })}
+            className={inputClass}
+            placeholder="Ej: Piezas de automovil, alimentacion ..."
+          />
+        </div>
+
+        <div>
+          <label className={fieldLabel}>Peso de la mercancia (kg) *</label>
+          <input
+            type="number"
+            value={cargo.weight_kg || ''}
+            onChange={(e) => setCargo({ ...cargo, weight_kg: parseInt(e.target.value) || 0 })}
+            className={inputClass}
+            placeholder="Peso en kilogramos"
+            min="1"
+          />
+        </div>
+
+        <div>
+          <label className={fieldLabel}>Autorizacion especial de circulacion</label>
+          <input
+            type="text"
+            value={vehicle.special_authorization}
+            onChange={(e) => setVehicle({ ...vehicle, special_authorization: e.target.value })}
+            className={inputClass}
+            placeholder="Opcional"
+          />
+        </div>
       </div>
     </div>
   );
 
   const renderStep4 = () => (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <div className="mb-6">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">DATOS DE LA CARGA</h2>
-          <p className="text-sm text-slate-500">Descripcion y peso de la mercancia</p>
-        </div>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <StepBadge step={4} />
+      <ProgressBars step={step} />
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Descripcion de la mercancia *</label>
-            <input
-              type="text"
-              value={cargo.description}
-              onChange={(e) => setCargo({ ...cargo, description: e.target.value })}
-              className={inputClass}
-              placeholder="Ej: Piezas de automovil, alimentacion..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">Peso total (kg) *</label>
-            <input
-              type="number"
-              value={cargo.weight_kg || ''}
-              onChange={(e) => setCargo({ ...cargo, weight_kg: parseInt(e.target.value) || 0 })}
-              className={inputClass}
-              placeholder="Peso en kilogramos"
-              min="1"
-            />
-          </div>
-        </div>
+      <div className="mb-4">
+        <h2 className={sectionTitle}>FECHA DE INICIO</h2>
+        <p className={sectionSubtitle}>Fecha de realizacion del transporte</p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <div className="mb-4">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">FECHA DE SALIDA</h2>
-          <p className="text-sm text-slate-500">Fecha de inicio del transporte</p>
-        </div>
+      <DateDropdown selected={departureDate} onChange={setDepartureDate} />
 
-        <DateDropdown selected={departureDate} onChange={setDepartureDate} label="Fecha de salida" />
+      <hr className="my-7 border-slate-200" />
+
+      <div className="mb-4">
+        <h2 className={sectionTitle}>FECHA DE DESCARGA</h2>
+        <p className={sectionSubtitle}>Fecha estimada de entrega (opcional)</p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <div className="mb-4">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">FECHA DE DESCARGA</h2>
-          <p className="text-sm text-slate-500">Fecha estimada de entrega (opcional)</p>
-        </div>
+      <div className="mb-4">
+        <Checkbox
+          checked={hasUnloadingDate}
+          onChange={setHasUnloadingDate}
+          label="Incluir fecha de descarga"
+        />
+      </div>
 
-        <label className="flex items-center gap-3 mb-4 cursor-pointer select-none">
-          <div
-            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${hasUnloadingDate ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}`}
-            onClick={() => setHasUnloadingDate(!hasUnloadingDate)}
-          >
-            {hasUnloadingDate && <Check size={16} className="text-white" />}
-          </div>
-          <span className="text-sm text-slate-700 font-medium" onClick={() => setHasUnloadingDate(!hasUnloadingDate)}>
-            Incluir fecha de descarga
-          </span>
-        </label>
+      {hasUnloadingDate && <DateDropdown selected={unloadingDate} onChange={setUnloadingDate} />}
 
-        {hasUnloadingDate && (
-          <DateDropdown selected={unloadingDate} onChange={setUnloadingDate} label="Fecha de descarga" />
-        )}
+      <hr className="my-7 border-slate-200" />
+
+      <div className="mb-4">
+        <h2 className={sectionTitle}>OBSERVACIONES</h2>
+      </div>
+
+      <textarea
+        value={observations}
+        onChange={(e) => setObservations(e.target.value)}
+        className={`${inputClass} min-h-[140px] resize-y`}
+        placeholder="Notas adicionales sobre el transporte"
+      />
+    </div>
+  );
+
+  const SummaryParty = ({ icon: Icon, iconColor, title, party }: { icon: typeof Building2; iconColor: string; title: string; party: PartyForm }) => (
+    <div>
+      <div className={`flex items-center gap-2 mb-2 ${iconColor}`}>
+        <Icon size={18} />
+        <span className="text-xs font-extrabold uppercase tracking-wide text-slate-900">{title}</span>
+      </div>
+      <div className="text-sm text-slate-700 space-y-0.5 leading-relaxed">
+        <p>{party.nombre || '—'}</p>
+        <p>{party.nif || '—'}</p>
+        <p>{party.domicilio || '—'}</p>
+        <p>{party.postal_code}</p>
+        <p>{party.poblacion}</p>
       </div>
     </div>
   );
 
   const renderStep5 = () => (
-    <div className="p-4 md:p-6">
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-        <div className="mb-6 text-center">
-          <h2 className="text-2xl font-extrabold text-slate-800 mb-1">RESUMEN DEL DOCUMENTO</h2>
-          <p className="text-sm text-slate-500">Revisa toda la informacion antes de continuar</p>
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <StepBadge step={5} />
+      <ProgressBars step={step} />
+
+      <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-7">RESUMEN DEL DOCUMENTO</h2>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7 mb-6">
+        <SummaryParty icon={Building2} iconColor="text-slate-700" title="CARGADOR CONTRACTUAL" party={cargadorContractual} />
+        <SummaryParty icon={Truck} iconColor="text-blue-700" title="TRANSPORTISTA EFECTIVO" party={transportistaEfectivo} />
+      </div>
+
+      <hr className="border-slate-200 mb-6" />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7 mb-6">
+        <SummaryParty icon={MapPin} iconColor="text-blue-700" title="ORIGEN" party={effectiveOrigin} />
+        <SummaryParty icon={MapPin} iconColor="text-emerald-600" title="DESTINO" party={effectiveDestination} />
+      </div>
+
+      <hr className="border-slate-200 mb-6" />
+
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2 text-slate-700">
+          <Truck size={18} />
+          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-900">VEHICULO</span>
         </div>
-
-        <div className="space-y-4">
-          <div className="border-b border-slate-200 pb-4">
-            <div className="flex items-center gap-2 text-blue-700 mb-2">
-              <Building2 size={18} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cargador Contractual</span>
-            </div>
-            <p className="text-lg font-bold text-slate-900">{shipper.nombre}</p>
-            <p className="text-sm text-slate-600">NIF: {shipper.nif}</p>
-            <p className="text-sm text-slate-600">{shipper.domicilio}, {shipper.poblacion}</p>
-          </div>
-
-          <div className="border-b border-slate-200 pb-4">
-            <div className="flex items-center gap-2 text-blue-700 mb-2">
-              <MapPin size={18} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Origen</span>
-            </div>
-            {effectiveOrigin.empresa && <p className="text-lg font-bold text-slate-900">{effectiveOrigin.empresa}</p>}
-            <p className="text-sm text-slate-700">{effectiveOrigin.domicilio}</p>
-            <p className="text-sm text-slate-600">{effectiveOrigin.poblacion}</p>
-          </div>
-
-          <div className="border-b border-slate-200 pb-4">
-            <div className="flex items-center gap-2 text-emerald-600 mb-2">
-              <MapPin size={18} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Destino</span>
-            </div>
-            {destination.empresa && <p className="text-lg font-bold text-slate-900">{destination.empresa}</p>}
-            <p className="text-sm text-slate-700">{destination.domicilio}</p>
-            <p className="text-sm text-slate-600">{destination.poblacion}</p>
-          </div>
-
-          <div className="border-b border-slate-200 pb-4">
-            <div className="flex items-center gap-2 text-slate-600 mb-2">
-              <Truck size={18} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Vehiculo</span>
-            </div>
-            <p className="text-sm text-slate-900"><span className="font-semibold">Tractora:</span> <span className="font-mono">{vehicle.tractor_plate}</span></p>
-            {vehicle.trailer_plate_1 && <p className="text-sm text-slate-900"><span className="font-semibold">Remolque 1:</span> <span className="font-mono">{vehicle.trailer_plate_1}</span></p>}
-            {vehicle.trailer_plate_2 && <p className="text-sm text-slate-900"><span className="font-semibold">Remolque 2:</span> <span className="font-mono">{vehicle.trailer_plate_2}</span></p>}
-          </div>
-
-          <div className="border-b border-slate-200 pb-4">
-            <div className="flex items-center gap-2 text-blue-700 mb-2">
-              <User size={18} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Conductor</span>
-            </div>
-            <p className="text-lg font-bold text-slate-900">{isAdmin && selectedDriver ? selectedDriver.full_name : profile?.full_name}</p>
-            {(isAdmin && selectedDriver?.dni) && <p className="text-sm text-slate-600">DNI: {selectedDriver.dni}</p>}
-            {(!isAdmin && profile?.dni) && <p className="text-sm text-slate-600">DNI: {profile.dni}</p>}
-          </div>
-
-          <div className="border-b border-slate-200 pb-4">
-            <div className="flex items-center gap-2 text-amber-600 mb-2">
-              <Package size={18} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Carga</span>
-            </div>
-            <p className="text-lg font-bold text-slate-900">{cargo.description}</p>
-            <p className="text-sm text-slate-600">{cargo.weight_kg.toLocaleString()} kg</p>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 text-slate-600 mb-2">
-              <Calendar size={18} />
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Fechas</span>
-            </div>
-            <p className="text-sm text-slate-700">Salida: <span className="font-semibold">{format(departureDate, "d/MM/yyyy", { locale: es })}</span></p>
-            {hasUnloadingDate && <p className="text-sm text-slate-700">Descarga: <span className="font-semibold">{format(unloadingDate, "d/MM/yyyy", { locale: es })}</span></p>}
-          </div>
+        <div className="text-sm text-slate-700 space-y-0.5">
+          <p>Matricula cabeza tractora: <span className="font-mono">{vehicle.tractor_plate}</span></p>
+          {vehicle.trailer_plate_1 && <p>Matricula remolque: <span className="font-mono">{vehicle.trailer_plate_1}</span></p>}
+          {vehicle.trailer_plate_2 && <p>Matricula remolque 2: <span className="font-mono">{vehicle.trailer_plate_2}</span></p>}
         </div>
       </div>
+
+      <hr className="border-slate-200 mb-6" />
+
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2 text-amber-600">
+          <Package size={18} />
+          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-900">MERCANCIA</span>
+        </div>
+        <div className="text-sm text-slate-700 space-y-0.5">
+          <p>{cargo.description}</p>
+          <p>Peso bruto: {cargo.weight_kg.toLocaleString()} kg</p>
+          <p>{vehicle.special_authorization ? `Autorizacion especial: ${vehicle.special_authorization}` : 'No requiere autorizacion especial de circulacion'}</p>
+        </div>
+      </div>
+
+      <hr className="border-slate-200 mb-6" />
+
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2 text-slate-700">
+          <Calendar size={18} />
+          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-900">FECHAS</span>
+        </div>
+        <div className="text-sm text-slate-700 space-y-0.5">
+          <p>Fecha de inicio: {format(departureDate, 'dd/MM/yyyy')}</p>
+          {hasUnloadingDate && <p>Fecha de descarga: {format(unloadingDate, 'dd/MM/yyyy')}</p>}
+        </div>
+      </div>
+
+      {observations.trim() && (
+        <>
+          <hr className="border-slate-200 mb-6" />
+          <div>
+            <div className="flex items-center gap-2 mb-2 text-slate-700">
+              <FileText size={18} />
+              <span className="text-xs font-extrabold uppercase tracking-wide text-slate-900">OBSERVACIONES</span>
+            </div>
+            <p className="text-sm text-slate-700 whitespace-pre-wrap">{observations}</p>
+          </div>
+        </>
+      )}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] flex flex-col">
-      {/* Mobile Header */}
+    <div className="min-h-screen bg-[#f0f4f8]">
       <header className="bg-white border-b border-slate-200/80 px-4 py-4 flex items-center gap-4 md:hidden">
         <button onClick={handleBack} className="p-1 text-slate-700 hover:text-slate-900">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold text-slate-900 flex-1 text-center pr-10">Crear Documento</h1>
+        <h1 className="text-lg font-bold text-slate-900 flex-1 text-center pr-10">Nuevo documento de Control</h1>
       </header>
 
-      {/* Desktop Header - Centered */}
-      <div className="hidden md:block">
-        <div className="max-w-4xl mx-auto px-4 pt-8">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 mb-6">
-            <button onClick={handleBack} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 transition-colors">
-              <ArrowLeft size={20} />
-              <span className="text-sm font-medium">Volver</span>
+      <div className="max-w-3xl mx-auto px-4 pt-6 md:pt-10 pb-32">
+        <div className="hidden md:flex items-center gap-3 mb-6">
+          <button onClick={handleBack} className="p-2 text-slate-600 hover:text-slate-900 transition-colors">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Nuevo documento de Control</h1>
+        </div>
+
+        {step === 1 && renderStep1()}
+        {step === 2 && renderStep2()}
+        {step === 3 && renderStep3()}
+        {step === 4 && renderStep4()}
+        {step === 5 && renderStep5()}
+
+        <div className="flex items-center justify-end gap-3 mt-6">
+          {step > 1 && (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-blue-700 text-blue-700 font-bold rounded-xl hover:bg-blue-50 transition-colors text-sm"
+            >
+              <ArrowLeft size={16} />
+              Volver
             </button>
-            <h1 className="text-3xl font-extrabold text-slate-800 mb-2">Crear Documento</h1>
-            <p className="text-slate-500">Paso {step}: {stepTitles[step - 1]}</p>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {renderProgressBar()}
-
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto pb-32 md:pb-8">
-        <div className="md:max-w-4xl md:mx-auto">
-          {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
-          {step === 4 && renderStep4()}
-          {step === 5 && renderStep5()}
-        </div>
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-200/80 md:hidden">
-        {step < 5 ? (
-          <button
-            onClick={handleNext}
-            disabled={!canProceed()}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold py-4 rounded-xl flex items-center justify-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed active:scale-[0.98] transition-all shadow-sm"
-          >
-            SIGUIENTE
-            <ArrowRight size={24} />
-          </button>
-        ) : (
-          <button
-            onClick={() => setShowConfirmModal(true)}
-            disabled={generating}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-lg font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:bg-emerald-400 shadow-sm"
-          >
-            {generating ? (
-              <>
-                <Loader2 size={24} className="animate-spin" />
-                Generando...
-              </>
-            ) : (
-              <>
-                <Check size={24} />
-                CREAR DOCUMENTO
-              </>
-            )}
-          </button>
-        )}
-      </div>
-
-      {/* Desktop Bottom Navigation */}
-      <div className="hidden md:block">
-        <div className="max-w-4xl mx-auto px-4 pb-8">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <div className="flex items-center justify-between gap-4">
-              {step > 1 && (
-                <button
-                  onClick={handleBack}
-                  className="flex items-center gap-2 px-6 py-3 text-slate-700 hover:text-slate-900 font-medium transition-colors"
-                >
-                  <ArrowLeft size={20} />
-                  ATRAS
-                </button>
-              )}
-
-              <div className="flex-1" />
-
-              {step < 5 ? (
-                <button
-                  onClick={handleNext}
-                  disabled={!canProceed()}
-                  className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed transition-all shadow-sm"
-                >
-                  SIGUIENTE
-                  <ArrowRight size={20} />
-                </button>
+          {step < 5 ? (
+            <button
+              onClick={handleNext}
+              disabled={!canProceed()}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed transition-all text-sm"
+            >
+              Siguiente
+              <ArrowRight size={16} />
+            </button>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl transition-all disabled:bg-blue-400 text-sm"
+            >
+              {generating ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Generando...
+                </>
               ) : (
-                <button
-                  onClick={() => setShowConfirmModal(true)}
-                  disabled={generating}
-                  className="flex items-center gap-2 px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all disabled:bg-emerald-400 shadow-sm"
-                >
-                  {generating ? (
-                    <>
-                      <Loader2 size={20} className="animate-spin" />
-                      Generando...
-                    </>
-                  ) : (
-                    <>
-                      CREAR DOCUMENTO
-                      <ArrowRight size={20} />
-                    </>
-                  )}
-                </button>
+                <>
+                  CREAR DOCUMENTO
+                  <ArrowRight size={16} />
+                </>
               )}
-            </div>
-          </div>
+            </button>
+          )}
         </div>
       </div>
-
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <div className="bg-slate-800 px-6 py-4 flex items-center gap-3">
-              <div className="bg-white/10 p-2 rounded-xl">
-                <FileText size={24} className="text-white" />
-              </div>
-              <h2 className="text-xl font-bold text-white">Confirmar documento</h2>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-slate-600">Revisa el resumen antes de generar el documento oficial.</p>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-xl divide-y divide-slate-200 text-sm">
-                <div className="px-4 py-3 flex gap-3">
-                  <Building2 size={16} className="text-blue-700 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Cargador</p>
-                    <p className="font-semibold text-slate-900">{shipper.nombre}</p>
-                    <p className="text-slate-600">{shipper.poblacion}</p>
-                  </div>
-                </div>
-                <div className="px-4 py-3 flex gap-3">
-                  <MapPin size={16} className="text-blue-700 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Origen</p>
-                    <p className="font-semibold text-slate-900">{effectiveOrigin.empresa || effectiveOrigin.domicilio}</p>
-                    <p className="text-slate-600">{effectiveOrigin.poblacion}</p>
-                  </div>
-                </div>
-                <div className="px-4 py-3 flex gap-3">
-                  <MapPin size={16} className="text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Destino</p>
-                    <p className="font-semibold text-slate-900">{destination.empresa || destination.domicilio}</p>
-                    <p className="text-slate-600">{destination.poblacion}</p>
-                  </div>
-                </div>
-                <div className="px-4 py-3 flex gap-3">
-                  <Truck size={16} className="text-slate-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Vehiculo</p>
-                    <p className="font-semibold text-slate-900 font-mono">{vehicle.tractor_plate}</p>
-                    {vehicle.trailer_plate_1 && <p className="text-slate-600 font-mono">R1: {vehicle.trailer_plate_1}</p>}
-                  </div>
-                </div>
-                <div className="px-4 py-3 flex gap-3">
-                  <User size={16} className="text-blue-700 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Conductor</p>
-                    <p className="font-semibold text-slate-900">{isAdmin && selectedDriver ? selectedDriver.full_name : profile?.full_name}</p>
-                  </div>
-                </div>
-                <div className="px-4 py-3 flex gap-3">
-                  <Package size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Carga</p>
-                    <p className="font-semibold text-slate-900">{cargo.description}</p>
-                    <p className="text-slate-600">{cargo.weight_kg.toLocaleString()} kg</p>
-                  </div>
-                </div>
-                <div className="px-4 py-3 flex gap-3">
-                  <Calendar size={16} className="text-slate-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-0.5">Salida</p>
-                    <p className="font-semibold text-slate-900">{format(departureDate, "d/MM/yyyy", { locale: es })}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  onClick={() => {
-                    setShowConfirmModal(false);
-                    handleGenerate();
-                  }}
-                  disabled={generating}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:bg-emerald-400"
-                >
-                  {generating ? <Loader2 size={20} className="animate-spin" /> : <Check size={20} />}
-                  Generar
-                </button>
-                <button
-                  onClick={() => setShowConfirmModal(false)}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-4 rounded-xl font-bold text-base active:scale-[0.98] transition-all"
-                >
-                  Revisar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showLimitModal && (
         <DocumentLimitModal
