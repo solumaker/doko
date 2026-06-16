@@ -109,7 +109,7 @@ export function Configuracion({ onBack, onLogout, onNavigate }: ConfiguracionPro
   };
 
   const sections: { id: Section; label: string; icon: typeof Building2; desc: string }[] = [
-    { id: 'cargador', label: 'Transportista Efectivo', icon: Building2, desc: 'Datos de tu empresa transportista' },
+    { id: 'cargador', label: 'Datos de mi empresa', icon: Building2, desc: 'Datos de mi empresa' },
     { id: 'password', label: 'Cambiar contrasena', icon: Lock, desc: 'Actualiza tu acceso' },
     { id: 'visibilidad', label: 'Visibilidad de documentos', icon: Clock, desc: 'Control de acceso para conductores' },
   ];
@@ -152,9 +152,9 @@ export function Configuracion({ onBack, onLogout, onNavigate }: ConfiguracionPro
             {activeSection === 'cargador' && (
               <div className="bg-white rounded-2xl border border-slate-200/80 p-6">
                 <div className="mb-6">
-                  <h2 className="text-lg font-bold text-slate-900">Transportista Efectivo</h2>
+                  <h2 className="text-lg font-bold text-slate-900">Datos de mi empresa</h2>
                   <p className="text-sm text-slate-500 mt-1">
-                    Datos de tu empresa como transportista efectivo. Estos datos aparecen en todos los documentos de transporte generados.
+                    Datos de tu empresa. Estos datos aparecen en todos los documentos de transporte generados.
                   </p>
                 </div>
                 <div className="space-y-4">

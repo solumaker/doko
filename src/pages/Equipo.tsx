@@ -39,7 +39,7 @@ interface EquipoProps {
 }
 
 export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoProps) {
-  const { profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin, signOut, isCargador } = useAuth();
   const [view, setView] = useState<View>('list');
   const [activeTab, setActiveTab] = useState<Tab>('conductores');
   const [members, setMembers] = useState<DriverWithLink[]>([]);
@@ -759,7 +759,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h3 className="text-base font-bold text-slate-800">Miembros del equipo</h3>
-            <p className="text-sm text-slate-500 mt-0.5">Gestiona conductores y administradores</p>
+            <p className="text-sm text-slate-500 mt-0.5">{isCargador ? 'Gestiona transportistas y administradores' : 'Gestiona conductores y administradores'}</p>
           </div>
           <button
             onClick={() => activeTab === 'conductores' ? setView('form-driver') : setView('form-admin')}
@@ -771,7 +771,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
           >
             <UserPlus size={18} strokeWidth={2.5} />
             <span className="text-sm font-bold">
-              {activeTab === 'conductores' ? 'Agregar Conductor' : 'Agregar Admin'}
+              {activeTab === 'conductores' ? (isCargador ? 'Agregar Transportista' : 'Agregar Conductor') : 'Agregar Admin'}
             </span>
           </button>
         </div>
@@ -787,7 +787,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
               }`}
             >
               <User size={16} />
-              Conductores
+              {isCargador ? 'Transportistas' : 'Conductores'}
               {drivers.length > 0 && (
                 <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md ${activeTab === 'conductores' ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500'}`}>
                   {drivers.length}
@@ -822,11 +822,11 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
                 {activeTab === 'conductores' ? <Users size={24} className="text-slate-400" /> : <Shield size={24} className="text-slate-400" />}
               </div>
               <p className="text-sm font-semibold text-slate-600">
-                {activeTab === 'conductores' ? 'No hay conductores' : 'No hay administradores adicionales'}
+                {activeTab === 'conductores' ? (isCargador ? 'No hay transportistas' : 'No hay conductores') : 'No hay administradores adicionales'}
               </p>
               <p className="text-xs text-slate-400 mt-1">
                 {activeTab === 'conductores'
-                  ? 'Agrega conductores para que puedan crear documentos'
+                  ? (isCargador ? 'Agrega transportistas para autocompletar sus datos al crear documentos' : 'Agrega conductores para que puedan crear documentos')
                   : 'Puedes agregar otros administradores para tu empresa'}
               </p>
             </div>

@@ -43,6 +43,8 @@ export async function callEdgeFunction(functionName: string, body: Record<string
   }
 }
 
+export type CompanyRole = 'cargador' | 'transportista';
+
 export interface Company {
   id: string;
   name: string;
@@ -56,6 +58,7 @@ export interface Company {
   trial_ends_at?: string;
   created_at: string;
   driver_doc_visibility_days?: number | null;
+  company_role: CompanyRole;
 }
 
 export type PlanId = 'autonomo' | 'pyme' | 'flotas';

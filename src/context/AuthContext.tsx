@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, callEdgeFunction, Profile, Company } from '../lib/supabase';
+import { supabase, callEdgeFunction, Profile, Company, CompanyRole } from '../lib/supabase';
 
 interface AuthContextType {
   session: Session | null;
@@ -10,6 +10,8 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isDriver: boolean;
+  isCargador: boolean;
+  isTransportista: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (data: SignUpData) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -33,6 +35,7 @@ interface SignUpData {
   companyProvince?: string;
   companyPostalCode?: string;
   companyPhone?: string;
+  companyRole: CompanyRole;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -155,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         p_company_province: data.companyProvince || '',
         p_company_postal_code: data.companyPostalCode || '',
         p_company_phone: data.companyPhone || '',
+        p_company_role: data.companyRole,
       }
     );
 
@@ -311,6 +315,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isAdmin: profile?.role === 'admin',
         isDriver: profile?.role === 'driver',
+        isCargador: company?.company_role === 'cargador',
+        isTransportista: company?.company_role !== 'cargador',
         signIn,
         signUp,
         signOut,
