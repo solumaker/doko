@@ -1,0 +1,41 @@
+CAMBIOS DOKO
+PLANES
+
+PLAN GRATUITO
+20 documentos al mes. Se renueva. Todos los meses tienes un límite de documentos.
+1 SOLO usuario.
+Si eres cargador solo se puede añadir un transportista y si eres transportista un solo conductor.
+Historial accesible 30 días.
+Posteriormente se eliminan los documentos o se desactivan. Consultar con Alejandro
+
+PLAN BÁSICO
+Precio en función de volumen y beneficios (100, 200, 400, 800…). En stripe hay que crear los diferentes productos.
+Autorellenado de datos
+Usuarios ilimitados
+Historial 3 meses
+
+PLAN PRO
+Duplicado de documentos
+[Opción de duplicar un documento = documento con los mismos datos que el duplicado insertado y modificas lo que quieras]
+Importar:
+-Equipo (conductores/ transportistas)
+-Lugares
+Descargas Excel, rellenas datos y los subes
+Exportación masiva de documentos.
+Fecha desde – fecha hasta y descargar todos los documentos
+Historial accesible 1 año
+
+
+MEJORAS NECESARIAS
+-Recuperación de contraseña
+
+-Menú ‘Suscripción’
+Diseño responsive (mayormente se usará desde teléfono)
+
+-Si un administrador de una empresa transportista (accede desde el menú de gestor) elabora un documento de control, el formulario debe obligarle a seleccionar un conductor.
+La ley no obliga pero si no lo seleccionas, no le llega a su aplicación el documento para que pueda mostrarlo en inspección. Por lo que la lógica de negocio si obliga
+-Lógica cancelar suscripción newsletter cuando se envíen correos de spam.
+-Envío de factura mensual (Desde Ninox).
+
+
+

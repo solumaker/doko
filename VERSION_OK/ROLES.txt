@@ -1,0 +1,20 @@
+Un cargador contractual es la persona física o jurídica que contrata directamente con el transportista efectivo el transporte del envío.
+Este sujeto puede ser:
+El cargador contractual (el propietario o remitente de la mercancía). 
+Otro transportista, una cooperativa, una agencia de transporte, un transitario, un almacenista-distribuidor o un operador logístico que intermedie habitualmente en la contratación.
+En caso de múltiples subcontrataciones, se considera cargador contractual siempre al que realiza el contrato final con el transportista que ejecuta físicamente el servicio. 
+Un transportista efectivo es la persona física o jurídica que ejecuta materialmente el transporte de las mercancías, ya sea por sus propios medios o mediante vehículos fletados, independientemente de quién haya celebrado el contrato.
+
+ROLES
+Cuando un usuario se registra se debe diferenciar entre cargador contractual o transportista, ya que de ello depende la experiencia de usuario.
+
+Un cargador contractual en ‘Equipo’ añade transportistas, no conductores.
+Al añadir un transportista el formulario debe solicitar los campos de nombre de empresa, domicilio *, código postal *, población *, NIF.
+Cuando se elabore un documento de control se debe poder rellenar los datos automáticamente del transportista efectivo.
+
+Un transportista efectivo añade conductores, los cuales pueden crear documentos de control desde la aplicación accediendo como conductor con su DNI y PIN.
+Un cargador añade transportistas, los cuales acceden a la app con NIF y PIN
+
+Los datos introducidos al registrarse almacenados en ‘Configuración’ deben figurar como ‘Datos de mi empresa’ en vez de ‘Transportista efectivo’.
+
+A la hora de importar datos, un transportista importa conductores y un cargador importa transportistas
