@@ -229,6 +229,7 @@ export interface DocumentContent {
     description: string;
     packages?: number;
     weight_kg: number;
+    weight_unit?: string;
   };
   observations?: string;
   unloading_date?: string;

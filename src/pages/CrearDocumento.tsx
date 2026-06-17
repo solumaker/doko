@@ -49,7 +49,16 @@ interface VehicleForm {
 interface CargoForm {
   description: string;
   weight_kg: number;
+  weight_unit: string;
 }
+
+const WEIGHT_UNITS = [
+  { value: 'kilogramos', label: 'kilogramos', short: 'kg' },
+  { value: 'toneladas', label: 'toneladas', short: 'tn' },
+  { value: 'metros cubicos', label: 'metros cubicos', short: 'm3' },
+  { value: 'litros', label: 'litros', short: 'L' },
+  { value: 'unidades', label: 'unidades', short: 'u' },
+];
 
 const emptyParty: PartyForm = { nombre: '', domicilio: '', postal_code: '', poblacion: '', nif: '' };
 
@@ -232,7 +241,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
   const [origin, setOrigin] = useState<PartyForm>(emptyParty);
   const [destination, setDestination] = useState<PartyForm>(emptyParty);
   const [vehicle, setVehicle] = useState<VehicleForm>({ tractor_plate: '', trailer_plate_1: '', trailer_plate_2: '', special_authorization: '' });
-  const [cargo, setCargo] = useState<CargoForm>({ description: '', weight_kg: 0 });
+  const [cargo, setCargo] = useState<CargoForm>({ description: '', weight_kg: 0, weight_unit: 'kilogramos' });
   const [departureDate, setDepartureDate] = useState(new Date());
   const [hasUnloadingDate, setHasUnloadingDate] = useState(false);
   const [unloadingDate, setUnloadingDate] = useState(new Date());
@@ -370,6 +379,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
       cargo: {
         description: cargo.description,
         weight_kg: cargo.weight_kg,
+        weight_unit: cargo.weight_unit,
       },
       observations: observations.trim() || undefined,
       unloading_date: hasUnloadingDate ? format(unloadingDate, 'yyyy-MM-dd') : undefined,
@@ -657,16 +667,34 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
           />
         </div>
 
-        <div>
-          <label className={fieldLabel}>Peso de la mercancia (kg) *</label>
-          <input
-            type="number"
-            value={cargo.weight_kg || ''}
-            onChange={(e) => setCargo({ ...cargo, weight_kg: parseInt(e.target.value) || 0 })}
-            className={inputClass}
-            placeholder="Peso en kilogramos"
-            min="1"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label className={fieldLabel}>Peso de la mercancia *</label>
+            <input
+              type="number"
+              value={cargo.weight_kg || ''}
+              onChange={(e) => setCargo({ ...cargo, weight_kg: parseFloat(e.target.value) || 0 })}
+              className={inputClass}
+              placeholder="Peso o magnitud de la mercancia"
+              min="0"
+              step="any"
+            />
+          </div>
+          <div>
+            <label className={fieldLabel}>Reflejado en *</label>
+            <div className="relative">
+              <select
+                value={cargo.weight_unit}
+                onChange={(e) => setCargo({ ...cargo, weight_unit: e.target.value })}
+                className={`${inputClass} appearance-none pr-10 cursor-pointer`}
+              >
+                {WEIGHT_UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>{u.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
         <div>
@@ -785,7 +813,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         </div>
         <div className="text-sm text-slate-700 space-y-0.5">
           <p>{cargo.description}</p>
-          <p>Peso bruto: {cargo.weight_kg.toLocaleString()} kg</p>
+          <p>Peso bruto: {cargo.weight_kg.toLocaleString()} {WEIGHT_UNITS.find((u) => u.value === cargo.weight_unit)?.short || cargo.weight_unit}</p>
           <p>{vehicle.special_authorization ? `Autorizacion especial: ${vehicle.special_authorization}` : 'No requiere autorizacion especial de circulacion'}</p>
         </div>
       </div>
