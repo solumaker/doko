@@ -440,7 +440,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
 
   if (view === 'form-driver') {
     return (
-      <AppLayout activeNav="equipo" onNavigate={handleNavItem} onLogout={onLogout} pageTitle="Agregar Conductor" onBack={() => { resetDriverForm(); setView('list'); }}>
+      <AppLayout activeNav="equipo" onNavigate={handleNavItem} onLogout={onLogout} pageTitle={isCargador ? 'Agregar Transportista' : 'Agregar Conductor'} onBack={() => { resetDriverForm(); setView('list'); }}>
         <div className="max-w-lg mx-auto">
           <div className="bg-white rounded-2xl border border-slate-200/80 p-6">
             <form onSubmit={handleAddDriver} className="space-y-5">
@@ -452,7 +452,11 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
 
               <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3.5">
                 <p className="text-blue-800 text-xs font-medium">
-                  El conductor iniciara sesion en <span className="font-bold">{window.location.origin}/conductor</span> con su DNI y PIN. El conductor podra cambiar su PIN en cualquier momento.
+                  {isCargador ? (
+                    <>El transportista iniciara sesion en <span className="font-bold">{window.location.origin}/conductor</span> con su NIF y PIN. El transportista podra cambiar su PIN en cualquier momento.</>
+                  ) : (
+                    <>El conductor iniciara sesion en <span className="font-bold">{window.location.origin}/conductor</span> con su DNI y PIN. El conductor podra cambiar su PIN en cualquier momento.</>
+                  )}
                 </p>
               </div>
 
@@ -463,14 +467,14 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
                   value={driverForm.fullName}
                   onChange={(e) => setDriverForm({ ...driverForm, fullName: e.target.value })}
                   className="w-full border border-slate-200 rounded-xl p-3.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 placeholder:text-slate-400 text-slate-900"
-                  placeholder="Nombre del conductor"
+                  placeholder={isCargador ? 'Nombre del transportista' : 'Nombre del conductor'}
                   disabled={saving}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  DNI / NIE
+                  {isCargador ? 'NIF' : 'DNI / NIE'}
                 </label>
                 <input
                   type="text"
@@ -505,7 +509,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
                     />
                   ))}
                 </div>
-                <p className="text-slate-500 text-xs mt-2 text-center">El conductor podra cambiar este PIN despues</p>
+                <p className="text-slate-500 text-xs mt-2 text-center">{isCargador ? 'El transportista podra cambiar este PIN despues' : 'El conductor podra cambiar este PIN despues'}</p>
               </div>
 
               <button
@@ -513,7 +517,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
                 disabled={saving}
                 className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-base font-semibold py-4 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {saving ? <><Loader2 size={20} className="animate-spin" />Creando...</> : 'Crear Conductor'}
+                {saving ? <><Loader2 size={20} className="animate-spin" />Creando...</> : (isCargador ? 'Crear Transportista' : 'Crear Conductor')}
               </button>
             </form>
           </div>
