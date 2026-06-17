@@ -2,7 +2,7 @@ import { Check, Star, CreditCard, Package, Loader2, ShieldCheck, Clock, Settings
 import { QuantityStepper } from '../components/QuantityStepper';
 import { format } from 'date-fns';
 import { PLAN_CONFIG, PlanId } from '../lib/supabase';
-import { useSubscription, TRIAL_DOC_LIMIT } from '../context/SubscriptionContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import { useState } from 'react';
 import { AppLayout } from '../components/AppLayout';
 
@@ -22,7 +22,7 @@ const planFeatures: Record<PlanId, string[]> = {
 };
 
 export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNavigate }: PlanesProps) {
-  const { usage, hasActiveSubscription, trialDocsUsed, trialDaysLeft, createCheckoutSession, purchaseDocumentPack, openCustomerPortal } = useSubscription();
+  const { usage, hasActiveSubscription, freeDocsUsed, freeDocLimit, daysUntilReset, createCheckoutSession, purchaseDocumentPack, openCustomerPortal } = useSubscription();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [loadingPack, setLoadingPack] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
@@ -83,7 +83,7 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNaviga
 
   return (
     <AppLayout
-      activeNav="inicio"
+      activeNav="suscripcion"
       onNavigate={handleNavItem}
       onLogout={onLogout}
       pageTitle="Mi Suscripcion"
@@ -163,19 +163,19 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNaviga
           {!hasActiveSubscription ? (
             <div>
               <div className="flex justify-between items-baseline mb-1.5">
-                <span className="text-sm font-medium text-slate-600">Documentos de prueba</span>
-                <span className="text-sm font-bold text-slate-800">{trialDocsUsed} / {TRIAL_DOC_LIMIT}</span>
+                <span className="text-sm font-medium text-slate-600">Documentos en Plan Gratuito</span>
+                <span className="text-sm font-bold text-slate-800">{freeDocsUsed} / {freeDocLimit}</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                 <div
                   className={`h-2.5 rounded-full transition-all duration-500 ${
-                    trialDocsUsed / TRIAL_DOC_LIMIT >= 0.9 ? 'bg-red-500' : trialDocsUsed / TRIAL_DOC_LIMIT >= 0.7 ? 'bg-amber-500' : 'bg-blue-600'
+                    freeDocLimit > 0 && freeDocsUsed / freeDocLimit >= 0.9 ? 'bg-red-500' : freeDocLimit > 0 && freeDocsUsed / freeDocLimit >= 0.7 ? 'bg-amber-500' : 'bg-blue-600'
                   }`}
-                  style={{ width: `${Math.min(100, Math.round((trialDocsUsed / TRIAL_DOC_LIMIT) * 100))}%` }}
+                  style={{ width: `${freeDocLimit > 0 ? Math.min(100, Math.round((freeDocsUsed / freeDocLimit) * 100)) : 0}%` }}
                 />
               </div>
               <p className="text-xs text-slate-400 mt-1.5">
-                {trialDaysLeft} {trialDaysLeft === 1 ? 'dia' : 'dias'} restantes &middot; {TRIAL_DOC_LIMIT - trialDocsUsed} documentos disponibles
+                Reinicio en {daysUntilReset} {daysUntilReset === 1 ? 'dia' : 'dias'} &middot; {Math.max(0, freeDocLimit - freeDocsUsed)} documentos disponibles
               </p>
             </div>
           ) : (

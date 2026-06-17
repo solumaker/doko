@@ -115,6 +115,10 @@ export interface SubscriptionUsage {
   is_subscription_expired: boolean;
   trial_docs_used: number;
   trial_doc_limit: number;
+  free_doc_limit: number;
+  free_docs_used: number;
+  free_window_start: string | null;
+  free_window_end: string | null;
   cancel_at_period_end: boolean;
   pending_plan: PlanId | null;
   pending_plan_effective_date: string | null;

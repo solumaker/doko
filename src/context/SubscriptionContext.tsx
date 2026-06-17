@@ -2,20 +2,21 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { supabase, callEdgeFunction, SubscriptionUsage, PlanId } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
-export const TRIAL_DOC_LIMIT = 50;
-
 interface SubscriptionContextType {
   usage: SubscriptionUsage | null;
   loading: boolean;
   isSyncing: boolean;
+  isFreePlan: boolean;
   isTrialActive: boolean;
   isTrialExpired: boolean;
   hasActiveSubscription: boolean;
   isSubscriptionExpired: boolean;
   isQuotaExhausted: boolean;
-  trialDaysLeft: number;
-  trialDocsUsed: number;
-  trialDocsLeft: number;
+  freeDocsUsed: number;
+  freeDocsLeft: number;
+  freeDocLimit: number;
+  daysUntilReset: number;
+  resetDate: Date | null;
   canCreateDocument: () => boolean;
   refreshSubscription: () => Promise<void>;
   syncAndRefresh: (baseline?: SubscriptionUsage | null) => Promise<void>;
@@ -27,7 +28,7 @@ interface SubscriptionContextType {
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const { profile, company } = useAuth();
+  const { profile } = useAuth();
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -98,38 +99,48 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [profile?.company_id, fetchUsage]);
 
-  const isTrialActive = usage?.is_trial_active ?? false;
-
   const hasActiveSubscription = usage?.status === 'active' || usage?.status === 'trialing';
 
   const isSubscriptionExpired = !loading && !!usage && (usage.is_subscription_expired === true);
 
-  const isTrialExpired = !loading && usage !== null && !isTrialActive && !hasActiveSubscription && !isSubscriptionExpired && !!profile;
+  const isFreePlan = !loading && !!usage && !hasActiveSubscription && !isSubscriptionExpired;
+  const isTrialActive = isFreePlan;
+  const isTrialExpired = false;
 
   const isQuotaExhausted = (() => {
-    if (!usage || !hasActiveSubscription) return false;
-    const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
-    return usage.documents_used >= totalAvailable;
+    if (!usage) return false;
+    if (hasActiveSubscription) {
+      const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
+      return usage.documents_used >= totalAvailable;
+    }
+    if (isFreePlan) {
+      return (usage.free_docs_used ?? 0) >= (usage.free_doc_limit ?? 0);
+    }
+    return false;
   })();
 
-  const trialDaysLeft = (() => {
-    if (!company?.trial_ends_at) return 0;
-    const diff = new Date(company.trial_ends_at).getTime() - Date.now();
+  const freeDocsUsed = usage?.free_docs_used ?? usage?.trial_docs_used ?? 0;
+  const freeDocLimit = usage?.free_doc_limit ?? usage?.trial_doc_limit ?? 50;
+  const freeDocsLeft = Math.max(0, freeDocLimit - freeDocsUsed);
+
+  const resetDate = usage?.free_window_end ? new Date(usage.free_window_end) : null;
+  const daysUntilReset = (() => {
+    if (!resetDate) return 0;
+    const diff = resetDate.getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   })();
 
-  const trialDocsUsed = usage?.trial_docs_used ?? 0;
-  const trialDocsLeft = Math.max(0, TRIAL_DOC_LIMIT - trialDocsUsed);
-
   const canCreateDocument = useCallback(() => {
     if (!usage) return false;
-    if (isTrialActive) {
-      return trialDocsUsed < TRIAL_DOC_LIMIT;
+    if (hasActiveSubscription) {
+      const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
+      return usage.documents_used < totalAvailable;
     }
-    if (!hasActiveSubscription) return false;
-    const totalAvailable = usage.document_limit + usage.documents_extra_remaining;
-    return usage.documents_used < totalAvailable;
-  }, [usage, isTrialActive, hasActiveSubscription, trialDocsUsed]);
+    if (isFreePlan) {
+      return freeDocsUsed < freeDocLimit;
+    }
+    return false;
+  }, [usage, hasActiveSubscription, isFreePlan, freeDocsUsed, freeDocLimit]);
 
   const refreshSubscription = useCallback(async () => {
     setLoading(true);
@@ -264,14 +275,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         usage,
         loading,
         isSyncing,
+        isFreePlan,
         isTrialActive,
         isTrialExpired,
         hasActiveSubscription,
         isSubscriptionExpired,
         isQuotaExhausted,
-        trialDaysLeft,
-        trialDocsUsed,
-        trialDocsLeft,
+        freeDocsUsed,
+        freeDocsLeft,
+        freeDocLimit,
+        daysUntilReset,
+        resetDate,
         canCreateDocument,
         refreshSubscription,
         syncAndRefresh,

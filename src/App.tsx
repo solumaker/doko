@@ -20,9 +20,9 @@ import { Equipo } from './pages/Equipo';
 import { Planes } from './pages/Planes';
 import { StripeReturn } from './pages/StripeReturn';
 import { Configuracion } from './pages/Configuracion';
-import { TrialExpiredModal } from './components/TrialExpiredModal';
 import { SubscriptionExpiredModal } from './components/SubscriptionExpiredModal';
 import { Document } from './lib/supabase';
+import { AdminPanel } from './pages/admin/AdminPanel';
 
 function getPublicDocumentId(): string | null {
   const match = window.location.pathname.match(/^\/documento\/([a-f0-9-]{36})$/i);
@@ -91,13 +91,12 @@ function LoadingScreen() {
 
 function AppContent() {
   const { session, profile, loading: authLoading, isDriver, isAdmin, signOut } = useAuth();
-  const { usage, isTrialExpired, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, refreshSubscription, syncAndRefresh } = useSubscription();
+  const { usage, isSubscriptionExpired, hasActiveSubscription, loading: subLoading, syncAndRefresh } = useSubscription();
   const [authScreen, setAuthScreen] = useState<AuthScreen>(getInitialAuthScreen);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [driverToken, setDriverToken] = useState<string | null>(null);
   const [stripeReturn, setStripeReturn] = useState<{ success: boolean; isPack: boolean; portalReturn: boolean } | null>(null);
-  const [showTrialModal, setShowTrialModal] = useState(false);
   const [showSubExpiredModal, setShowSubExpiredModal] = useState(false);
   const [pendingPortalSync, setPendingPortalSync] = useState(false);
 
@@ -138,14 +137,6 @@ function AppContent() {
   }, [pendingPortalSync, authLoading, subLoading, syncAndRefresh, usage]);
 
   useEffect(() => {
-    if (!subLoading && isAdmin && isTrialExpired && !hasActiveSubscription && !isSubscriptionExpired && currentScreen === 'dashboard') {
-      setShowTrialModal(true);
-    } else {
-      setShowTrialModal(false);
-    }
-  }, [subLoading, isAdmin, isTrialExpired, hasActiveSubscription, isSubscriptionExpired, currentScreen]);
-
-  useEffect(() => {
     if (!subLoading && isAdmin && isSubscriptionExpired && currentScreen === 'dashboard') {
       setShowSubExpiredModal(true);
     } else {
@@ -180,7 +171,6 @@ function AppContent() {
     await signOut();
     setCurrentScreen('dashboard');
     setDriverToken(null);
-    setShowTrialModal(false);
     setShowSubExpiredModal(false);
     if (wasDriver) {
       setAuthScreen('driver-login');
@@ -192,7 +182,6 @@ function AppContent() {
   };
 
   const handleNavigate = (screen: AppScreen) => {
-    setShowTrialModal(false);
     setShowSubExpiredModal(false);
     setCurrentScreen(screen);
     window.scrollTo(0, 0);
@@ -213,6 +202,7 @@ function AppContent() {
     'documentos': 'historial',
     'equipo': 'equipo',
     'lugares': 'lugares',
+    'suscripcion': 'planes',
     'configuracion': 'configuracion',
   };
   const sharedNav = (screen: string) => handleNavigate((navItemToScreen[screen] ?? screen) as AppScreen);
@@ -312,7 +302,7 @@ function AppContent() {
     );
   }
 
-  const blocksNavigation = isAdmin && (isTrialExpired || isSubscriptionExpired) && !hasActiveSubscription;
+  const blocksNavigation = isAdmin && isSubscriptionExpired && !hasActiveSubscription;
 
   const renderScreen = () => {
     switch (currentScreen) {
@@ -367,12 +357,6 @@ function AppContent() {
   return (
     <>
       {renderScreen()}
-      {showTrialModal && currentScreen === 'dashboard' && (
-        <TrialExpiredModal
-          onSelectPlan={() => handleNavigate('planes')}
-          onViewHistory={() => handleNavigate('historial')}
-        />
-      )}
       {showSubExpiredModal && currentScreen === 'dashboard' && (
         <SubscriptionExpiredModal
           onSelectPlan={() => handleNavigate('planes')}
@@ -388,6 +372,10 @@ function App() {
 
   if (publicDocId) {
     return <DocumentoPublico documentId={publicDocId} />;
+  }
+
+  if (window.location.pathname.startsWith('/admin')) {
+    return <AdminPanel />;
   }
 
   return (
