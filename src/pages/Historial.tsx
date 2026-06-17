@@ -302,7 +302,7 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
       onNavigate={handleNavItem}
       onLogout={onLogout}
     >
-      <div className="max-w-5xl space-y-5">
+      <div className="w-full space-y-5">
         {isAdmin && (
           <div className="bg-white rounded-2xl border border-slate-200/80 p-1.5 flex gap-1">
             {(['my', 'all', 'manage'] as const).map((v) => {

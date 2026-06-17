@@ -327,7 +327,7 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
       pageTitle="Documento de Control"
       onBack={onBack}
     >
-      <div className="max-w-5xl">
+      <div className="w-full">
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-5">
           <div className="space-y-4">
             <div className="bg-white rounded-2xl border border-slate-200/80 p-5">

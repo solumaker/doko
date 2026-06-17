@@ -121,7 +121,7 @@ export function Configuracion({ onBack, onLogout, onNavigate }: ConfiguracionPro
       onLogout={onLogout}
       pageTitle="Configuracion"
     >
-      <div className="max-w-5xl">
+      <div className="w-full">
         <div className="flex flex-col lg:flex-row gap-6">
           <aside className="lg:w-60 shrink-0">
             <nav className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden">

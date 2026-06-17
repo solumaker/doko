@@ -305,7 +305,7 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
 
   return (
     <AppLayout activeNav="inicio" onNavigate={handleNavItem} onLogout={onLogout}>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 w-full">
         {isSyncing && (
           <div className="flex items-center gap-4 bg-blue-50 border border-blue-200 rounded-2xl px-6 py-4">
             <div className="shrink-0 w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">

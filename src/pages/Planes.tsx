@@ -88,7 +88,7 @@ export function Planes({ onBack, onGoToEquipo: _onGoToEquipo, onLogout, onNaviga
       onLogout={onLogout}
       pageTitle="Mi Suscripcion"
     >
-      <div className="max-w-3xl space-y-5">
+      <div className="w-full space-y-5">
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold text-slate-800">Estado actual</h2>

@@ -855,7 +855,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         <h1 className="text-lg font-bold text-slate-900 flex-1 text-center pr-10">Nuevo documento de Control</h1>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 pt-6 md:pt-10 pb-32">
+      <div className="w-full px-4 pt-6 md:pt-10 pb-32">
         <div className="hidden md:flex items-center gap-3 mb-6">
           <button onClick={handleBack} className="p-2 text-slate-600 hover:text-slate-900 transition-colors">
             <ArrowLeft size={24} />
