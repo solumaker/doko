@@ -748,7 +748,7 @@ export function Equipo({ onBack, onGoToPlanes, onLogout, onNavigate }: EquipoPro
         </div>
       )}
 
-      <div className="max-w-3xl space-y-5">
+      <div className="w-full space-y-5">
         {success && (
           <div className="bg-emerald-50 border border-emerald-200/80 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium">
             {success}

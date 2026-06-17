@@ -207,7 +207,7 @@ export function Lugares({ onBack, onLogout, onNavigate }: LugaresProps) {
 
   return (
     <AppLayout activeNav="lugares" onNavigate={handleNavItem} onLogout={onLogout}>
-      <div className="max-w-3xl space-y-5">
+      <div className="w-full space-y-5">
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h3 className="text-base font-bold text-slate-800">Lugares guardados</h3>
