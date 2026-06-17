@@ -25,6 +25,19 @@ import { useData } from '../context/DataContext';
 import { SignatureCanvas, SignatureCanvasRef } from '../components/SignatureCanvas';
 import { AppLayout } from '../components/AppLayout';
 
+const WEIGHT_UNIT_SHORT: Record<string, string> = {
+  kilogramos: 'kg',
+  toneladas: 'tn',
+  'metros cubicos': 'm3',
+  litros: 'L',
+  unidades: 'u',
+};
+
+function weightUnitShort(unit?: string): string {
+  if (!unit) return 'kg';
+  return WEIGHT_UNIT_SHORT[unit] || unit;
+}
+
 interface DocumentoControlProps {
   document: Document;
   onBack: () => void;
@@ -518,7 +531,7 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
                     )}
                     <div>
                       <p className="text-[10px] text-slate-500 uppercase tracking-wider">Peso bruto</p>
-                      <p className="text-lg font-bold text-slate-900">{content.cargo.weight_kg.toLocaleString()} kg</p>
+                      <p className="text-lg font-bold text-slate-900">{content.cargo.weight_kg.toLocaleString()} {weightUnitShort(content.cargo.weight_unit)}</p>
                     </div>
                   </div>
                 </div>

@@ -61,6 +61,7 @@ interface DocumentContent {
     description: string;
     packages?: number;
     weight_kg: number;
+    weight_unit?: string;
   };
   company: {
     name: string;
@@ -124,6 +125,19 @@ function formatDateTime(iso: string): string {
 
 function formatWeight(kg: number): string {
   return kg.toLocaleString("es-ES");
+}
+
+const WEIGHT_UNIT_SHORT: Record<string, string> = {
+  kilogramos: "kg",
+  toneladas: "tn",
+  "metros cubicos": "m3",
+  litros: "L",
+  unidades: "u",
+};
+
+function weightUnitShort(unit?: string): string {
+  if (!unit) return "kg";
+  return WEIGHT_UNIT_SHORT[unit] || unit;
 }
 
 function getOriginText(origin: DocumentContent["origin"]): string[] {
@@ -367,7 +381,7 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
   if (c.cargo.packages != null && c.cargo.packages > 0) {
     cargoLines.push({ text: `Bultos: ${c.cargo.packages}` });
   }
-  cargoLines.push({ text: `Peso bruto: ${formatWeight(c.cargo.weight_kg)} kg`, bold: true, size: 12 });
+  cargoLines.push({ text: `Peso bruto: ${formatWeight(c.cargo.weight_kg)} ${weightUnitShort(c.cargo.weight_unit)}`, bold: true, size: 12 });
 
   const h7 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Mercancia", AMBER, cargoLines, fontRegular, fontBold);
   cursorY -= h7 + 30;
