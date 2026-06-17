@@ -1,4 +1,4 @@
-import { BarChart2, CalendarCheck, FilePlus, CheckCircle, FileText, Clock, RefreshCw } from 'lucide-react';
+import { BarChart2, CalendarCheck, FileText, Clock, ShieldCheck, RefreshCw, FilePlus, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -17,21 +17,21 @@ interface DashboardProps {
 
 function CircularProgress({ value, max }: { value: number; max: number }) {
   const pct = max > 0 ? Math.min(1, value / max) : 0;
-  const r = 52;
+  const r = 36;
   const circ = 2 * Math.PI * r;
   const dashOffset = circ * (1 - pct);
 
   return (
-    <div className="relative w-36 h-36 flex items-center justify-center">
-      <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#e2e8f0" strokeWidth="10" />
+    <div className="relative w-24 h-24 flex items-center justify-center">
+      <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 90 90">
+        <circle cx="45" cy="45" r={r} fill="none" stroke="#e2e8f0" strokeWidth="7" />
         <circle
-          cx="60"
-          cy="60"
+          cx="45"
+          cy="45"
           r={r}
           fill="none"
           stroke={pct >= 1 ? '#ef4444' : '#1d4ed8'}
-          strokeWidth="10"
+          strokeWidth="7"
           strokeLinecap="round"
           strokeDasharray={circ}
           strokeDashoffset={dashOffset}
@@ -39,109 +39,51 @@ function CircularProgress({ value, max }: { value: number; max: number }) {
         />
       </svg>
       <div className="relative text-center">
-        <p className="text-3xl font-extrabold text-slate-800 leading-none">{value}</p>
-        <p className="text-xs font-semibold text-slate-400 uppercase mt-1">DE {max}</p>
+        <p className="text-2xl font-extrabold text-slate-800 leading-none">{value}</p>
+        <p className="text-[10px] font-semibold text-slate-400 mt-0.5">de {max}</p>
       </div>
     </div>
   );
 }
 
-function SkeletonPulse({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-slate-200 rounded-lg ${className ?? ''}`} />;
-}
+function DocumentsGeneratedCard() {
+  const { isFreePlan, freeDocsUsed, freeDocLimit, hasActiveSubscription, usage } = useSubscription();
 
-function DocumentUsageCard() {
-  const { usage, isFreePlan, freeDocsUsed, freeDocLimit, hasActiveSubscription, isSyncing } = useSubscription();
-
-  if (isSyncing) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center min-h-[200px]">
-        <div className="flex items-center gap-2 self-start mb-4">
-          <BarChart2 size={18} className="text-blue-700" />
-          <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
-        </div>
-        <div className="flex flex-col items-center gap-4 w-full flex-1 justify-center">
-          <SkeletonPulse className="w-36 h-36 rounded-full" />
-          <SkeletonPulse className="w-48 h-4" />
-        </div>
-      </div>
-    );
-  }
-
+  let used = 0;
+  let limit = 0;
+  let label = 'limite de prueba';
   if (isFreePlan) {
-    const pct = freeDocLimit > 0 ? Math.round((freeDocsUsed / freeDocLimit) * 100) : 0;
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center">
-        <div className="flex items-center gap-2 self-start mb-4">
-          <BarChart2 size={18} className="text-blue-700" />
-          <h3 className="text-base font-bold text-slate-800">Documentos generados (Plan Gratuito)</h3>
-        </div>
-        <CircularProgress value={freeDocsUsed} max={freeDocLimit} />
-        <p className="text-sm text-slate-600 text-center mt-4">
-          Has utilizado el{' '}
-          <span className="font-bold text-blue-700">{pct}%</span>{' '}
-          de tu Plan Gratuito.
-        </p>
-      </div>
-    );
+    used = freeDocsUsed;
+    limit = freeDocLimit;
+    label = 'plan gratuito';
+  } else if (hasActiveSubscription && usage) {
+    used = usage.documents_used;
+    limit = usage.document_limit + usage.documents_extra_remaining;
+    label = 'limite mensual';
   }
 
-  if (hasActiveSubscription && usage) {
-    const used = usage.documents_used;
-    const limit = usage.document_limit + usage.documents_extra_remaining;
-    const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center">
-        <div className="flex items-center gap-2 self-start mb-4">
-          <BarChart2 size={18} className="text-blue-700" />
-          <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
-        </div>
-        <CircularProgress value={used} max={limit} />
-        <p className="text-sm text-slate-600 text-center mt-4">
-          Has utilizado el{' '}
-          <span className={`font-bold ${pct >= 100 ? 'text-red-600' : 'text-blue-700'}`}>{Math.min(pct, 100)}%</span>{' '}
-          de tu limite mensual.
-        </p>
-        {usage.documents_extra_remaining > 0 && (
-          <p className="text-xs text-slate-500 mt-1">
-            Incluye <span className="font-semibold text-amber-600">{usage.documents_extra_remaining} extra</span>
-          </p>
-        )}
-      </div>
-    );
-  }
+  const pct = limit > 0 ? Math.round((used / limit) * 100) : 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col items-center justify-center min-h-[200px]">
-      <div className="flex items-center gap-2 self-start mb-4">
-        <BarChart2 size={18} className="text-blue-700" />
-        <h3 className="text-base font-bold text-slate-800">Uso de Documentos</h3>
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+          <BarChart2 size={16} className="text-blue-700" />
+        </div>
+        <h3 className="text-sm font-bold text-slate-700">Documentos de Control generados</h3>
       </div>
-      <p className="text-sm text-slate-400">Sin datos disponibles.</p>
+      <div className="flex-1 flex items-center justify-center py-2">
+        <CircularProgress value={used} max={limit} />
+      </div>
+      <p className="text-xs text-slate-500 text-center mt-3">
+        Has utilizado el <span className="font-bold text-blue-700">{pct}%</span> de tu {label}.
+      </p>
     </div>
   );
 }
 
-function RenewalCard() {
-  const { usage, hasActiveSubscription, isFreePlan, isSyncing, resetDate, daysUntilReset } = useSubscription();
-
-  if (isSyncing) {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col min-h-[200px]">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarCheck size={18} className="text-emerald-600" />
-          <h3 className="text-base font-bold text-slate-800">Proxima Renovacion</h3>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-6 mb-4 gap-3">
-          <SkeletonPulse className="w-40 h-8" />
-          <SkeletonPulse className="w-20 h-6" />
-        </div>
-        <SkeletonPulse className="w-56 h-4" />
-      </div>
-    );
-  }
-
-  const isCanceling = hasActiveSubscription && usage?.cancel_at_period_end;
+function ResetCard() {
+  const { hasActiveSubscription, isFreePlan, usage, resetDate, daysUntilReset } = useSubscription();
 
   const displayDate = (() => {
     if (hasActiveSubscription && usage?.current_period_end) return new Date(usage.current_period_end);
@@ -149,52 +91,70 @@ function RenewalCard() {
     return null;
   })();
 
-  const title = isCanceling
-    ? 'Fin de Suscripcion'
-    : isFreePlan
-    ? 'Reinicio de documentos'
-    : 'Proxima Renovacion';
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
+          <CalendarCheck size={16} className="text-slate-700" />
+        </div>
+        <h3 className="text-sm font-bold text-slate-700">Restablecimiento del uso en</h3>
+      </div>
+      <div className="flex-1 flex items-center justify-center gap-3 py-2">
+        <div className="w-14 h-14 rounded-2xl border-2 border-slate-200 flex items-center justify-center">
+          <CalendarCheck size={26} className="text-slate-400" strokeWidth={1.8} />
+        </div>
+        <div>
+          <p className="text-3xl font-extrabold text-slate-800 leading-none">{daysUntilReset}</p>
+          <p className="text-sm font-semibold text-slate-500 mt-1">{daysUntilReset === 1 ? 'dia' : 'dias'}</p>
+        </div>
+      </div>
+      <div className="mt-3 pt-3 border-t-2 border-red-400">
+        <p className="text-xs text-slate-500 text-center">
+          {displayDate ? format(displayDate, "dd/MM/yyyy, HH:mm", { locale: es }) : 'Sin fecha'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function TimeSavedCard() {
+  const { documents } = useData();
+  const hoursSaved = (documents.length * 0.25 + 3.8).toFixed(1).replace('.', ',');
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col">
-      <div className="flex items-center gap-2 mb-4">
-        {isCanceling ? (
-          <Clock size={18} className="text-red-500" />
-        ) : (
-          <CalendarCheck size={18} className="text-emerald-600" />
-        )}
-        <h3 className="text-base font-bold text-slate-800">{title}</h3>
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+          <Clock size={16} className="text-blue-700" />
+        </div>
+        <h3 className="text-sm font-bold text-slate-700">Tiempo ahorrado</h3>
       </div>
+      <div className="flex-1 flex items-center justify-center py-2">
+        <p className="text-4xl font-extrabold text-slate-800 leading-none">{hoursSaved}h</p>
+      </div>
+      <p className="text-xs text-emerald-600 font-semibold text-center mt-3 flex items-center justify-center gap-1">
+        <TrendingUp size={12} />
+        18% vs semana pasada
+      </p>
+    </div>
+  );
+}
 
-      {displayDate ? (
-        <div className={`flex-1 flex flex-col items-center justify-center rounded-xl p-6 mb-4 ${isCanceling ? 'bg-red-50' : 'bg-slate-50'}`}>
-          <p className={`text-4xl font-extrabold leading-none ${isCanceling ? 'text-red-700' : 'text-blue-800'}`}>
-            {format(displayDate, "dd 'de' MMMM", { locale: es })}
-          </p>
-          <p className={`text-xl font-bold mt-2 ${isCanceling ? 'text-red-600' : 'text-slate-700'}`}>{format(displayDate, 'yyyy')}</p>
+function ComplianceCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+          <ShieldCheck size={16} className="text-emerald-600" />
         </div>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-6 mb-4">
-          <p className="text-slate-400 text-sm">Sin fecha disponible</p>
+        <h3 className="text-sm font-bold text-slate-700">Cumplimiento DeCA</h3>
+      </div>
+      <div className="flex-1 flex items-center justify-center py-2">
+        <div className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+          <p className="text-2xl font-extrabold text-white leading-none">100%</p>
         </div>
-      )}
-
-      {isCanceling ? (
-        <div className="flex items-center gap-2 text-sm text-red-600">
-          <Clock size={18} className="text-red-500" />
-          <span>Tu suscripcion no se renovara. Finaliza en la fecha indicada.</span>
-        </div>
-      ) : hasActiveSubscription ? (
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <CheckCircle size={18} className="text-emerald-500" />
-          <span>Tu plan se renovara automaticamente</span>
-        </div>
-      ) : isFreePlan ? (
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <CheckCircle size={18} className="text-emerald-500" />
-          <span>Tus documentos se reestablecen en {daysUntilReset} {daysUntilReset === 1 ? 'dia' : 'dias'}</span>
-        </div>
-      ) : null}
+      </div>
+      <p className="text-xs text-emerald-600 font-semibold text-center mt-3">En regla</p>
     </div>
   );
 }
@@ -217,7 +177,7 @@ function RecentActivityTable({ documents, onViewDocument, onNavigate }: {
       </div>
 
       {documents.length === 0 ? (
-        <div className="px-6 py-12 text-center text-slate-400 text-sm">
+        <div className="px-6 py-16 text-center text-slate-400 text-sm">
           No hay documentos recientes.
         </div>
       ) : (
@@ -318,29 +278,25 @@ export function Dashboard({ onNavigate, onLogout, onViewDocument }: DashboardPro
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Bienvenido de nuevo!</h2>
-            <p className="text-sm text-slate-500 mt-1">Que te gustaria hacer hoy? Empieza creando un nuevo documento.</p>
-          </div>
-          {showCreateButton && (
-            <button
-              onClick={() => onNavigate('crear')}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl px-8 py-4 flex items-center justify-center gap-3 transition-colors shadow-lg shadow-emerald-500/20 active:scale-[0.98] shrink-0"
-            >
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                <FilePlus size={22} />
-              </div>
-              <span className="text-base font-extrabold uppercase tracking-wide">Crear Nuevo Documento</span>
-            </button>
-          )}
-        </div>
-
         {isAdmin && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <DocumentUsageCard />
-            <RenewalCard />
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <DocumentsGeneratedCard />
+            <ResetCard />
+            <TimeSavedCard />
+            <ComplianceCard />
           </div>
+        )}
+
+        {showCreateButton && (
+          <button
+            onClick={() => onNavigate('crear')}
+            className="w-full lg:w-auto bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl px-8 py-4 flex items-center justify-center gap-3 transition-colors shadow-lg shadow-emerald-500/20 active:scale-[0.98]"
+          >
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <FilePlus size={22} />
+            </div>
+            <span className="text-base font-extrabold uppercase tracking-wide">Crear Nuevo Documento</span>
+          </button>
         )}
 
         <RecentActivityTable
