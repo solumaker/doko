@@ -61,7 +61,9 @@ export interface Company {
   company_role: CompanyRole;
 }
 
-export type PlanId = 'autonomo' | 'pyme' | 'flotas';
+export type PlanId = 'basico' | 'pro' | 'grandes_empresas' | 'autonomo' | 'pyme' | 'flotas';
+export type PaidPlanId = 'basico' | 'pro';
+export type BillingCycle = 'monthly' | 'yearly';
 
 export interface PlanConfig {
   id: PlanId;
@@ -72,9 +74,42 @@ export interface PlanConfig {
 }
 
 export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
-  autonomo: { id: 'autonomo', name: 'Autonomo', price: 39, document_limit: 100, support: 'Email' },
-  pyme: { id: 'pyme', name: 'Pyme', price: 99, document_limit: 500, support: 'Email prioritario' },
-  flotas: { id: 'flotas', name: 'Flotas', price: 249, document_limit: 2500, support: 'Telefono y email' },
+  basico: { id: 'basico', name: 'Basico', price: 9, document_limit: 100, support: 'Email' },
+  pro: { id: 'pro', name: 'Pro', price: 16, document_limit: 100, support: 'Soporte prioritario' },
+  grandes_empresas: { id: 'grandes_empresas', name: 'Grandes empresas', price: 0, document_limit: 0, support: 'Soporte dedicado' },
+  autonomo: { id: 'autonomo', name: 'Basico', price: 9, document_limit: 100, support: 'Email' },
+  pyme: { id: 'pyme', name: 'Pro', price: 16, document_limit: 100, support: 'Soporte prioritario' },
+  flotas: { id: 'flotas', name: 'Pro', price: 16, document_limit: 100, support: 'Soporte prioritario' },
+};
+
+export interface PlanTier {
+  plan: PaidPlanId;
+  documents: number;
+  price_monthly_eur: number | null;
+  price_yearly_eur: number | null;
+  stripe_price_id_monthly: string | null;
+  stripe_price_id_yearly: string | null;
+  available_monthly: boolean;
+  available_yearly: boolean;
+}
+
+export interface ExtraPackConfig {
+  plan: PaidPlanId;
+  price_per_10_eur: number;
+  stripe_price_id: string | null;
+}
+
+export const TIER_VALUES: number[] = [100, 200, 400, 800, 1500, 3000, 5000, 7500, 10000];
+export const TIER_LABELS: Record<number, string> = {
+  100: '100',
+  200: '200',
+  400: '400',
+  800: '800',
+  1500: '1.500',
+  3000: '3.000',
+  5000: '5.000',
+  7500: '7.500',
+  10000: '10.000',
 };
 
 export interface Subscription {
@@ -107,7 +142,11 @@ export interface SubscriptionUsage {
   users_count: number;
   user_limit: number;
   plan: PlanId | null;
+  normalized_plan: PaidPlanId | null;
   status: string | null;
+  billing_cycle: BillingCycle;
+  document_tier: number | null;
+  stripe_price_id: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
   trial_ends_at: string | null;
@@ -122,6 +161,7 @@ export interface SubscriptionUsage {
   cancel_at_period_end: boolean;
   pending_plan: PlanId | null;
   pending_plan_effective_date: string | null;
+  extra_unit_price: number | null;
 }
 
 export interface Profile {

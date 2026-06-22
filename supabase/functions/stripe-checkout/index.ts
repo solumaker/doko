@@ -9,7 +9,7 @@ const corsHeaders = {
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const PLAN_PRICES: Record<string, { price_id: string; doc_limit: number; user_limit: number }> = {
+const LEGACY_PLAN_PRICES: Record<string, { price_id: string; doc_limit: number; user_limit: number }> = {
   autonomo: { price_id: "price_1T9509BnbfHLJ2lEcwu2GuZu", doc_limit: 100, user_limit: 1 },
   pyme: { price_id: "price_1T7HFABnbfHLJ2lE8Q916Xrm", doc_limit: 500, user_limit: 3 },
   flotas: { price_id: "price_1T950eBnbfHLJ2lEAZOFRDIf", doc_limit: 2500, user_limit: 10 },
@@ -113,10 +113,36 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { mode, plan, pack, quantity: rawQty, success_url, cancel_url } = body;
+    const { mode, plan, pack, quantity: rawQty, success_url, cancel_url, billing_cycle, document_tier } = body;
 
     if (mode === "payment" && pack) {
       const qty = Math.max(1, Math.min(50, Math.floor(Number(rawQty) || 1)));
+
+      const { data: subRow } = await supabaseAdmin
+        .from("subscriptions")
+        .select("plan")
+        .eq("company_id", company.id)
+        .maybeSingle();
+
+      const normalizedPlan = (() => {
+        const p = subRow?.plan;
+        if (p === "basico" || p === "autonomo") return "basico";
+        if (p === "pro" || p === "pyme" || p === "flotas") return "pro";
+        return null;
+      })();
+
+      let extraPriceId = "price_1T9W1WBnbfHLJ2lEUzp4s90N";
+      if (normalizedPlan) {
+        const { data: cfg } = await supabaseAdmin
+          .from("extra_pack_config")
+          .select("stripe_price_id")
+          .eq("plan", normalizedPlan)
+          .maybeSingle();
+        if (cfg?.stripe_price_id && !cfg.stripe_price_id.startsWith("price_PLACEHOLDER")) {
+          extraPriceId = cfg.stripe_price_id;
+        }
+      }
+
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "payment",
@@ -125,7 +151,7 @@ Deno.serve(async (req: Request) => {
         billing_address_collection: "required",
         line_items: [
           {
-            price: "price_1T9W1WBnbfHLJ2lEUzp4s90N",
+            price: extraPriceId,
             quantity: qty,
             adjustable_quantity: { enabled: true, minimum: 1 },
           },
@@ -134,6 +160,7 @@ Deno.serve(async (req: Request) => {
           company_id: company.id,
           type: "document_pack",
           quantity: String(qty),
+          plan: normalizedPlan ?? "",
         },
         success_url: success_url || `${req.headers.get("origin")}?checkout_success=true&type=pack`,
         cancel_url: cancel_url || `${req.headers.get("origin")}?checkout_cancel=true`,
@@ -145,8 +172,68 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (mode === "subscription" && plan && PLAN_PRICES[plan]) {
-      const planConfig = PLAN_PRICES[plan];
+    if (mode === "subscription" && (plan === "basico" || plan === "pro") && document_tier) {
+      const cycle = billing_cycle === "yearly" ? "yearly" : "monthly";
+      const tier = Math.floor(Number(document_tier));
+
+      const { data: tierRow, error: tierErr } = await supabaseAdmin
+        .from("plan_tiers")
+        .select("*")
+        .eq("plan", plan)
+        .eq("documents", tier)
+        .maybeSingle();
+
+      if (tierErr || !tierRow) {
+        return new Response(
+          JSON.stringify({ error: "Tier not found", plan, tier }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const available = cycle === "monthly" ? tierRow.available_monthly : tierRow.available_yearly;
+      const priceId = cycle === "monthly" ? tierRow.stripe_price_id_monthly : tierRow.stripe_price_id_yearly;
+
+      if (!available || !priceId) {
+        return new Response(
+          JSON.stringify({ error: "Tier not available", plan, tier, billing_cycle: cycle, force_plan: "pro" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "subscription",
+        automatic_tax: { enabled: true },
+        customer_update: { address: "auto" },
+        billing_address_collection: "required",
+        line_items: [{ price: priceId, quantity: 1 }],
+        subscription_data: {
+          metadata: {
+            company_id: company.id,
+            plan,
+            billing_cycle: cycle,
+            document_tier: String(tier),
+            document_limit: String(tier),
+          },
+        },
+        metadata: {
+          company_id: company.id,
+          plan,
+          billing_cycle: cycle,
+          document_tier: String(tier),
+        },
+        success_url: success_url || `${req.headers.get("origin")}?checkout_success=true`,
+        cancel_url: cancel_url || `${req.headers.get("origin")}?checkout_cancel=true`,
+      });
+
+      return new Response(
+        JSON.stringify({ url: session.url }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (mode === "subscription" && plan && LEGACY_PLAN_PRICES[plan]) {
+      const planConfig = LEGACY_PLAN_PRICES[plan];
 
       const session = await stripe.checkout.sessions.create({
         customer: customerId,

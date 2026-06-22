@@ -1,6 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase, callEdgeFunction, SubscriptionUsage, PlanId } from '../lib/supabase';
+import { supabase, callEdgeFunction, SubscriptionUsage, PlanId, PaidPlanId, BillingCycle, PlanTier, ExtraPackConfig } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+
+interface CheckoutOptions {
+  plan: PaidPlanId;
+  billing_cycle: BillingCycle;
+  document_tier: number;
+}
 
 interface SubscriptionContextType {
   usage: SubscriptionUsage | null;
@@ -17,12 +23,16 @@ interface SubscriptionContextType {
   freeDocLimit: number;
   daysUntilReset: number;
   resetDate: Date | null;
+  tiers: PlanTier[];
+  extraConfig: ExtraPackConfig[];
   canCreateDocument: () => boolean;
   refreshSubscription: () => Promise<void>;
   syncAndRefresh: (baseline?: SubscriptionUsage | null) => Promise<void>;
-  createCheckoutSession: (plan: PlanId) => Promise<void>;
+  createCheckoutSession: (planOrOptions: PlanId | CheckoutOptions) => Promise<void>;
   purchaseDocumentPack: (quantity?: number) => Promise<void>;
   openCustomerPortal: () => Promise<void>;
+  quote: (plan: PaidPlanId, tier: number, cycle: BillingCycle) => { price: number | null; available: boolean; stripePriceId: string | null };
+  resolvePlanForTier: (preferred: PaidPlanId, tier: number, cycle: BillingCycle) => PaidPlanId | 'grandes_empresas';
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -32,6 +42,41 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [usage, setUsage] = useState<SubscriptionUsage | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [tiers, setTiers] = useState<PlanTier[]>([]);
+  const [extraConfig, setExtraConfig] = useState<ExtraPackConfig[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCatalog = async () => {
+      const [tiersRes, extraRes] = await Promise.all([
+        supabase.from('plan_tiers').select('*').order('plan').order('documents'),
+        supabase.from('extra_pack_config').select('*'),
+      ]);
+      if (cancelled) return;
+      if (!tiersRes.error && tiersRes.data) setTiers(tiersRes.data as PlanTier[]);
+      if (!extraRes.error && extraRes.data) setExtraConfig(extraRes.data as ExtraPackConfig[]);
+    };
+    loadCatalog();
+    return () => { cancelled = true; };
+  }, []);
+
+  const quote = useCallback((plan: PaidPlanId, tier: number, cycle: BillingCycle) => {
+    const row = tiers.find((t) => t.plan === plan && t.documents === tier);
+    if (!row) return { price: null, available: false, stripePriceId: null };
+    const available = cycle === 'monthly' ? row.available_monthly : row.available_yearly;
+    const price = cycle === 'monthly' ? row.price_monthly_eur : row.price_yearly_eur;
+    const stripePriceId = cycle === 'monthly' ? row.stripe_price_id_monthly : row.stripe_price_id_yearly;
+    return { price, available, stripePriceId };
+  }, [tiers]);
+
+  const resolvePlanForTier = useCallback((preferred: PaidPlanId, tier: number, cycle: BillingCycle): PaidPlanId | 'grandes_empresas' => {
+    if (tier > 10000) return 'grandes_empresas';
+    const q = quote(preferred, tier, cycle);
+    if (q.available) return preferred;
+    const proQ = quote('pro', tier, cycle);
+    if (proQ.available) return 'pro';
+    return 'grandes_empresas';
+  }, [quote]);
 
   const fetchUsage = useCallback(async () => {
     if (!profile?.company_id) {
@@ -229,13 +274,23 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, [callWithRetry, profile?.company_id, usage]);
 
-  const createCheckoutSession = useCallback(async (plan: PlanId) => {
-    const { data, ok } = await callWithRetry('stripe-checkout', {
-      plan,
+  const createCheckoutSession = useCallback(async (planOrOptions: PlanId | CheckoutOptions) => {
+    let body: Record<string, unknown> = {
       mode: 'subscription',
       success_url: `${window.location.origin}?checkout_success=true`,
       cancel_url: `${window.location.origin}?checkout_cancel=true`,
-    });
+    };
+    if (typeof planOrOptions === 'string') {
+      body.plan = planOrOptions;
+    } else {
+      body = {
+        ...body,
+        plan: planOrOptions.plan,
+        billing_cycle: planOrOptions.billing_cycle,
+        document_tier: planOrOptions.document_tier,
+      };
+    }
+    const { data, ok } = await callWithRetry('stripe-checkout', body);
 
     if (!ok) console.error('stripe-checkout error:', data);
     if (ok && data?.url) {
@@ -286,12 +341,16 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         freeDocLimit,
         daysUntilReset,
         resetDate,
+        tiers,
+        extraConfig,
         canCreateDocument,
         refreshSubscription,
         syncAndRefresh,
         createCheckoutSession,
         purchaseDocumentPack,
         openCustomerPortal,
+        quote,
+        resolvePlanForTier,
       }}
     >
       {children}
