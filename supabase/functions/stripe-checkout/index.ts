@@ -146,8 +146,6 @@ Deno.serve(async (req: Request) => {
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "payment",
-        automatic_tax: { enabled: true },
-        customer_update: { address: "auto" },
         billing_address_collection: "required",
         line_items: [
           {
@@ -203,8 +201,6 @@ Deno.serve(async (req: Request) => {
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "subscription",
-        automatic_tax: { enabled: true },
-        customer_update: { address: "auto" },
         billing_address_collection: "required",
         line_items: [{ price: priceId, quantity: 1 }],
         subscription_data: {
@@ -238,8 +234,6 @@ Deno.serve(async (req: Request) => {
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "subscription",
-        automatic_tax: { enabled: true },
-        customer_update: { address: "auto" },
         billing_address_collection: "required",
         line_items: [{ price: planConfig.price_id, quantity: 1 }],
         subscription_data: {
