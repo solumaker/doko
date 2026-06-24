@@ -1,4 +1,4 @@
-import { Check, Crown, ChevronUp, X, CreditCard, FileText, CircleDot, CalendarCheck, Loader2, ShieldCheck, FileBarChart, TrendingUp, Package, Sparkles } from 'lucide-react';
+import { Check, Crown, ChevronUp, X, CreditCard, FileText, CircleDot, CalendarCheck, Loader2, ShieldCheck, FileBarChart, TrendingUp, Package, Star, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { PaidPlanId, BillingCycle, TIER_VALUES, TIER_LABELS } from '../lib/supabase';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -13,15 +13,18 @@ interface PlanesProps {
   onNavigate: (screen: string) => void;
 }
 
-const SLIDER_STEPS = [...TIER_VALUES, 999999];
-const SLIDER_LABELS: Record<number, string> = { ...TIER_LABELS, 999999: '10.000+' };
-
 const planLabel = (p: string | null | undefined): string => {
-  if (!p) return 'Prueba gratuita';
+  if (!p) return 'Gratuito';
   if (p === 'basico' || p === 'autonomo') return 'Basico';
   if (p === 'pro' || p === 'pyme' || p === 'flotas') return 'Pro';
-  if (p === 'grandes_empresas') return 'Grandes empresas';
+  if (p === 'grandes_empresas') return 'Premium';
   return p;
+};
+
+const formatPrice = (n: number): { intPart: string; decPart: string } => {
+  const fixed = n.toFixed(2);
+  const [intPart, decPart] = fixed.split('.');
+  return { intPart, decPart };
 };
 
 export function Planes({ onLogout, onNavigate }: PlanesProps) {
@@ -35,34 +38,34 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
     purchaseDocumentPack,
     openCustomerPortal,
     quote,
-    resolvePlanForTier,
   } = useSubscription();
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly');
-  const [stepIdx, setStepIdx] = useState(0);
+  const [basicoTier, setBasicoTier] = useState<number>(100);
+  const [proTier, setProTier] = useState<number>(100);
   const [loadingPlan, setLoadingPlan] = useState<PaidPlanId | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingPack, setLoadingPack] = useState(false);
   const [packQty, setPackQty] = useState(1);
 
-  const selectedDocs = SLIDER_STEPS[stepIdx];
-  const isEnterprise = selectedDocs === 999999;
+  const basicoTiers = useMemo(
+    () => TIER_VALUES.filter((t) => quote('basico', t, billingCycle).available),
+    [quote, billingCycle]
+  );
+  const proTiers = useMemo(
+    () => TIER_VALUES.filter((t) => quote('pro', t, billingCycle).available),
+    [quote, billingCycle]
+  );
 
-  const basicoQuote = useMemo(() => (isEnterprise ? null : quote('basico', selectedDocs, billingCycle)), [quote, selectedDocs, billingCycle, isEnterprise]);
-  const proQuote = useMemo(() => (isEnterprise ? null : quote('pro', selectedDocs, billingCycle)), [quote, selectedDocs, billingCycle, isEnterprise]);
+  const basicoQuote = useMemo(() => quote('basico', basicoTier, billingCycle), [quote, basicoTier, billingCycle]);
+  const proQuote = useMemo(() => quote('pro', proTier, billingCycle), [quote, proTier, billingCycle]);
 
-  const handleSelect = async (plan: PaidPlanId) => {
-    if (isEnterprise) return;
-    const resolved = resolvePlanForTier(plan, selectedDocs, billingCycle);
-    if (resolved === 'grandes_empresas') {
-      window.location.href = 'mailto:ventas@doko.app?subject=Plan%20Grandes%20Empresas';
-      return;
-    }
-    setLoadingPlan(resolved);
+  const handleSelect = async (plan: PaidPlanId, tier: number) => {
+    setLoadingPlan(plan);
     await createCheckoutSession({
-      plan: resolved,
+      plan,
       billing_cycle: billingCycle,
-      document_tier: selectedDocs,
+      document_tier: tier,
     });
     setLoadingPlan(null);
   };
@@ -88,6 +91,13 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
     ? format(new Date(usage.current_period_end), 'dd/MM/yyyy')
     : null;
 
+  const isFreeActive = !hasActiveSubscription;
+  const isBasicoActive = hasActiveSubscription && (usage?.plan === 'basico' || usage?.plan === 'autonomo');
+  const isProActive = hasActiveSubscription && (usage?.plan === 'pro' || usage?.plan === 'pyme' || usage?.plan === 'flotas');
+
+  const ctaLabel = billingCycle === 'yearly' ? 'Comprar plan anual' : 'Comprar plan mensual';
+  const cycleSubtitle = billingCycle === 'yearly' ? 'Facturacion anual' : 'Facturacion mensual';
+
   return (
     <AppLayout activeNav="suscripcion" onNavigate={onNavigate} onLogout={onLogout} pageTitle="Suscripcion">
       <div className="w-full space-y-5">
@@ -103,126 +113,75 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
           onCancel={handleOpenPortal}
         />
 
-        <div className="rounded-3xl overflow-hidden border border-blue-700/20 shadow-xl shadow-blue-900/10">
-          <div className="bg-gradient-to-br from-blue-700 to-blue-900 px-6 lg:px-10 pt-8 pb-12 text-white relative">
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-              <div>
-                <p className="text-sm font-semibold text-blue-200">Cuantos documentos al mes?</p>
-                <p className="text-3xl lg:text-4xl font-extrabold mt-2 tracking-tight">
-                  {SLIDER_LABELS[selectedDocs]} <span className="text-blue-200 font-bold text-2xl">documentos/mes</span>
-                </p>
-              </div>
-              <div className="flex flex-col items-start lg:items-end gap-2 shrink-0">
-                <span className="text-xs font-semibold text-emerald-300">Ahorra un 15% o mas</span>
-                <div className="flex items-center bg-blue-800/60 rounded-full p-1">
-                  <button
-                    onClick={() => setBillingCycle('monthly')}
-                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
-                      billingCycle === 'monthly' ? 'bg-white text-blue-900 shadow' : 'text-blue-100'
-                    }`}
-                  >
-                    Pago mensual
-                  </button>
-                  <button
-                    onClick={() => setBillingCycle('yearly')}
-                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
-                      billingCycle === 'yearly' ? 'bg-white text-blue-900 shadow' : 'text-blue-100'
-                    }`}
-                  >
-                    Pago anual
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-10">
-              <input
-                type="range"
-                min={0}
-                max={SLIDER_STEPS.length - 1}
-                step={1}
-                value={stepIdx}
-                onChange={(e) => setStepIdx(Number(e.target.value))}
-                className="w-full accent-white slider-doko"
-              />
-              <div className="grid grid-cols-10 mt-2 text-[10px] lg:text-xs font-semibold text-blue-100">
-                {SLIDER_STEPS.map((v, i) => (
-                  <button
-                    key={v}
-                    onClick={() => setStepIdx(i)}
-                    className={`text-center transition-colors ${i === stepIdx ? 'text-white font-extrabold' : 'hover:text-white'}`}
-                  >
-                    {SLIDER_LABELS[v]}
-                  </button>
-                ))}
-              </div>
+        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 lg:p-8 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
+            <h2 className="text-xl font-bold text-slate-900">Planes disponibles</h2>
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-semibold transition-colors ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>
+                Facturado mensualmente
+              </span>
+              <button
+                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
+                className={`relative w-14 h-7 rounded-full transition-colors ${billingCycle === 'yearly' ? 'bg-blue-600' : 'bg-slate-300'}`}
+                aria-label="Cambiar ciclo de facturacion"
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                    billingCycle === 'yearly' ? 'translate-x-7' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span className={`text-sm font-semibold transition-colors ${billingCycle === 'yearly' ? 'text-slate-900' : 'text-slate-400'}`}>
+                Facturado anualmente
+              </span>
+              <span className="text-xs font-bold text-emerald-600 hidden lg:inline">Ahorra un 15% o mas</span>
             </div>
           </div>
 
-          <div className="bg-slate-100 px-4 lg:px-10 pt-0 pb-8 -mt-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-              <PlanCard
-                name="Gratuito"
-                price={0}
-                priceDecimals={null}
-                cta={hasActiveSubscription ? null : 'Empieza gratis'}
-                ctaDisabled={!hasActiveSubscription ? false : true}
-                onCta={() => undefined}
-                docsLabel="Hasta 20 documentos / mes"
-                description="Para aquellos que buscan crear sus primeros documentos de control sin complicaciones."
-                features={['20 documentos/mes', '1 usuario', 'Creacion rapida de documentos', 'Documento accesible y verificable en inspeccion', 'Comparte por enlace, QR o WhatsApp', 'Historial accesible durante 30 dias']}
-                featuresHeading="Incluye gratis:"
-                tone="white"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <FreePlanCard isActive={isFreeActive} />
 
-              <PlanCard
-                name="Basico"
-                price={basicoQuote?.available ? basicoQuote.price : null}
-                priceDecimals={null}
-                cta={isEnterprise ? null : (basicoQuote?.available ? 'Empieza ahora' : 'Disponible solo en Pro')}
-                ctaDisabled={isEnterprise || !basicoQuote?.available}
-                onCta={() => handleSelect('basico')}
-                loading={loadingPlan === 'basico'}
-                docsLabel={`Hasta ${SLIDER_LABELS[selectedDocs]} documentos / mes`}
-                description="Para autonomos y pequenas empresas que quieren generar documentos de control de forma rapida y sencilla."
-                features={['100 documentos/mes', 'Usuarios ilimitados', 'Soporte de email', 'Historial accesible durante 3 meses']}
-                featuresHeading="Todo en Gratuito, mas:"
-                tone="white"
-              />
+            <PaidPlanCard
+              name="Basico"
+              tone="white"
+              isActive={isBasicoActive}
+              tiers={basicoTiers}
+              selectedTier={basicoTier}
+              onChangeTier={setBasicoTier}
+              priceEur={basicoQuote.available ? basicoQuote.price : null}
+              cycleSubtitle={cycleSubtitle}
+              ctaLabel={ctaLabel}
+              ctaDisabled={!basicoQuote.available || isBasicoActive}
+              onCta={() => handleSelect('basico', basicoTier)}
+              loading={loadingPlan === 'basico'}
+              features={['Usuarios ilimitados', 'Soporte de email', 'Historial accesible durante 3 meses']}
+              featuresHeading="Todo en GRATUITO, mas:"
+            />
 
-              <PlanCard
-                name="Pro"
-                price={proQuote?.available ? proQuote.price : null}
-                priceDecimals={null}
-                cta={isEnterprise ? null : (proQuote?.available ? 'Empieza ahora' : 'No disponible')}
-                ctaDisabled={isEnterprise || !proQuote?.available}
-                onCta={() => handleSelect('pro')}
-                loading={loadingPlan === 'pro'}
-                docsLabel={`Hasta ${SLIDER_LABELS[selectedDocs]} documentos / mes`}
-                description="Para empresas que generan documentos a diario y quieren ahorrar tiempo en cada operacion."
-                features={['100 documentos/mes', 'Duplicar documentos', 'Exportacion masiva de documentos', 'Importar datos', 'Soporte prioritario', 'Historial accesible durante 1 ano']}
-                featuresHeading="Todo en Basico, mas:"
-                tone="highlight"
-                badge="Recomendado"
-              />
+            <PaidPlanCard
+              name="Pro"
+              tone="highlight"
+              isActive={isProActive}
+              tiers={proTiers}
+              selectedTier={proTier}
+              onChangeTier={setProTier}
+              priceEur={proQuote.available ? proQuote.price : null}
+              cycleSubtitle={cycleSubtitle}
+              ctaLabel={ctaLabel}
+              ctaDisabled={!proQuote.available || isProActive}
+              onCta={() => handleSelect('pro', proTier)}
+              loading={loadingPlan === 'pro'}
+              features={['Duplicar documentos', 'Exportacion masiva de documentos', 'Importacion de datos', 'Soporte prioritario', 'Historial accesible durante 1 ano']}
+              featuresHeading="Todo en BASICO, mas:"
+              badge="Recomendado"
+            />
 
-              <PlanCard
-                name="Grandes empresas"
-                customPrice="Precios personalizados"
-                customSubtitle="Hablemos sobre tus necesidades"
-                cta="Hablar con ventas"
-                onCta={() => { window.location.href = 'mailto:ventas@doko.app?subject=Plan%20Grandes%20Empresas'; }}
-                docsLabel=""
-                description="Para organizaciones que necesitan mas volumen, usuarios, soporte o integraciones personalizadas"
-                features={['Volumen personalizado', 'Varias empresas o delegaciones', 'Integraciones personalizadas', 'Soporte dedicado']}
-                featuresHeading="Todo en Pro, mas:"
-                tone="white"
-                ctaVariant="outline"
-              />
-            </div>
-
-            <p className="text-xs text-slate-500 text-center mt-5">*impuestos no incluidos</p>
+            <PremiumCard
+              onContact={() => { window.location.href = 'mailto:ventas@doko.app?subject=Plan%20Premium'; }}
+            />
           </div>
+
+          <p className="text-[11px] text-slate-400 text-center mt-5">*impuestos no incluidos</p>
         </div>
 
         {hasActiveSubscription && extraUnitPrice && (
@@ -300,14 +259,16 @@ function SubscriptionSummaryCard({
           </div>
         </div>
         <div className="flex flex-wrap gap-2.5">
-          <button
-            onClick={onUpgrade}
-            disabled={loadingPortal}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-60"
-          >
-            <ChevronUp size={16} strokeWidth={3} />
-            Mejorar plan
-          </button>
+          {hasActiveSubscription && (
+            <button
+              onClick={onUpgrade}
+              disabled={loadingPortal}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-60"
+            >
+              <ChevronUp size={16} strokeWidth={3} />
+              Mejorar plan
+            </button>
+          )}
           {hasActiveSubscription && (
             <button
               onClick={onCancel}
@@ -351,112 +312,200 @@ function StatPill({ icon: Icon, label, value, hint }: { icon: typeof CreditCard;
   );
 }
 
-interface PlanCardProps {
-  name: string;
-  price?: number | null;
-  priceDecimals?: string | null;
-  customPrice?: string;
-  customSubtitle?: string;
-  cta: string | null;
-  ctaDisabled?: boolean;
-  ctaVariant?: 'solid' | 'outline';
-  onCta: () => void;
-  loading?: boolean;
-  docsLabel: string;
-  description: string;
-  features: string[];
-  featuresHeading: string;
-  tone: 'white' | 'highlight';
-  badge?: string;
-}
-
-function PlanCard({
-  name,
-  price,
-  customPrice,
-  customSubtitle,
-  cta,
-  ctaDisabled,
-  ctaVariant = 'solid',
-  onCta,
-  loading,
-  docsLabel,
-  description,
-  features,
-  featuresHeading,
+function CardShell({
+  children,
+  isActive,
   tone,
   badge,
-}: PlanCardProps) {
+}: {
+  children: React.ReactNode;
+  isActive?: boolean;
+  tone: 'white' | 'highlight';
+  badge?: string;
+}) {
   const isHighlight = tone === 'highlight';
-  const isUnavailable = price === null && !customPrice;
-
   return (
     <div
-      className={`relative rounded-3xl bg-white border-2 p-6 flex flex-col shadow-sm transition-all ${
-        isHighlight ? 'border-blue-600 shadow-blue-600/10' : 'border-slate-200'
-      }`}
+      className={`relative rounded-3xl border-2 flex flex-col shadow-sm overflow-hidden ${
+        isHighlight ? 'border-blue-600 bg-blue-600 text-white shadow-blue-600/10' : 'bg-white border-slate-200 text-slate-900'
+      } ${isActive ? 'ring-2 ring-blue-500' : ''}`}
     >
       {badge && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-          <span className="bg-blue-600 text-white text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wide flex items-center gap-1 whitespace-nowrap shadow">
-            <Sparkles size={10} />
+        <div className="absolute -top-0 left-1/2 -translate-x-1/2 z-10">
+          <span className="bg-amber-400 text-amber-900 text-[10px] font-extrabold px-3 py-1 rounded-b-lg uppercase tracking-wide flex items-center gap-1 whitespace-nowrap shadow">
+            <Star size={10} className="fill-amber-900" />
             {badge}
           </span>
         </div>
       )}
-      <h3 className="text-xl font-bold text-slate-900 text-center">{name}</h3>
-
-      {customPrice ? (
-        <div className="mt-5 text-center">
-          <p className="text-2xl font-extrabold text-blue-700 leading-tight">{customPrice}</p>
-          {customSubtitle && <p className="text-xs text-slate-500 mt-2">{customSubtitle}</p>}
-        </div>
-      ) : price === null ? (
-        <div className="mt-5 text-center min-h-[88px] flex flex-col items-center justify-center">
-          <p className="text-sm font-bold text-slate-400">No disponible</p>
-          <p className="text-xs text-slate-400 mt-1">en este volumen</p>
-        </div>
-      ) : (
-        <div className="mt-5 flex items-end justify-center gap-1">
-          <span className="text-3xl font-bold text-blue-700">EUR</span>
-          <span className="text-6xl font-extrabold text-blue-700 leading-none">
-            {Math.round(Number(price))}
-          </span>
-          <span className="text-base text-slate-500 self-end mb-1">/mes</span>
+      {isActive && (
+        <div className="bg-blue-600 text-white text-center py-2 text-sm font-bold uppercase tracking-wide">
+          Tu plan
         </div>
       )}
+      <div className="p-6 flex flex-col flex-1">
+        {children}
+      </div>
+    </div>
+  );
+}
 
-      {docsLabel && !customPrice && (
-        <p className="text-xs text-slate-500 text-center mt-3">{docsLabel}</p>
-      )}
+function FreePlanCard({ isActive }: { isActive: boolean }) {
+  return (
+    <CardShell isActive={isActive} tone="white">
+      <h3 className="text-xl font-bold text-center">Gratuito</h3>
+      <div className="mt-5 flex items-end justify-center gap-1">
+        <span className="text-2xl font-bold text-blue-700">EUR</span>
+        <span className="text-6xl font-extrabold text-blue-700 leading-none">0</span>
+        <span className="text-base text-slate-500 self-end mb-1">/mes</span>
+      </div>
+      <p className="text-xs text-slate-500 text-center mt-2">Gratis para siempre</p>
 
-      {cta && (
-        <button
-          onClick={onCta}
-          disabled={ctaDisabled || loading}
-          className={`w-full mt-5 py-3 rounded-xl font-extrabold text-sm uppercase tracking-wide transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
-            ctaVariant === 'outline'
-              ? 'border-2 border-blue-600 text-blue-700 hover:bg-blue-50'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          } ${isUnavailable ? 'opacity-50' : ''}`}
-        >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : null}
-          {cta}
-        </button>
-      )}
-
-      <p className="text-xs text-slate-500 mt-5 leading-relaxed">{description}</p>
-
-      <p className="text-sm font-bold text-slate-800 mt-5 mb-3">{featuresHeading}</p>
+      <p className="text-sm font-bold text-slate-800 mt-6 mb-3">El plan GRATUITO incluye:</p>
       <ul className="space-y-2">
-        {features.map((f) => (
+        {['1 usuario', 'Creacion rapida de documentos', 'Documento accesible y verificable en inspeccion', 'Comparte por enlace, QR o WhatsApp', 'Historial accesible durante 30 dias'].map((f) => (
           <li key={f} className="flex items-start gap-2 text-sm text-slate-600">
             <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" strokeWidth={3} />
             <span>{f}</span>
           </li>
         ))}
       </ul>
-    </div>
+    </CardShell>
+  );
+}
+
+interface PaidPlanCardProps {
+  name: string;
+  tone: 'white' | 'highlight';
+  isActive: boolean;
+  tiers: number[];
+  selectedTier: number;
+  onChangeTier: (t: number) => void;
+  priceEur: number | null;
+  cycleSubtitle: string;
+  ctaLabel: string;
+  ctaDisabled: boolean;
+  onCta: () => void;
+  loading?: boolean;
+  features: string[];
+  featuresHeading: string;
+  badge?: string;
+}
+
+function PaidPlanCard({
+  name,
+  tone,
+  isActive,
+  tiers,
+  selectedTier,
+  onChangeTier,
+  priceEur,
+  cycleSubtitle,
+  ctaLabel,
+  ctaDisabled,
+  onCta,
+  loading,
+  features,
+  featuresHeading,
+  badge,
+}: PaidPlanCardProps) {
+  const isHighlight = tone === 'highlight';
+  const priceParts = priceEur != null ? formatPrice(priceEur) : null;
+
+  return (
+    <CardShell isActive={isActive} tone={tone} badge={badge}>
+      <h3 className={`text-xl font-bold text-center ${isHighlight ? 'text-white' : 'text-slate-900'} ${badge ? 'mt-2' : ''}`}>
+        {name}
+      </h3>
+
+      {priceParts ? (
+        <div className="mt-5 flex items-end justify-center gap-1">
+          <span className={`text-2xl font-bold ${isHighlight ? 'text-white' : 'text-blue-700'}`}>EUR</span>
+          <span className={`text-6xl font-extrabold leading-none ${isHighlight ? 'text-white' : 'text-blue-700'}`}>
+            {priceParts.intPart}
+          </span>
+          <span className={`text-2xl font-bold ${isHighlight ? 'text-white' : 'text-blue-700'} self-start mt-1`}>
+            .{priceParts.decPart}
+          </span>
+          <span className={`text-base ${isHighlight ? 'text-blue-100' : 'text-slate-500'} self-end mb-1`}>/mes</span>
+        </div>
+      ) : (
+        <div className="mt-5 text-center min-h-[68px] flex flex-col items-center justify-center">
+          <p className={`text-sm font-bold ${isHighlight ? 'text-blue-100' : 'text-slate-400'}`}>No disponible</p>
+          <p className={`text-xs mt-1 ${isHighlight ? 'text-blue-100/80' : 'text-slate-400'}`}>en este ciclo</p>
+        </div>
+      )}
+
+      <p className={`text-xs text-center mt-2 ${isHighlight ? 'text-blue-100' : 'text-slate-500'}`}>{cycleSubtitle}</p>
+
+      <div className="relative mt-4">
+        <select
+          value={selectedTier}
+          onChange={(e) => onChangeTier(Number(e.target.value))}
+          className={`w-full appearance-none rounded-xl border-2 px-4 py-2.5 pr-9 text-sm font-semibold cursor-pointer transition-colors ${
+            isHighlight
+              ? 'bg-white text-slate-900 border-white'
+              : 'bg-white text-slate-900 border-slate-300 hover:border-blue-500'
+          }`}
+        >
+          {tiers.map((t) => (
+            <option key={t} value={t}>
+              {TIER_LABELS[t]} documentos/mes
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+      </div>
+
+      <button
+        onClick={onCta}
+        disabled={ctaDisabled || loading}
+        className={`w-full mt-3 py-3 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
+          isHighlight
+            ? 'bg-white text-blue-700 hover:bg-blue-50'
+            : 'bg-blue-600 text-white hover:bg-blue-700'
+        }`}
+      >
+        {loading && <Loader2 size={16} className="animate-spin" />}
+        {isActive ? 'Plan activo' : ctaLabel}
+      </button>
+
+      <p className={`text-sm font-bold mt-6 mb-3 ${isHighlight ? 'text-white' : 'text-slate-800'}`}>{featuresHeading}</p>
+      <ul className="space-y-2">
+        {features.map((f) => (
+          <li key={f} className={`flex items-start gap-2 text-sm ${isHighlight ? 'text-blue-50' : 'text-slate-600'}`}>
+            <Check size={14} className={`shrink-0 mt-0.5 ${isHighlight ? 'text-emerald-300' : 'text-emerald-500'}`} strokeWidth={3} />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+    </CardShell>
+  );
+}
+
+function PremiumCard({ onContact }: { onContact: () => void }) {
+  return (
+    <CardShell tone="white">
+      <h3 className="text-xl font-bold text-center text-slate-900">Premium</h3>
+      <p className="text-sm text-slate-500 text-center mt-5">A medida para grandes flotas</p>
+
+      <button
+        onClick={onContact}
+        className="w-full mt-6 py-3 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+      >
+        Habla con ventas
+      </button>
+
+      <p className="text-sm font-bold text-slate-800 mt-6 mb-3">Todo en PRO, mas:</p>
+      <ul className="space-y-2">
+        {['Volumen personalizado', 'Varias empresas o delegaciones', 'Integraciones personalizadas', 'Soporte dedicado'].map((f) => (
+          <li key={f} className="flex items-start gap-2 text-sm text-slate-600">
+            <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" strokeWidth={3} />
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+    </CardShell>
   );
 }
 
