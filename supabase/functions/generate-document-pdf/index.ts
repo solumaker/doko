@@ -78,6 +78,7 @@ interface DocumentContent {
     dni?: string;
   };
   unloading_date?: string;
+  observations?: string;
 }
 
 interface DocumentRecord {
@@ -197,12 +198,13 @@ function drawSection(
   page.drawRectangle({ x, y: y - totalH, width: w, height: totalH, borderColor: BORDER_GRAY, borderWidth: 1 });
   // Header bar
   page.drawRectangle({ x, y: y - headerH, width: w, height: headerH, color: accentColor });
-  // Header text
+  // Header text (centered, regular weight)
+  const titleW = fontRegular.widthOfTextAtSize(title.toUpperCase(), 7.5);
   page.drawText(title.toUpperCase(), {
-    x: x + 8,
+    x: x + (w - titleW) / 2,
     y: y - headerH + 6,
     size: 7.5,
-    font: fontBold,
+    font: fontRegular,
     color: WHITE,
   });
 
@@ -386,6 +388,54 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
   const h7 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Mercancia", AMBER, cargoLines, fontRegular, fontBold);
   cursorY -= h7 + 30;
 
+  // === OBSERVACIONES ===
+  {
+    const obsText = c.observations?.trim() || "";
+    const textToShow = obsText || "No hay observaciones";
+    const textColor = obsText ? SLATE_MED : SLATE_LIGHT;
+    const obsPad = 10;
+    const obsLineH = 13;
+    const obsMaxW = CONTENT_W - obsPad * 2;
+    const obsHeaderH = 20;
+
+    // Wrap text
+    const wrappedLines: string[] = [];
+    for (const para of textToShow.split("\n")) {
+      if (!para.trim()) { wrappedLines.push(""); continue; }
+      const words = para.split(" ");
+      let cur = "";
+      for (const word of words) {
+        const test = cur ? `${cur} ${word}` : word;
+        if (fontRegular.widthOfTextAtSize(test, 9) <= obsMaxW) {
+          cur = test;
+        } else {
+          if (cur) wrappedLines.push(cur);
+          cur = word;
+        }
+      }
+      if (cur) wrappedLines.push(cur);
+    }
+
+    const bodyH = wrappedLines.length * obsLineH + obsPad * 2;
+    const totalH = obsHeaderH + bodyH;
+
+    page.drawRectangle({ x: MARGIN_X, y: cursorY - totalH, width: CONTENT_W, height: totalH, color: WHITE });
+    page.drawRectangle({ x: MARGIN_X, y: cursorY - totalH, width: CONTENT_W, height: totalH, borderColor: BORDER_GRAY, borderWidth: 1 });
+    page.drawRectangle({ x: MARGIN_X, y: cursorY - obsHeaderH, width: CONTENT_W, height: obsHeaderH, color: SLATE_MED });
+    const obsTitleW = fontRegular.widthOfTextAtSize("OBSERVACIONES", 7.5);
+    page.drawText("OBSERVACIONES", {
+      x: MARGIN_X + (CONTENT_W - obsTitleW) / 2,
+      y: cursorY - obsHeaderH + 6,
+      size: 7.5, font: fontRegular, color: WHITE,
+    });
+    let obsLy = cursorY - obsHeaderH - obsPad - 10;
+    for (const line of wrappedLines) {
+      page.drawText(line || " ", { x: MARGIN_X + obsPad, y: obsLy, size: 9, font: fontRegular, color: textColor, maxWidth: obsMaxW });
+      obsLy -= obsLineH;
+    }
+    cursorY -= totalH + 12;
+  }
+
   // === QR CODE (large, centered) ===
   try {
     const qrImg = await pdfDoc.embedPng(qrPngBytes);
@@ -430,14 +480,6 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
     size: 7.5,
     font: fontRegular,
     color: SLATE_LIGHT,
-  });
-
-  // Thin line above footer
-  page.drawLine({
-    start: { x: MARGIN_X, y: 45 },
-    end: { x: PAGE_W - MARGIN_X, y: 45 },
-    thickness: 0.5,
-    color: BORDER_GRAY,
   });
 
   // Set metadata
