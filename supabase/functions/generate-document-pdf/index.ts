@@ -18,6 +18,21 @@ interface VehicleAmendment {
   amended_at: string;
 }
 
+interface DocumentFieldChange {
+  field: string;
+  label: string;
+  old_value: string;
+  new_value: string;
+}
+
+interface DocumentAmendment {
+  id: string;
+  reason: string;
+  changes: DocumentFieldChange[];
+  amended_at: string;
+  amended_by?: string;
+}
+
 interface DocumentContent {
   contractual_shipper?: {
     nombre: string;
@@ -78,7 +93,7 @@ interface DocumentContent {
     dni?: string;
   };
   unloading_date?: string;
-  observations?: string;
+  amendments?: DocumentAmendment[];
 }
 
 interface DocumentRecord {
@@ -198,13 +213,12 @@ function drawSection(
   page.drawRectangle({ x, y: y - totalH, width: w, height: totalH, borderColor: BORDER_GRAY, borderWidth: 1 });
   // Header bar
   page.drawRectangle({ x, y: y - headerH, width: w, height: headerH, color: accentColor });
-  // Header text (centered, regular weight)
-  const titleW = fontRegular.widthOfTextAtSize(title.toUpperCase(), 7.5);
+  // Header text
   page.drawText(title.toUpperCase(), {
-    x: x + (w - titleW) / 2,
+    x: x + 8,
     y: y - headerH + 6,
     size: 7.5,
-    font: fontRegular,
+    font: fontBold,
     color: WHITE,
   });
 
@@ -386,54 +400,108 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
   cargoLines.push({ text: `Peso bruto: ${formatWeight(c.cargo.weight_kg)} ${weightUnitShort(c.cargo.weight_unit)}`, bold: true, size: 12 });
 
   const h7 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Mercancia", AMBER, cargoLines, fontRegular, fontBold);
-  cursorY -= h7 + 30;
+  cursorY -= h7 + 12;
 
-  // === OBSERVACIONES ===
-  {
-    const obsText = c.observations?.trim() || "";
-    const textToShow = obsText || "No hay observaciones";
-    const textColor = obsText ? SLATE_MED : SLATE_LIGHT;
-    const obsPad = 10;
-    const obsLineH = 13;
-    const obsMaxW = CONTENT_W - obsPad * 2;
-    const obsHeaderH = 20;
+  // === HISTORIAL DE MODIFICACIONES ===
+  const amendments = c.amendments;
+  let lastPage = page;
+  if (amendments && amendments.length > 0) {
+    const AMBER_BG = rgb(1, 0.98, 0.94);
+    const AMBER_BORDER = rgb(0.92, 0.82, 0.6);
+    const AMBER_DARK = rgb(0.6, 0.25, 0.02);
+    const RED_TEXT = rgb(0.7, 0.15, 0.1);
+    const GREEN_TEXT = rgb(0.05, 0.45, 0.2);
 
-    // Wrap text
-    const wrappedLines: string[] = [];
-    for (const para of textToShow.split("\n")) {
-      if (!para.trim()) { wrappedLines.push(""); continue; }
-      const words = para.split(" ");
-      let cur = "";
-      for (const word of words) {
-        const test = cur ? `${cur} ${word}` : word;
-        if (fontRegular.widthOfTextAtSize(test, 9) <= obsMaxW) {
-          cur = test;
-        } else {
-          if (cur) wrappedLines.push(cur);
-          cur = word;
-        }
-      }
-      if (cur) wrappedLines.push(cur);
+    const sectionPadding = 10;
+    const lineH = 12;
+
+    let totalLines = 0;
+    for (const amendment of amendments) {
+      totalLines += 2;
+      totalLines += amendment.changes.length;
+      totalLines += 1;
     }
 
-    const bodyH = wrappedLines.length * obsLineH + obsPad * 2;
-    const totalH = obsHeaderH + bodyH;
+    const headerHeight = 20;
+    const bodyHeight = totalLines * lineH + sectionPadding * 2;
+    const sectionHeight = headerHeight + bodyHeight;
 
-    page.drawRectangle({ x: MARGIN_X, y: cursorY - totalH, width: CONTENT_W, height: totalH, color: WHITE });
-    page.drawRectangle({ x: MARGIN_X, y: cursorY - totalH, width: CONTENT_W, height: totalH, borderColor: BORDER_GRAY, borderWidth: 1 });
-    page.drawRectangle({ x: MARGIN_X, y: cursorY - obsHeaderH, width: CONTENT_W, height: obsHeaderH, color: SLATE_MED });
-    const obsTitleW = fontRegular.widthOfTextAtSize("OBSERVACIONES", 7.5);
-    page.drawText("OBSERVACIONES", {
-      x: MARGIN_X + (CONTENT_W - obsTitleW) / 2,
-      y: cursorY - obsHeaderH + 6,
-      size: 7.5, font: fontRegular, color: WHITE,
+    if (cursorY - sectionHeight < 80) {
+      lastPage = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      cursorY = PAGE_H - 40;
+    }
+
+    lastPage.drawRectangle({
+      x: MARGIN_X, y: cursorY - sectionHeight,
+      width: CONTENT_W, height: sectionHeight,
+      color: AMBER_BG, borderColor: AMBER_BORDER, borderWidth: 1,
     });
-    let obsLy = cursorY - obsHeaderH - obsPad - 10;
-    for (const line of wrappedLines) {
-      page.drawText(line || " ", { x: MARGIN_X + obsPad, y: obsLy, size: 9, font: fontRegular, color: textColor, maxWidth: obsMaxW });
-      obsLy -= obsLineH;
+    lastPage.drawRectangle({
+      x: MARGIN_X, y: cursorY - headerHeight,
+      width: CONTENT_W, height: headerHeight,
+      color: AMBER,
+    });
+    lastPage.drawText("HISTORIAL DE MODIFICACIONES", {
+      x: MARGIN_X + 8, y: cursorY - headerHeight + 6,
+      size: 7.5, font: fontBold, color: WHITE,
+    });
+
+    let lineY = cursorY - headerHeight - sectionPadding - 10;
+
+    for (const amendment of amendments) {
+      const dateStr = formatDateTime(amendment.amended_at);
+      const authorStr = amendment.amended_by ? ` — ${amendment.amended_by}` : "";
+      lastPage.drawText(`${dateStr}${authorStr}`, {
+        x: MARGIN_X + sectionPadding, y: lineY,
+        size: 7.5, font: fontBold, color: AMBER_DARK,
+        maxWidth: CONTENT_W - sectionPadding * 2,
+      });
+      lineY -= lineH;
+
+      lastPage.drawText(`Motivo: ${amendment.reason}`, {
+        x: MARGIN_X + sectionPadding, y: lineY,
+        size: 7.5, font: fontRegular, color: SLATE_MED,
+        maxWidth: CONTENT_W - sectionPadding * 2,
+      });
+      lineY -= lineH;
+
+      for (const change of amendment.changes) {
+        const oldVal = change.old_value || "(vacio)";
+        const newVal = change.new_value || "(vacio)";
+        const changeText = `${change.label}: `;
+        lastPage.drawText(changeText, {
+          x: MARGIN_X + sectionPadding + 4, y: lineY,
+          size: 7, font: fontBold, color: SLATE_DARK,
+        });
+        const labelWidth = fontBold.widthOfTextAtSize(changeText, 7);
+        lastPage.drawText(oldVal, {
+          x: MARGIN_X + sectionPadding + 4 + labelWidth, y: lineY,
+          size: 7, font: fontRegular, color: RED_TEXT,
+        });
+        const oldWidth = fontRegular.widthOfTextAtSize(oldVal, 7);
+        lastPage.drawLine({
+          start: { x: MARGIN_X + sectionPadding + 4 + labelWidth, y: lineY + 3 },
+          end: { x: MARGIN_X + sectionPadding + 4 + labelWidth + oldWidth, y: lineY + 3 },
+          thickness: 0.5, color: RED_TEXT,
+        });
+        const arrowText = " -> ";
+        lastPage.drawText(arrowText, {
+          x: MARGIN_X + sectionPadding + 4 + labelWidth + oldWidth, y: lineY,
+          size: 7, font: fontRegular, color: SLATE_LIGHT,
+        });
+        const arrowWidth = fontRegular.widthOfTextAtSize(arrowText, 7);
+        lastPage.drawText(newVal, {
+          x: MARGIN_X + sectionPadding + 4 + labelWidth + oldWidth + arrowWidth, y: lineY,
+          size: 7, font: fontBold, color: GREEN_TEXT,
+        });
+        lineY -= lineH;
+      }
+      lineY -= 4;
     }
-    cursorY -= totalH + 12;
+
+    cursorY -= sectionHeight + 18;
+  } else {
+    cursorY -= 18;
   }
 
   // === QR CODE (large, centered) ===
@@ -444,7 +512,7 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
     const qrY = cursorY - qrSize;
 
     // Light background behind QR
-    page.drawRectangle({
+    lastPage.drawRectangle({
       x: qrX - 12,
       y: qrY - 12,
       width: qrSize + 24,
@@ -454,11 +522,11 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
       borderWidth: 1,
     });
 
-    page.drawImage(qrImg, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+    lastPage.drawImage(qrImg, { x: qrX, y: qrY, width: qrSize, height: qrSize });
 
     const captionText = "Escanea para verificar la autenticidad";
     const captionW = fontRegular.widthOfTextAtSize(captionText, 8);
-    page.drawText(captionText, {
+    lastPage.drawText(captionText, {
       x: (PAGE_W - captionW) / 2,
       y: qrY - 16,
       size: 8,
@@ -474,12 +542,20 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
   // === FOOTER ===
   const footerText = "Este documento ha sido generado digitalmente — DOKO";
   const footerW = fontRegular.widthOfTextAtSize(footerText, 7.5);
-  page.drawText(footerText, {
+  lastPage.drawText(footerText, {
     x: (PAGE_W - footerW) / 2,
     y: 30,
     size: 7.5,
     font: fontRegular,
     color: SLATE_LIGHT,
+  });
+
+  // Thin line above footer
+  lastPage.drawLine({
+    start: { x: MARGIN_X, y: 45 },
+    end: { x: PAGE_W - MARGIN_X, y: 45 },
+    thickness: 0.5,
+    color: BORDER_GRAY,
   });
 
   // Set metadata
@@ -539,10 +615,11 @@ Deno.serve(async (req: Request) => {
       .from("document-pdfs")
       .getPublicUrl(originalFileName);
 
-    // Generate QR as PNG buffer
+    // Generate QR as PNG buffer — URL points to download-pdf Edge Function for forced download
+    const qrTargetUrl = `${supabaseUrl}/functions/v1/download-pdf?id=${doc.id}`;
     let qrPngBytes = new Uint8Array(0);
     try {
-      const qrBuffer = await QRCode.toBuffer(origUrlData.publicUrl, {
+      const qrBuffer = await QRCode.toBuffer(qrTargetUrl, {
         width: 400,
         margin: 1,
         color: { dark: "#0f172a", light: "#ffffff" },

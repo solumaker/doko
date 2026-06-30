@@ -1,1 +1,1 @@
-doko OK
+doko

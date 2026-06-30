@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, Share2, Printer, FileText, Download } from 'lucide-react';
+import { Loader2, AlertCircle, Share2, Printer, Eye, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import QRCode from 'react-qr-code';
@@ -119,7 +119,8 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
     : `${content.company.address}, ${content.company.postal_code} ${content.company.city} (${content.company.province})`;
 
   const trailerPlate1 = content.vehicle.trailer_plate_1 || content.vehicle.trailer_plate;
-  const documentUrl = window.location.href;
+  const documentUrl = document.pdf_url || window.location.href;
+  const qrDownloadUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-pdf?id=${document.id}`;
 
   const handleShare = () => {
     const text = encodeURIComponent(`Documento de Control de Transporte: ${documentUrl}`);
@@ -136,15 +137,6 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (document.pdf_url) {
-      const link = document.createElement('a');
-      link.href = document.pdf_url;
-      link.download = `DOC-${document.id.toUpperCase().slice(0, 8)}.pdf`;
-      link.click();
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#f0f4f8]">
       <header className="bg-white border-b border-slate-200 px-4 py-4 print:hidden">
@@ -158,17 +150,10 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleViewPdf}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
-            >
-              <FileText size={18} />
-              Ver PDF
-            </button>
-            <button
-              onClick={handleDownloadPdf}
               className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-xl font-semibold flex items-center gap-2 text-sm"
             >
-              <Download size={18} />
-              Descargar
+              <Eye size={18} />
+              Ver documento
             </button>
             <button
               onClick={handlePrint}
@@ -205,11 +190,13 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
           </div>
 
           <div className="p-5">
-            <div className="flex justify-center mb-6">
-              <div className="bg-white p-3 border border-slate-200 rounded-xl">
-                <QRCode value={documentUrl} size={120} />
+            {document.pdf_url && (
+              <div className="flex justify-center mb-6">
+                <div className="bg-white p-3 border border-slate-200 rounded-xl">
+                  <QRCode value={qrDownloadUrl} size={120} />
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="text-center mb-5 pb-5 border-b border-slate-200">
               <p className="text-slate-400 text-xs uppercase tracking-wider font-semibold">Documento ID</p>
@@ -348,6 +335,53 @@ export function DocumentoPublico({ documentId }: DocumentoPublicoProps) {
                   </div>
                 </div>
               </section>
+
+              {content.amendments && content.amendments.length > 0 && (
+                <section className="border border-amber-300 bg-amber-50/40 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <History size={14} className="text-amber-600" />
+                    <h2 className="text-xs font-bold text-amber-700 uppercase tracking-wider">Historial de Modificaciones</h2>
+                    <span className="ml-auto text-[10px] font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                      {content.amendments.length} modificacion(es)
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {content.amendments.map((amendment) => (
+                      <div key={amendment.id} className="bg-white border border-amber-200/60 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-bold text-amber-700">
+                            {amendment.amended_by || 'Usuario'}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            {format(new Date(amendment.amended_at), "d/MM/yyyy HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-2">
+                          <p className="text-xs text-amber-800">
+                            <span className="font-semibold">Motivo:</span> {amendment.reason}
+                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          {amendment.changes.map((change, idx) => (
+                            <div key={idx} className="text-xs">
+                              <p className="font-semibold text-slate-600">{change.label}</p>
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                <span className="line-through text-red-500/80 bg-red-50 px-1.5 py-0.5 rounded text-[11px]">
+                                  {change.old_value || '(vacio)'}
+                                </span>
+                                <span className="text-slate-400">&rarr;</span>
+                                <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium text-[11px]">
+                                  {change.new_value || '(vacio)'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
             </div>
 

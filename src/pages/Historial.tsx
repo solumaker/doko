@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
-import { FileText, MapPin, Truck, Calendar, Loader2, Users, Eye, EyeOff, Search, Building2, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { useState } from 'react';
+import { FileText, MapPin, Truck, Calendar, Loader2, Search, Building2, X, Plus, UploadCloud, FolderOpen } from 'lucide-react';
+import { format, parseISO, startOfDay, endOfDay, isAfter, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
-import { supabase, Document, Profile } from '../lib/supabase';
+import { useSubscription } from '../context/SubscriptionContext';
+import { Document } from '../lib/supabase';
 import { AppLayout } from '../components/AppLayout';
 
 interface HistorialProps {
@@ -14,104 +14,44 @@ interface HistorialProps {
   onNavigate: (screen: string) => void;
 }
 
-interface DriverWithHidden extends Profile {
-  hiddenDocIds: string[];
-}
-
 export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: HistorialProps) {
-  const { documents, allDocuments, hideDocumentForProfile, showDocumentForProfile, loadingDocuments } = useData();
-  const { profile, isAdmin } = useAuth();
+  const { documents, loadingDocuments } = useData();
+  const { canCreateDocument, isSubscriptionExpired } = useSubscription();
 
-  const [adminView, setAdminView] = useState<'my' | 'all' | 'manage'>('my');
-  const [drivers, setDrivers] = useState<DriverWithHidden[]>([]);
-  const [selectedDriver, setSelectedDriver] = useState<DriverWithHidden | null>(null);
-  const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
-  useEffect(() => {
-    if (isAdmin && adminView === 'manage') {
-      fetchDriversWithHidden();
+  const filteredDocs = documents.filter((doc) => {
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase();
+      const shipper = (doc.content.contractual_shipper?.nombre || doc.content.company?.name || '').toLowerCase();
+      const origin = (doc.content.origin?.poblacion || doc.content.origin?.city || doc.content.origin?.empresa || '').toLowerCase();
+      const dest = (doc.content.destination?.poblacion || doc.content.destination?.city || doc.content.destination?.empresa || '').toLowerCase();
+      const driver = (doc.content.driver?.name || doc.driver_name || '').toLowerCase();
+      const plate = (doc.content.vehicle?.tractor_plate || '').toLowerCase();
+      if (!shipper.includes(q) && !origin.includes(q) && !dest.includes(q) && !driver.includes(q) && !plate.includes(q)) {
+        return false;
+      }
     }
-  }, [isAdmin, adminView]);
-
-  const fetchDriversWithHidden = async () => {
-    if (!profile?.company_id) return;
-    setLoadingDrivers(true);
-
-    const { data: members } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('company_id', profile.company_id)
-      .eq('role', 'driver')
-      .order('full_name');
-
-    const { data: allHidden } = await supabase
-      .from('document_visibility')
-      .select('document_id, profile_id');
-
-    const hiddenMap = new Map<string, string[]>();
-    (allHidden || []).forEach((r: { document_id: string; profile_id: string }) => {
-      const existing = hiddenMap.get(r.profile_id) || [];
-      existing.push(r.document_id);
-      hiddenMap.set(r.profile_id, existing);
-    });
-
-    const result: DriverWithHidden[] = (members || []).map((m: Profile) => ({
-      ...m,
-      hiddenDocIds: hiddenMap.get(m.id) || [],
-    }));
-
-    setDrivers(result);
-    if (result.length > 0 && !selectedDriver) setSelectedDriver(result[0]);
-    setLoadingDrivers(false);
-  };
-
-  const handleToggleVisibility = async (docId: string, driverId: string, currentlyHidden: boolean) => {
-    if (currentlyHidden) {
-      await showDocumentForProfile(docId, driverId);
-    } else {
-      await hideDocumentForProfile(docId, driverId);
+    if (dateFrom) {
+      const fromDate = startOfDay(parseISO(dateFrom));
+      if (isBefore(new Date(doc.created_at), fromDate)) return false;
     }
-    setDrivers((prev) =>
-      prev.map((d) => {
-        if (d.id !== driverId) return d;
-        const hiddenDocIds = currentlyHidden
-          ? d.hiddenDocIds.filter((id) => id !== docId)
-          : [...d.hiddenDocIds, docId];
-        return { ...d, hiddenDocIds };
-      })
-    );
-    if (selectedDriver?.id === driverId) {
-      setSelectedDriver((prev) =>
-        prev ? {
-          ...prev,
-          hiddenDocIds: currentlyHidden
-            ? prev.hiddenDocIds.filter((id) => id !== docId)
-            : [...prev.hiddenDocIds, docId],
-        } : prev
-      );
+    if (dateTo) {
+      const toDate = endOfDay(parseISO(dateTo));
+      if (isAfter(new Date(doc.created_at), toDate)) return false;
     }
-  };
+    return true;
+  });
 
-  const displayedDocs = isAdmin && adminView === 'all' ? allDocuments : documents;
-
-  const filteredDocs = searchQuery.trim() === ''
-    ? displayedDocs
-    : displayedDocs.filter((doc) => {
-        const q = searchQuery.toLowerCase();
-        const shipper = (doc.content.contractual_shipper?.nombre || doc.content.company?.name || '').toLowerCase();
-        const origin = (doc.content.origin?.poblacion || doc.content.origin?.city || doc.content.origin?.empresa || '').toLowerCase();
-        const dest = (doc.content.destination?.poblacion || doc.content.destination?.city || doc.content.destination?.empresa || '').toLowerCase();
-        const driver = (doc.content.driver?.name || doc.driver_name || '').toLowerCase();
-        const plate = (doc.content.vehicle?.tractor_plate || '').toLowerCase();
-        return shipper.includes(q) || origin.includes(q) || dest.includes(q) || driver.includes(q) || plate.includes(q);
-      });
+  const showCreateButton = canCreateDocument() && !isSubscriptionExpired;
 
   const handleNavItem = (item: string) => {
     onNavigate(item);
   };
 
-  const renderDocCard = (doc: Document, actions?: React.ReactNode) => (
+  const renderDocCard = (doc: Document) => (
     <div key={doc.id} className="bg-white rounded-2xl border border-slate-200/80 overflow-hidden hover:shadow-sm transition-all">
       <button
         onClick={() => onViewDocument(doc)}
@@ -132,41 +72,7 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
           )}
         </div>
 
-        <div className="hidden lg:grid lg:grid-cols-3 gap-4 mb-2">
-          <div className="flex items-start gap-2">
-            <div className="bg-blue-50 p-1 rounded-lg mt-0.5 shrink-0">
-              <MapPin size={13} className="text-blue-600" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Origen</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {doc.content.origin.poblacion || doc.content.origin.name || doc.content.origin.city}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <div className="bg-emerald-50 p-1 rounded-lg mt-0.5 shrink-0">
-              <MapPin size={13} className="text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Destino</p>
-              <p className="text-sm font-semibold text-slate-900">
-                {doc.content.destination.poblacion || doc.content.destination.name || doc.content.destination.city}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <div className="bg-slate-50 p-1 rounded-lg mt-0.5 shrink-0">
-              <Truck size={13} className="text-slate-600" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Matricula</p>
-              <p className="text-sm font-semibold text-slate-900">{doc.content.vehicle.tractor_plate}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:hidden space-y-2">
+        <div className="space-y-2">
           {(doc.content.contractual_shipper?.nombre || doc.content.company?.name) && (
             <div className="flex items-start gap-2.5">
               <div className="bg-amber-50 p-1 rounded-lg mt-0.5">
@@ -221,80 +127,8 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
           </p>
         </div>
       </button>
-      {actions && <div className="border-t border-slate-100 px-4 py-2.5">{actions}</div>}
     </div>
   );
-
-  const renderManageView = () => {
-    if (loadingDrivers) {
-      return (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 size={36} className="animate-spin text-blue-600" />
-        </div>
-      );
-    }
-
-    if (drivers.length === 0) {
-      return (
-        <div className="text-center py-16">
-          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Users size={28} className="text-slate-400" />
-          </div>
-          <p className="text-base font-semibold text-slate-600">No hay conductores</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-4">
-        <div className="bg-blue-50 border border-blue-200/80 rounded-xl p-3.5">
-          <p className="text-xs font-medium text-blue-800">Selecciona un conductor para gestionar que documentos puede ver en su historial.</p>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {drivers.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setSelectedDriver(d)}
-              className={`flex-shrink-0 px-4 py-2.5 rounded-xl font-semibold text-sm border transition-colors ${
-                selectedDriver?.id === d.id
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {d.full_name}
-            </button>
-          ))}
-        </div>
-
-        {selectedDriver && (
-          <div className="space-y-3">
-            <h3 className="font-bold text-slate-900 text-base">{selectedDriver.full_name}</h3>
-            {allDocuments.length === 0 ? (
-              <p className="text-slate-500 text-center py-8 text-sm">No hay documentos</p>
-            ) : (
-              allDocuments.map((doc) => {
-                const isHidden = selectedDriver.hiddenDocIds.includes(doc.id);
-                return renderDocCard(
-                  doc,
-                  <button
-                    onClick={() => handleToggleVisibility(doc.id, selectedDriver.id, isHidden)}
-                    className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                      isHidden
-                        ? 'text-red-600 bg-red-50 hover:bg-red-100'
-                        : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                    }`}
-                  >
-                    {isHidden ? <><EyeOff size={14} /> Oculto para este conductor</> : <><Eye size={14} /> Visible para este conductor</>}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
 
   return (
     <AppLayout
@@ -303,76 +137,163 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
       onLogout={onLogout}
     >
       <div className="w-full space-y-5">
-        {isAdmin && (
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-1.5 flex gap-1">
-            {(['my', 'all', 'manage'] as const).map((v) => {
-              const labels: Record<string, React.ReactNode> = {
-                my: 'Mis documentos',
-                all: 'Todos',
-                manage: <span className="flex items-center gap-1.5"><Users size={14} />Visibilidad</span>,
-              };
-              return (
+        {/* Filter bar */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 lg:p-5">
+          {/* Desktop layout */}
+          <div className="hidden lg:grid lg:grid-cols-[1fr_auto_auto_auto] lg:gap-4 lg:items-end">
+            <div className="relative">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por matricula, conductor, cliente, origen o destino..."
+                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+              />
+              {searchQuery && (
                 <button
-                  key={v}
-                  onClick={() => setAdminView(v)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors flex-1 justify-center ${
-                    adminView === v
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {labels[v]}
+                  <X size={15} />
                 </button>
-              );
-            })}
-          </div>
-        )}
+              )}
+            </div>
 
-        {adminView !== 'manage' && (
-          <div className="relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar por cargador, origen, destino, conductor o matricula..."
-              className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200/80 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-            />
-            {searchQuery && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fecha desde</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-44 py-3 px-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fecha hasta</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-44 py-3 px-3.5 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+              />
+            </div>
+
+            {showCreateButton && (
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                onClick={() => onNavigate('crear')}
+                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shadow-sm shadow-emerald-500/20 whitespace-nowrap"
               >
-                <X size={15} />
+                <Plus size={18} strokeWidth={2.5} />
+                Crear documento
               </button>
             )}
           </div>
-        )}
 
-        {adminView === 'manage' && isAdmin ? (
-          renderManageView()
-        ) : loadingDocuments ? (
+          {/* Mobile layout */}
+          <div className="lg:hidden flex flex-col gap-3">
+            <div className="relative">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por matricula, conductor, cliente, origen o destino..."
+                className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fecha desde</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1.5">Fecha hasta</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full py-2.5 px-3 bg-slate-50 border border-slate-200/80 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:bg-white transition-all"
+                />
+              </div>
+            </div>
+
+            {showCreateButton && (
+              <button
+                onClick={() => onNavigate('crear')}
+                className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shadow-sm shadow-emerald-500/20"
+              >
+                <Plus size={18} strokeWidth={2.5} />
+                Crear documento
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content area */}
+        {loadingDocuments ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 size={36} className="animate-spin text-blue-600" />
           </div>
-        ) : displayedDocs.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200/80 py-20 text-center">
-            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <FileText size={28} className="text-slate-400" />
+        ) : documents.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 py-16 lg:py-24 px-6 text-center">
+            <div className="relative w-32 h-32 mx-auto mb-6">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-28 h-24 bg-blue-50 rounded-2xl flex items-end justify-center pb-3">
+                  <FolderOpen size={48} className="text-blue-200" strokeWidth={1.5} />
+                </div>
+              </div>
+              <div className="absolute top-2 right-2 w-14 h-16 bg-white border border-blue-100 rounded-lg flex items-center justify-center shadow-sm rotate-3">
+                <FileText size={22} className="text-blue-300" strokeWidth={1.5} />
+              </div>
+              <div className="absolute top-4 left-3 w-12 h-14 bg-white border border-blue-100 rounded-lg flex items-center justify-center shadow-sm -rotate-6">
+                <FileText size={18} className="text-blue-200" strokeWidth={1.5} />
+              </div>
             </div>
-            <p className="text-base font-semibold text-slate-600">No hay documentos</p>
-            <p className="text-sm text-slate-400 mt-1">Los documentos generados apareceran aqui</p>
+
+            <h3 className="text-xl font-semibold text-slate-700 mb-2">
+              Todavia no has creado ningun documento de control
+            </h3>
+            <p className="text-sm text-slate-400 max-w-md mx-auto mb-8">
+              Cuando generes tus primeros documentos, apareceran aqui ordenados y listos para consultar.
+            </p>
+
+            {showCreateButton && (
+              <button
+                onClick={() => onNavigate('crear')}
+                className="inline-flex items-center gap-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-base px-8 py-4 rounded-xl transition-colors shadow-lg shadow-emerald-500/20"
+              >
+                <Plus size={20} strokeWidth={2.5} />
+                Crear documento
+              </button>
+            )}
           </div>
         ) : filteredDocs.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200/80 py-20 text-center">
+          <div className="bg-white rounded-2xl border border-slate-200/80 py-16 lg:py-20 text-center px-6">
             <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <Search size={28} className="text-slate-400" />
             </div>
             <p className="text-base font-semibold text-slate-600">Sin resultados</p>
-            <p className="text-sm text-slate-400 mt-1">Ningún documento coincide con "{searchQuery}"</p>
+            <p className="text-sm text-slate-400 mt-1">Ningun documento coincide con tu busqueda</p>
           </div>
         ) : (
           <>
+            {/* Desktop table */}
             <div className="hidden lg:block bg-white rounded-2xl border border-slate-200/80 overflow-hidden">
               <div className="grid grid-cols-[160px_1fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-3 bg-slate-50/80 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase tracking-wider">
                 <span>Fecha</span>
@@ -410,11 +331,43 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
               })}
             </div>
 
+            {/* Mobile cards */}
             <div className="lg:hidden space-y-3">
               {filteredDocs.map((doc) => renderDocCard(doc))}
             </div>
           </>
         )}
+
+        {/* Feature cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <FileText size={22} className="text-blue-600" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm">Documento de control</h4>
+              <p className="text-sm text-slate-500 mt-0.5">Crea documentos en menos de 1 minuto.</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <UploadCloud size={22} className="text-blue-600" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm">Archivo automatico</h4>
+              <p className="text-sm text-slate-500 mt-0.5">Cada documento queda guardado por viaje, vehiculo y cliente.</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+              <Search size={22} className="text-blue-600" />
+            </div>
+            <div>
+              <h4 className="font-bold text-slate-800 text-sm">Busqueda rapida</h4>
+              <p className="text-sm text-slate-500 mt-0.5">Encuentra cualquier documento en segundos.</p>
+            </div>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );

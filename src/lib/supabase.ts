@@ -218,6 +218,21 @@ export interface VehicleAmendment {
   amended_at: string;
 }
 
+export interface DocumentFieldChange {
+  field: string;
+  label: string;
+  old_value: string;
+  new_value: string;
+}
+
+export interface DocumentAmendment {
+  id: string;
+  reason: string;
+  changes: DocumentFieldChange[];
+  amended_at: string;
+  amended_by?: string;
+}
+
 export interface DocumentContent {
   acting_as?: 'transportista' | 'cargador';
   contractual_shipper?: {
@@ -295,6 +310,7 @@ export interface DocumentContent {
     origin?: SignatureData;
     destination?: SignatureData;
   };
+  amendments?: DocumentAmendment[];
 }
 
 export interface Document {

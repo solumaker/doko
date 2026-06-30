@@ -12,13 +12,14 @@ import {
   ChevronDown,
   FileText,
   User,
+  AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { supabase, Document, DocumentContent, Profile } from '../lib/supabase';
+import { supabase, Document, DocumentContent, DocumentFieldChange, Profile } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
@@ -26,9 +27,10 @@ interface CrearDocumentoProps {
   onBack: () => void;
   onComplete: (document: Document) => void;
   onNavigatePlanes?: () => void;
+  editingDocument?: Document;
 }
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
 type ActingAs = 'transportista' | 'cargador';
 
 interface PartyForm {
@@ -69,18 +71,18 @@ const sectionTitle = 'text-2xl font-extrabold text-slate-900 tracking-tight';
 const sectionSubtitle = 'text-sm text-slate-500 mt-1';
 const fieldLabel = 'block text-sm font-bold text-slate-900 mb-1.5';
 
-function StepBadge({ step }: { step: Step }) {
+function StepBadge({ step, totalSteps }: { step: number; totalSteps: number }) {
   return (
     <span className="inline-block bg-blue-50 text-blue-700 font-bold text-xs px-3 py-1 rounded-full">
-      Paso {step}
+      Paso {step} de {totalSteps}
     </span>
   );
 }
 
-function ProgressBars({ step }: { step: Step }) {
+function ProgressBars({ step, totalSteps }: { step: number; totalSteps: number }) {
   return (
-    <div className="grid grid-cols-5 gap-2 mt-4 mb-6">
-      {[1, 2, 3, 4, 5].map((i) => (
+    <div className={`grid gap-2 mt-4 mb-6`} style={{ gridTemplateColumns: `repeat(${totalSteps}, 1fr)` }}>
+      {Array.from({ length: totalSteps }, (_, i) => i + 1).map((i) => (
         <div
           key={i}
           className={`h-1 rounded-full transition-colors ${i <= step ? 'bg-blue-700' : 'bg-slate-200'}`}
@@ -224,10 +226,13 @@ function PartyFields({
   );
 }
 
-export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDocumentoProps) {
-  const { addDocument } = useData();
+export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDocument }: CrearDocumentoProps) {
+  const { addDocument, amendDocument } = useData();
   const { isAdmin, profile, company, isCargador } = useAuth();
   const { canCreateDocument, purchaseDocumentPack } = useSubscription();
+
+  const isEditMode = !!editingDocument;
+  const totalSteps: number = isEditMode ? 6 : 5;
 
   const [step, setStep] = useState<Step>(1);
   const [generating, setGenerating] = useState(false);
@@ -246,12 +251,98 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
   const [hasUnloadingDate, setHasUnloadingDate] = useState(false);
   const [unloadingDate, setUnloadingDate] = useState(new Date());
   const [observations, setObservations] = useState('');
+  const [modifyReason, setModifyReason] = useState('');
 
   const [companyDrivers, setCompanyDrivers] = useState<Profile[]>([]);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [driverDropdownOpen, setDriverDropdownOpen] = useState(false);
   const [driverSearch, setDriverSearch] = useState('');
   const driverDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Pre-fill form from editing document
+  useEffect(() => {
+    if (!editingDocument) return;
+    const c = editingDocument.content;
+
+    setActingAs(c.acting_as || (isCargador ? 'cargador' : 'transportista'));
+
+    // Determine counterparty
+    const acting = c.acting_as || (isCargador ? 'cargador' : 'transportista');
+    if (acting === 'transportista' && c.contractual_shipper) {
+      setCounterparty({
+        nombre: c.contractual_shipper.nombre || '',
+        domicilio: c.contractual_shipper.domicilio || '',
+        postal_code: c.contractual_shipper.postal_code || '',
+        poblacion: c.contractual_shipper.poblacion || '',
+        nif: c.contractual_shipper.nif || '',
+      });
+    } else if (acting === 'cargador' && c.transportista_efectivo) {
+      setCounterparty({
+        nombre: c.transportista_efectivo.nombre || '',
+        domicilio: c.transportista_efectivo.domicilio || '',
+        postal_code: c.transportista_efectivo.postal_code || '',
+        poblacion: c.transportista_efectivo.poblacion || '',
+        nif: c.transportista_efectivo.nif || '',
+      });
+    }
+
+    // Origin
+    setOrigin({
+      nombre: c.origin.empresa || '',
+      domicilio: c.origin.domicilio || c.origin.address || '',
+      postal_code: c.origin.postal_code || '',
+      poblacion: c.origin.poblacion || c.origin.city || '',
+      nif: c.origin.nif || '',
+    });
+
+    // Destination
+    setDestination({
+      nombre: c.destination.empresa || '',
+      domicilio: c.destination.domicilio || c.destination.address || '',
+      postal_code: c.destination.postal_code || '',
+      poblacion: c.destination.poblacion || c.destination.city || '',
+      nif: c.destination.nif || '',
+    });
+
+    // Vehicle
+    setVehicle({
+      tractor_plate: c.vehicle.tractor_plate || '',
+      trailer_plate_1: c.vehicle.trailer_plate_1 || c.vehicle.trailer_plate || '',
+      trailer_plate_2: c.vehicle.trailer_plate_2 || '',
+      special_authorization: c.vehicle.special_authorization || '',
+    });
+
+    // Cargo
+    setCargo({
+      description: c.cargo.description || '',
+      weight_kg: c.cargo.weight_kg || 0,
+      weight_unit: c.cargo.weight_unit || 'kilogramos',
+    });
+
+    // Dates
+    if (editingDocument.departure_date) {
+      const d = new Date(editingDocument.departure_date);
+      if (!isNaN(d.getTime())) setDepartureDate(d);
+    }
+    if (c.unloading_date) {
+      setHasUnloadingDate(true);
+      const d = new Date(c.unloading_date);
+      if (!isNaN(d.getTime())) setUnloadingDate(d);
+    }
+
+    // Observations
+    setObservations(c.observations || '');
+  }, [editingDocument, isCargador]);
+
+  // Pre-select driver after companyDrivers are loaded
+  useEffect(() => {
+    if (!editingDocument || !companyDrivers.length) return;
+    const driverName = editingDocument.content.driver?.name || editingDocument.driver_name;
+    if (driverName) {
+      const match = companyDrivers.find((d) => d.full_name === driverName);
+      if (match) setSelectedDriverId(match.id);
+    }
+  }, [editingDocument, companyDrivers]);
 
   useEffect(() => {
     if (!isAdmin || !profile?.company_id) return;
@@ -324,68 +415,156 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
       case 4:
         return true;
       case 5:
+        return isEditMode ? modifyReason.trim() !== '' : true;
+      case 6:
         return true;
       default:
         return false;
     }
   };
 
-  const handleNext = () => { if (step < 5 && canProceed()) setStep((step + 1) as Step); };
+  const lastStep = isEditMode ? 6 : 5;
+  const handleNext = () => { if (step < lastStep && canProceed()) setStep((step + 1) as Step); };
   const handleBack = () => { if (step > 1) setStep((step - 1) as Step); else onBack(); };
 
+  const buildContent = (): DocumentContent => ({
+    acting_as: actingAs,
+    contractual_shipper: {
+      nombre: cargadorContractual.nombre,
+      nif: cargadorContractual.nif,
+      domicilio: cargadorContractual.domicilio,
+      poblacion: cargadorContractual.poblacion,
+      postal_code: cargadorContractual.postal_code,
+    },
+    transportista_efectivo: {
+      nombre: transportistaEfectivo.nombre,
+      nif: transportistaEfectivo.nif,
+      domicilio: transportistaEfectivo.domicilio,
+      poblacion: transportistaEfectivo.poblacion,
+      postal_code: transportistaEfectivo.postal_code,
+    },
+    origin: {
+      empresa: effectiveOrigin.nombre || undefined,
+      domicilio: effectiveOrigin.domicilio,
+      poblacion: effectiveOrigin.poblacion,
+      postal_code: effectiveOrigin.postal_code,
+      nif: effectiveOrigin.nif || undefined,
+    },
+    destination: {
+      empresa: effectiveDestination.nombre || undefined,
+      domicilio: effectiveDestination.domicilio,
+      poblacion: effectiveDestination.poblacion,
+      postal_code: effectiveDestination.postal_code,
+      nif: effectiveDestination.nif || undefined,
+    },
+    vehicle: {
+      tractor_plate: vehicle.tractor_plate,
+      trailer_plate_1: vehicle.trailer_plate_1 || undefined,
+      trailer_plate_2: vehicle.trailer_plate_2 || undefined,
+      special_authorization: vehicle.special_authorization || undefined,
+    },
+    cargo: {
+      description: cargo.description,
+      weight_kg: cargo.weight_kg,
+      weight_unit: cargo.weight_unit,
+    },
+    observations: observations.trim() || undefined,
+    unloading_date: hasUnloadingDate ? format(unloadingDate, 'yyyy-MM-dd') : undefined,
+    company: { name: '', cif: '', address: '', city: '', province: '', postal_code: '', phone: '' },
+  });
+
+  const computeChanges = (): DocumentFieldChange[] => {
+    if (!editingDocument) return [];
+    const old = editingDocument.content;
+    const changes: DocumentFieldChange[] = [];
+
+    const cmpField = (label: string, field: string, oldVal: string, newVal: string) => {
+      if ((oldVal || '') !== (newVal || '')) {
+        changes.push({ field, label, old_value: oldVal || '', new_value: newVal || '' });
+      }
+    };
+
+    // Counterparty
+    const oldCounterparty = actingAs === 'transportista' ? old.contractual_shipper : old.transportista_efectivo;
+    const counterpartyTitle = actingAs === 'transportista' ? 'Cargador' : 'Transportista efectivo';
+    cmpField(`${counterpartyTitle} (nombre)`, 'counterparty.nombre', oldCounterparty?.nombre || '', counterparty.nombre);
+    cmpField(`${counterpartyTitle} (NIF)`, 'counterparty.nif', oldCounterparty?.nif || '', counterparty.nif);
+    cmpField(`${counterpartyTitle} (domicilio)`, 'counterparty.domicilio', oldCounterparty?.domicilio || '', counterparty.domicilio);
+    cmpField(`${counterpartyTitle} (poblacion)`, 'counterparty.poblacion', oldCounterparty?.poblacion || '', counterparty.poblacion);
+    cmpField(`${counterpartyTitle} (C.P.)`, 'counterparty.postal_code', oldCounterparty?.postal_code || '', counterparty.postal_code);
+
+    // Origin
+    const oldOrigin = old.origin;
+    cmpField('Origen (empresa)', 'origin.empresa', oldOrigin.empresa || '', effectiveOrigin.nombre);
+    cmpField('Origen (domicilio)', 'origin.domicilio', oldOrigin.domicilio || oldOrigin.address || '', effectiveOrigin.domicilio);
+    cmpField('Origen (poblacion)', 'origin.poblacion', oldOrigin.poblacion || oldOrigin.city || '', effectiveOrigin.poblacion);
+    cmpField('Origen (C.P.)', 'origin.postal_code', oldOrigin.postal_code || '', effectiveOrigin.postal_code);
+    cmpField('Origen (NIF)', 'origin.nif', oldOrigin.nif || '', effectiveOrigin.nif);
+
+    // Destination
+    const oldDest = old.destination;
+    cmpField('Destino (empresa)', 'destination.empresa', oldDest.empresa || '', effectiveDestination.nombre);
+    cmpField('Destino (domicilio)', 'destination.domicilio', oldDest.domicilio || oldDest.address || '', effectiveDestination.domicilio);
+    cmpField('Destino (poblacion)', 'destination.poblacion', oldDest.poblacion || oldDest.city || '', effectiveDestination.poblacion);
+    cmpField('Destino (C.P.)', 'destination.postal_code', oldDest.postal_code || '', effectiveDestination.postal_code);
+    cmpField('Destino (NIF)', 'destination.nif', oldDest.nif || '', effectiveDestination.nif);
+
+    // Vehicle
+    cmpField('Matricula tractora', 'vehicle.tractor_plate', old.vehicle.tractor_plate || '', vehicle.tractor_plate);
+    cmpField('Remolque 1', 'vehicle.trailer_plate_1', old.vehicle.trailer_plate_1 || old.vehicle.trailer_plate || '', vehicle.trailer_plate_1);
+    cmpField('Remolque 2', 'vehicle.trailer_plate_2', old.vehicle.trailer_plate_2 || '', vehicle.trailer_plate_2);
+    cmpField('Autorizacion especial', 'vehicle.special_authorization', old.vehicle.special_authorization || '', vehicle.special_authorization);
+
+    // Cargo
+    cmpField('Mercancia', 'cargo.description', old.cargo.description || '', cargo.description);
+    cmpField('Peso bruto', 'cargo.weight_kg', String(old.cargo.weight_kg || ''), String(cargo.weight_kg));
+    cmpField('Unidad de peso', 'cargo.weight_unit', old.cargo.weight_unit || 'kilogramos', cargo.weight_unit);
+
+    // Driver
+    const oldDriverName = old.driver?.name || '';
+    const oldDriverDni = old.driver?.dni || '';
+    const newDriverName = isAdmin && selectedDriver ? selectedDriver.full_name : (old.driver?.name || '');
+    const newDriverDni = isAdmin && selectedDriver ? (selectedDriver.dni || '') : (old.driver?.dni || '');
+    cmpField('Conductor', 'driver.name', oldDriverName, newDriverName);
+    cmpField('DNI conductor', 'driver.dni', oldDriverDni, newDriverDni);
+
+    // Dates
+    const oldDeparture = editingDocument.departure_date ? format(new Date(editingDocument.departure_date), 'yyyy-MM-dd') : '';
+    const newDeparture = format(departureDate, 'yyyy-MM-dd');
+    cmpField('Fecha de inicio', 'departure_date', oldDeparture, newDeparture);
+
+    const oldUnloading = old.unloading_date ? old.unloading_date.substring(0, 10) : '';
+    const newUnloading = hasUnloadingDate ? format(unloadingDate, 'yyyy-MM-dd') : '';
+    cmpField('Fecha de descarga', 'unloading_date', oldUnloading, newUnloading);
+
+    // Observations
+    cmpField('Observaciones', 'observations', old.observations || '', observations.trim());
+
+    return changes;
+  };
+
   const handleGenerate = async () => {
+    if (isEditMode) {
+      setGenerating(true);
+      const changes = computeChanges();
+      if (changes.length === 0) {
+        setGenerating(false);
+        return;
+      }
+      const newContent = buildContent();
+      const updatedDoc = await amendDocument(editingDocument!.id, modifyReason.trim(), changes, newContent);
+      setGenerating(false);
+      if (updatedDoc) onComplete(updatedDoc);
+      return;
+    }
+
     if (!canCreateDocument()) {
       setShowLimitModal(true);
       return;
     }
     setGenerating(true);
 
-    const content: DocumentContent = {
-      acting_as: actingAs,
-      contractual_shipper: {
-        nombre: cargadorContractual.nombre,
-        nif: cargadorContractual.nif,
-        domicilio: cargadorContractual.domicilio,
-        poblacion: cargadorContractual.poblacion,
-        postal_code: cargadorContractual.postal_code,
-      },
-      transportista_efectivo: {
-        nombre: transportistaEfectivo.nombre,
-        nif: transportistaEfectivo.nif,
-        domicilio: transportistaEfectivo.domicilio,
-        poblacion: transportistaEfectivo.poblacion,
-        postal_code: transportistaEfectivo.postal_code,
-      },
-      origin: {
-        empresa: effectiveOrigin.nombre || undefined,
-        domicilio: effectiveOrigin.domicilio,
-        poblacion: effectiveOrigin.poblacion,
-        postal_code: effectiveOrigin.postal_code,
-        nif: effectiveOrigin.nif || undefined,
-      },
-      destination: {
-        empresa: effectiveDestination.nombre || undefined,
-        domicilio: effectiveDestination.domicilio,
-        poblacion: effectiveDestination.poblacion,
-        postal_code: effectiveDestination.postal_code,
-        nif: effectiveDestination.nif || undefined,
-      },
-      vehicle: {
-        tractor_plate: vehicle.tractor_plate,
-        trailer_plate_1: vehicle.trailer_plate_1 || undefined,
-        trailer_plate_2: vehicle.trailer_plate_2 || undefined,
-        special_authorization: vehicle.special_authorization || undefined,
-      },
-      cargo: {
-        description: cargo.description,
-        weight_kg: cargo.weight_kg,
-        weight_unit: cargo.weight_unit,
-      },
-      observations: observations.trim() || undefined,
-      unloading_date: hasUnloadingDate ? format(unloadingDate, 'yyyy-MM-dd') : undefined,
-      company: { name: '', cif: '', address: '', city: '', province: '', postal_code: '', phone: '' },
-    };
-
+    const content = buildContent();
     const driverOverride = isAdmin && selectedDriver
       ? { name: selectedDriver.full_name, email: selectedDriver.email, dni: selectedDriver.dni || undefined }
       : undefined;
@@ -463,8 +642,8 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
       {renderRoleSelector()}
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <StepBadge step={1} />
-        <ProgressBars step={step} />
+        <StepBadge step={1} totalSteps={totalSteps} />
+        <ProgressBars step={step} totalSteps={totalSteps} />
 
         <div className="mb-6">
           <h2 className={sectionTitle}>{counterpartyLabel}</h2>
@@ -478,8 +657,8 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
 
   const renderStep2 = () => (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-      <StepBadge step={2} />
-      <ProgressBars step={step} />
+      <StepBadge step={2} totalSteps={totalSteps} />
+      <ProgressBars step={step} totalSteps={totalSteps} />
 
       <div className="mb-4">
         <h2 className={sectionTitle}>ORIGEN</h2>
@@ -498,9 +677,9 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         <PartyFields data={origin} onChange={setOrigin} nombreRequired={false} nifRequired={false} />
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
-          <p className="font-bold text-slate-900">{cargadorContractual.nombre || '—'}</p>
-          <p>{cargadorContractual.nif || '—'}</p>
-          <p>{cargadorContractual.domicilio || '—'}</p>
+          <p className="font-bold text-slate-900">{cargadorContractual.nombre || '\u2014'}</p>
+          <p>{cargadorContractual.nif || '\u2014'}</p>
+          <p>{cargadorContractual.domicilio || '\u2014'}</p>
           <p>{cargadorContractual.postal_code} {cargadorContractual.poblacion}</p>
         </div>
       )}
@@ -524,9 +703,9 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         <PartyFields data={destination} onChange={setDestination} nombreRequired={false} nifRequired={false} />
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
-          <p className="font-bold text-slate-900">{cargadorContractual.nombre || '—'}</p>
-          <p>{cargadorContractual.nif || '—'}</p>
-          <p>{cargadorContractual.domicilio || '—'}</p>
+          <p className="font-bold text-slate-900">{cargadorContractual.nombre || '\u2014'}</p>
+          <p>{cargadorContractual.nif || '\u2014'}</p>
+          <p>{cargadorContractual.domicilio || '\u2014'}</p>
           <p>{cargadorContractual.postal_code} {cargadorContractual.poblacion}</p>
         </div>
       )}
@@ -535,8 +714,8 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
 
   const renderStep3 = () => (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-      <StepBadge step={3} />
-      <ProgressBars step={step} />
+      <StepBadge step={3} totalSteps={totalSteps} />
+      <ProgressBars step={step} totalSteps={totalSteps} />
 
       <div className="mb-5">
         <h2 className={sectionTitle}>VEHICULO</h2>
@@ -634,7 +813,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
                           <p className="font-semibold text-slate-900 text-sm truncate">{d.full_name}</p>
                           <p className="text-xs text-slate-500 truncate">
                             {d.role === 'admin' ? 'Admin' : 'Conductor'}
-                            {d.dni && ` · ${d.dni}`}
+                            {d.dni && ` \u00B7 ${d.dni}`}
                           </p>
                         </div>
                         {selectedDriverId === d.id && <Check size={16} className="text-blue-600 shrink-0" />}
@@ -713,8 +892,8 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
 
   const renderStep4 = () => (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-      <StepBadge step={4} />
-      <ProgressBars step={step} />
+      <StepBadge step={4} totalSteps={totalSteps} />
+      <ProgressBars step={step} totalSteps={totalSteps} />
 
       <div className="mb-4">
         <h2 className={sectionTitle}>FECHA DE INICIO</h2>
@@ -762,19 +941,73 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         <span className="text-xs font-extrabold uppercase tracking-wide text-slate-900">{title}</span>
       </div>
       <div className="text-sm text-slate-700 space-y-0.5 leading-relaxed">
-        <p>{party.nombre || '—'}</p>
-        <p>{party.nif || '—'}</p>
-        <p>{party.domicilio || '—'}</p>
+        <p>{party.nombre || '\u2014'}</p>
+        <p>{party.nif || '\u2014'}</p>
+        <p>{party.domicilio || '\u2014'}</p>
         <p>{party.postal_code}</p>
         <p>{party.poblacion}</p>
       </div>
     </div>
   );
 
-  const renderStep5 = () => (
+  const renderStep5 = () => {
+    if (isEditMode) {
+      return (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <StepBadge step={5} totalSteps={totalSteps} />
+          <ProgressBars step={step} totalSteps={totalSteps} />
+
+          <div className="mb-6">
+            <h2 className={sectionTitle}>MOTIVO DEL CAMBIO</h2>
+            <p className={sectionSubtitle}>Indica el motivo de la modificacion del documento. Este motivo quedara registrado en el historial.</p>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-800">Informacion importante</p>
+                <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                  Los datos anteriores se conservaran en el historial del documento. El PDF se regenerara automaticamente con los nuevos datos y el registro de modificaciones.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className={fieldLabel}>Motivo de la modificacion *</label>
+            <textarea
+              value={modifyReason}
+              onChange={(e) => setModifyReason(e.target.value)}
+              className={`${inputClass} min-h-[120px] resize-y`}
+              placeholder="Ej: Cambio de destino por solicitud del cliente, correccion de peso tras verificacion en bascula..."
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return renderSummary(5);
+  };
+
+  const renderStep6 = () => (
+    <div className="space-y-6">
+      {renderSummary(6)}
+
+      <div className="bg-white rounded-2xl border border-amber-200 p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-2 text-amber-600">
+          <AlertCircle size={18} />
+          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-900">MOTIVO DEL CAMBIO</span>
+        </div>
+        <p className="text-sm text-slate-700 whitespace-pre-wrap">{modifyReason}</p>
+      </div>
+    </div>
+  );
+
+  const renderSummary = (stepNum: number) => (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-      <StepBadge step={5} />
-      <ProgressBars step={step} />
+      <StepBadge step={stepNum} totalSteps={totalSteps} />
+      <ProgressBars step={step} totalSteps={totalSteps} />
 
       <h2 className="text-2xl font-extrabold text-slate-900 text-center mb-7">RESUMEN DEL DOCUMENTO</h2>
 
@@ -846,13 +1079,15 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
     </div>
   );
 
+  const pageTitle = isEditMode ? 'Modificar documento' : 'Nuevo documento de Control';
+
   return (
     <div className="min-h-screen bg-[#f0f4f8]">
       <header className="bg-white border-b border-slate-200/80 px-4 py-4 flex items-center gap-4 md:hidden">
         <button onClick={handleBack} className="p-1 text-slate-700 hover:text-slate-900">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold text-slate-900 flex-1 text-center pr-10">Nuevo documento de Control</h1>
+        <h1 className="text-lg font-bold text-slate-900 flex-1 text-center pr-10">{pageTitle}</h1>
       </header>
 
       <div className="w-full px-4 pt-6 md:pt-10 pb-32">
@@ -860,7 +1095,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
           <button onClick={handleBack} className="p-2 text-slate-600 hover:text-slate-900 transition-colors">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Nuevo documento de Control</h1>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{pageTitle}</h1>
         </div>
 
         {step === 1 && renderStep1()}
@@ -868,6 +1103,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
         {step === 3 && renderStep3()}
         {step === 4 && renderStep4()}
         {step === 5 && renderStep5()}
+        {step === 6 && isEditMode && renderStep6()}
 
         <div className="flex items-center justify-end gap-3 mt-6">
           {step > 1 && (
@@ -880,7 +1116,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
             </button>
           )}
 
-          {step < 5 ? (
+          {step < lastStep ? (
             <button
               onClick={handleNext}
               disabled={!canProceed()}
@@ -893,16 +1129,18 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes }: CrearDo
             <button
               onClick={handleGenerate}
               disabled={generating}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-700 hover:bg-blue-800 text-white font-bold rounded-xl transition-all disabled:bg-blue-400 text-sm"
+              className={`flex items-center gap-2 px-6 py-3 text-white font-bold rounded-xl transition-all disabled:bg-slate-300 disabled:text-slate-500 text-sm ${
+                isEditMode ? 'bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300' : 'bg-blue-700 hover:bg-blue-800 disabled:bg-blue-400'
+              }`}
             >
               {generating ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Generando...
+                  {isEditMode ? 'Guardando...' : 'Generando...'}
                 </>
               ) : (
                 <>
-                  CREAR DOCUMENTO
+                  {isEditMode ? 'GUARDAR MODIFICACION' : 'CREAR DOCUMENTO'}
                   <ArrowRight size={16} />
                 </>
               )}

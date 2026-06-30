@@ -95,6 +95,7 @@ function AppContent() {
   const [authScreen, setAuthScreen] = useState<AuthScreen>(getInitialAuthScreen);
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('dashboard');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [driverToken, setDriverToken] = useState<string | null>(null);
   const [stripeReturn, setStripeReturn] = useState<{ success: boolean; isPack: boolean; portalReturn: boolean } | null>(null);
   const [showSubExpiredModal, setShowSubExpiredModal] = useState(false);
@@ -197,6 +198,11 @@ function AppContent() {
     setCurrentScreen('documento');
   };
 
+  const handleEditDocument = (document: Document) => {
+    setEditingDocument(document);
+    setCurrentScreen('crear');
+  };
+
   const navItemToScreen: Record<string, AppScreen> = {
     'inicio': 'dashboard',
     'documentos': 'historial',
@@ -256,8 +262,9 @@ function AppContent() {
       case 'crear':
         return (
           <CrearDocumento
-            onBack={() => handleNavigate('dashboard')}
-            onComplete={handleDocumentComplete}
+            onBack={() => { setEditingDocument(null); handleNavigate('dashboard'); }}
+            onComplete={(doc) => { setEditingDocument(null); handleDocumentComplete(doc); }}
+            editingDocument={editingDocument || undefined}
           />
         );
       case 'documento':
@@ -268,6 +275,7 @@ function AppContent() {
               onBack={() => handleNavigate('dashboard')}
               onLogout={handleLogout}
               onNavigate={sharedNav}
+              onEditDocument={handleEditDocument}
             />
           );
         }
@@ -327,9 +335,10 @@ function AppContent() {
         if (blocksNavigation) { handleNavigate('planes'); return null; }
         return (
           <CrearDocumento
-            onBack={() => handleNavigate('dashboard')}
-            onComplete={handleDocumentComplete}
+            onBack={() => { setEditingDocument(null); handleNavigate(editingDocument ? 'documento' : 'dashboard'); }}
+            onComplete={(doc) => { setEditingDocument(null); handleDocumentComplete(doc); }}
             onNavigatePlanes={() => handleNavigate('planes')}
+            editingDocument={editingDocument || undefined}
           />
         );
       case 'documento':
@@ -340,6 +349,7 @@ function AppContent() {
               onBack={() => handleNavigate('historial')}
               onLogout={handleLogout}
               onNavigate={sharedNav}
+              onEditDocument={handleEditDocument}
             />
           );
         }

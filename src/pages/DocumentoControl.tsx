@@ -1,21 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  Share2,
-  Download,
-  PenLine,
-  Truck,
-  X,
-  Check,
-  Loader2,
-  User,
-  CreditCard,
-  AlertCircle,
-  Clock,
-  FileText,
-  ShieldCheck,
-  MapPin,
-  RotateCcw,
-} from 'lucide-react';
+import { Share2, Eye, PenLine, Truck, X, Check, Loader2, User, CreditCard, AlertCircle, Clock, FileText, ShieldCheck, MapPin, RotateCcw, CreditCard as Edit3, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import QRCode from 'react-qr-code';
@@ -43,6 +27,7 @@ interface DocumentoControlProps {
   onBack: () => void;
   onLogout: () => void;
   onNavigate: (screen: string) => void;
+  onEditDocument?: (doc: Document) => void;
 }
 
 const inputClass =
@@ -79,7 +64,7 @@ function getPdfPhaseLabel(pct: number) {
   return PDF_PHASES[0].label;
 }
 
-export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNavigate }: DocumentoControlProps) {
+export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNavigate, onEditDocument }: DocumentoControlProps) {
   const { signDocument, amendVehiclePlates } = useData();
   const [doc, setDoc] = useState<Document>(initialDoc);
   const [pdfProgress, setPdfProgress] = useState(() =>
@@ -226,19 +211,16 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
   const trailerPlate1 = content.vehicle.trailer_plate_1 || content.vehicle.trailer_plate;
   const downloadUrl = doc.pdf_url || doc.pdf_original_url;
   const documentUrl = doc.pdf_url || `${window.location.origin}/documento/${doc.id}`;
+  const qrDownloadUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-pdf?id=${doc.id}`;
 
   const handleShare = () => {
     const text = encodeURIComponent(`Documento de Control de Transporte: ${documentUrl}`);
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
-  const handleDownload = () => {
+  const handleViewDocument = () => {
     if (!downloadUrl) return;
-    const link = window.document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `documento-${doc.id.slice(0, 8)}.pdf`;
-    link.target = '_blank';
-    link.click();
+    window.open(downloadUrl, '_blank');
   };
 
   const openSignModal = (side: 'origin' | 'destination') => {
@@ -333,12 +315,19 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
             <div className="bg-white rounded-2xl border border-slate-200/80 p-5">
               <div className="flex justify-center mb-4">
                 <div className="bg-white p-3 border-2 border-dashed border-slate-200 rounded-xl">
-                  <QRCode value={documentUrl} size={180} />
+                  {pdfProgress >= 100 ? (
+                    <QRCode value={qrDownloadUrl} size={180} />
+                  ) : (
+                    <div className="w-[180px] h-[180px] flex flex-col items-center justify-center gap-3">
+                      <Loader2 size={28} className="animate-spin text-slate-400" />
+                      <span className="text-xs text-slate-400 font-medium">Generando QR...</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="text-center mb-4">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Codigo QR de Verificacion</p>
-                <p className="text-xs text-slate-500">Escanea para validar la autenticidad del documento</p>
+                <p className="text-xs text-slate-500">Escanea para descargar el documento</p>
               </div>
               <div className={`rounded-xl px-3 py-2.5 flex items-center justify-center gap-2 ${pdfProgress >= 100 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
                 <ShieldCheck size={16} className={pdfProgress >= 100 ? 'text-emerald-600' : 'text-amber-500'} />
@@ -386,11 +375,11 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
               </div>
             ) : (
               <button
-                onClick={handleDownload}
+                onClick={handleViewDocument}
                 className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 transition-colors shadow-md shadow-emerald-500/20"
               >
-                <Download size={20} />
-                Descargar PDF
+                <Eye size={20} />
+                Ver documento
               </button>
             )}
 
@@ -400,6 +389,14 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
             >
               <Share2 size={18} />
               Compartir QR
+            </button>
+
+            <button
+              onClick={() => onEditDocument?.(doc)}
+              className="w-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 font-semibold py-3.5 rounded-2xl flex items-center justify-center gap-2 transition-colors text-sm"
+            >
+              <Edit3 size={18} />
+              Modificar documento
             </button>
 
             <div className="bg-blue-50 border border-blue-200/80 rounded-2xl p-4">
@@ -553,6 +550,43 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
                     </div>
                   </div>
                 )}
+
+                {content.amendments && content.amendments.length > 0 && (
+                  <div className="border border-amber-200 bg-amber-50/30 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <History size={14} className="text-amber-600" />
+                      <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Historial de Modificaciones</p>
+                      <span className="ml-auto text-[10px] font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                        {content.amendments.length}
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {content.amendments.map((amendment) => (
+                        <div key={amendment.id} className="bg-white border border-amber-200/60 rounded-lg p-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-bold text-amber-700">{amendment.amended_by || 'Usuario'}</p>
+                            <p className="text-[10px] text-slate-400">{format(new Date(amendment.amended_at), "d/MM/yyyy HH:mm", { locale: es })}</p>
+                          </div>
+                          <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-2">
+                            <p className="text-xs text-amber-800"><span className="font-semibold">Motivo:</span> {amendment.reason}</p>
+                          </div>
+                          <div className="space-y-1.5">
+                            {amendment.changes.map((change, idx) => (
+                              <div key={idx} className="text-xs">
+                                <p className="font-semibold text-slate-600">{change.label}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="line-through text-red-500/80 bg-red-50 px-1.5 py-0.5 rounded text-[11px]">{change.old_value || '(vacio)'}</span>
+                                  <span className="text-slate-400">&rarr;</span>
+                                  <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium text-[11px]">{change.new_value || '(vacio)'}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="bg-slate-800 px-5 py-3 flex items-center justify-center gap-2">
@@ -634,6 +668,7 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
           </div>
         </div>
       )}
+
     </AppLayout>
   );
 }

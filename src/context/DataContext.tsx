@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase, Location, Vehicle, Document, DocumentContent, ShipperHistory, SignatureData, VehicleAmendment } from '../lib/supabase';
+import { supabase, Location, Vehicle, Document, DocumentContent, ShipperHistory, SignatureData, VehicleAmendment, DocumentFieldChange, DocumentAmendment } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 export interface HiddenDocEntry {
@@ -26,6 +26,7 @@ interface DataContextType {
   addDocument: (content: DocumentContent, departureDate: Date, driverOverride?: { name: string; email?: string; dni?: string }, creatorId?: string) => Promise<Document | null>;
   signDocument: (id: string, side: 'origin' | 'destination', data: SignatureData) => Promise<Document | null>;
   amendVehiclePlates: (id: string, amendment: Omit<VehicleAmendment, 'amended_at'>) => Promise<Document | null>;
+  amendDocument: (id: string, reason: string, changes: DocumentFieldChange[], updatedFields: Partial<DocumentContent>) => Promise<Document | null>;
   hideDocumentForProfile: (documentId: string, profileId: string) => Promise<void>;
   showDocumentForProfile: (documentId: string, profileId: string) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -357,6 +358,49 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return data;
   };
 
+  const amendDocument = async (id: string, reason: string, changes: DocumentFieldChange[], updatedFields: Partial<DocumentContent>): Promise<Document | null> => {
+    const current = allDocuments.find((d) => d.id === id);
+    if (!current) return null;
+
+    const newAmendment: DocumentAmendment = {
+      id: crypto.randomUUID(),
+      reason,
+      changes,
+      amended_at: new Date().toISOString(),
+      amended_by: profile?.full_name || undefined,
+    };
+
+    const existingAmendments = current.content.amendments || [];
+    const newContent: DocumentContent = {
+      ...current.content,
+      ...updatedFields,
+      amendments: [...existingAmendments, newAmendment],
+    };
+
+    const { data, error } = await supabase
+      .from('documents')
+      .update({ content: newContent })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) { console.error('Error amending document:', error); return null; }
+
+    setAllDocuments((prev) => prev.map((d) => (d.id === id ? data : d)));
+
+    triggerPdfRegen(id, (result) => {
+      setAllDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === id
+            ? { ...doc, pdf_original_url: result.pdf_original_url, pdf_url: result.pdf_url }
+            : doc
+        )
+      );
+    });
+
+    return data;
+  };
+
   const hideDocumentForProfile = async (documentId: string, profileId: string) => {
     await supabase.from('document_visibility').upsert(
       { document_id: documentId, profile_id: profileId },
@@ -410,6 +454,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addDocument,
         signDocument,
         amendVehiclePlates,
+        amendDocument,
         hideDocumentForProfile,
         showDocumentForProfile,
         refreshData,
