@@ -334,13 +334,28 @@ export interface DriverCompanyLink {
   created_at: string;
 }
 
-export interface ShipperHistory {
+export type PartyType = 'contractual_shipper' | 'transportista_efectivo' | 'origin' | 'destination';
+
+export interface PartyHistory {
   id: string;
   company_id: string;
+  party_type: PartyType;
   nombre: string;
   nif: string;
   domicilio: string;
   poblacion: string;
+  postal_code: string;
+  use_count: number;
+  last_used: string;
+  created_at: string;
+}
+
+export interface VehicleHistory {
+  id: string;
+  company_id: string;
+  tractor_plate: string;
+  trailer_plate_1: string;
+  trailer_plate_2: string;
   use_count: number;
   last_used: string;
   created_at: string;

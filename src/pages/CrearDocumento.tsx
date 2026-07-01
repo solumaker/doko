@@ -13,13 +13,14 @@ import {
   FileText,
   User,
   AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { supabase, Document, DocumentContent, DocumentFieldChange, Profile } from '../lib/supabase';
+import { supabase, Document, DocumentContent, DocumentFieldChange, PartyHistory, PartyType, Profile, VehicleHistory } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
@@ -69,7 +70,66 @@ const inputClass =
 
 const sectionTitle = 'text-2xl font-extrabold text-slate-900 tracking-tight';
 const sectionSubtitle = 'text-sm text-slate-500 mt-1';
-const fieldLabel = 'block text-sm font-bold text-slate-900 mb-1.5';
+const fieldLabel = 'flex flex-wrap items-center gap-2 text-sm font-bold text-slate-900 mb-1.5';
+
+function FieldLabel({ text, required }: { text: string; required: boolean }) {
+  return (
+    <label className={fieldLabel}>
+      <span>{text}</span>
+      {required ? (
+        <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wide">
+          Obligatorio
+        </span>
+      ) : (
+        <span className="text-xs font-medium text-slate-400 normal-case">(opcional, puedes dejarlo en blanco)</span>
+      )}
+    </label>
+  );
+}
+
+function RequiredFieldsLegend() {
+  return (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+      <AlertCircle size={20} className="text-blue-700 shrink-0 mt-0.5" />
+      <p className="text-sm text-blue-900 leading-relaxed">
+        Los campos con la etiqueta roja <span className="font-extrabold">OBLIGATORIO</span> son imprescindibles para poder crear el documento.
+        Los que dicen <span className="font-semibold">(opcional)</span> puedes dejarlos en blanco sin problema.
+      </p>
+    </div>
+  );
+}
+
+function RecentChips<T>({
+  items,
+  renderLabel,
+  onSelect,
+}: {
+  items: T[];
+  renderLabel: (item: T) => string;
+  onSelect: (item: T) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <div className="mb-4">
+      <p className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+        <Clock size={13} />
+        Usado en un documento anterior · toca para rellenar (opcional)
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onSelect(item)}
+            className="px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 text-xs font-semibold text-slate-700 transition-colors"
+          >
+            {renderLabel(item)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function StepBadge({ step, totalSteps }: { step: number; totalSteps: number }) {
   return (
@@ -166,7 +226,7 @@ function PartyFields({
     <div className="space-y-5">
       {showNombre && (
         <div>
-          <label className={fieldLabel}>{nombreLabel}{nombreRequired ? ' *' : ''}</label>
+          <FieldLabel text={nombreLabel} required={nombreRequired} />
           <input
             type="text"
             value={data.nombre}
@@ -179,7 +239,7 @@ function PartyFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
-          <label className={fieldLabel}>Domicilio *</label>
+          <FieldLabel text="Domicilio" required />
           <input
             type="text"
             value={data.domicilio}
@@ -189,7 +249,7 @@ function PartyFields({
           />
         </div>
         <div>
-          <label className={fieldLabel}>Codigo Postal *</label>
+          <FieldLabel text="Codigo Postal" required />
           <input
             type="text"
             value={data.postal_code}
@@ -202,7 +262,7 @@ function PartyFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
-          <label className={fieldLabel}>Poblacion *</label>
+          <FieldLabel text="Poblacion" required />
           <input
             type="text"
             value={data.poblacion}
@@ -212,7 +272,7 @@ function PartyFields({
           />
         </div>
         <div>
-          <label className={fieldLabel}>NIF{nifRequired ? ' *' : ''}</label>
+          <FieldLabel text="NIF" required={nifRequired} />
           <input
             type="text"
             value={data.nif}
@@ -227,7 +287,7 @@ function PartyFields({
 }
 
 export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDocument }: CrearDocumentoProps) {
-  const { addDocument, amendDocument } = useData();
+  const { addDocument, amendDocument, partyHistory, vehicleHistory } = useData();
   const { isAdmin, profile, company, isCargador } = useAuth();
   const { canCreateDocument, purchaseDocumentPack } = useSubscription();
 
@@ -392,6 +452,22 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
   const validParty = (p: PartyForm) =>
     p.domicilio.trim() !== '' && p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
+
+  const counterpartyType: PartyType = actingAs === 'transportista' ? 'contractual_shipper' : 'transportista_efectivo';
+  const partySuggestions = (type: PartyType, limit = 5): PartyHistory[] =>
+    partyHistory.filter((p) => p.party_type === type).slice(0, limit);
+  const partyHistoryToForm = (p: PartyHistory): PartyForm => ({
+    nombre: p.nombre,
+    domicilio: p.domicilio,
+    postal_code: p.postal_code,
+    poblacion: p.poblacion,
+    nif: p.nif,
+  });
+  const partySuggestionLabel = (p: PartyHistory) => `${p.nombre || p.domicilio} — ${p.poblacion}`;
+
+  const vehicleSuggestions: VehicleHistory[] = vehicleHistory.slice(0, 5);
+  const vehicleSuggestionLabel = (v: VehicleHistory) =>
+    v.trailer_plate_1 ? `${v.tractor_plate} + ${v.trailer_plate_1}` : v.tractor_plate;
 
   const canProceed = () => {
     switch (step) {
@@ -639,6 +715,8 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
   const renderStep1 = () => (
     <div className="space-y-5">
+      {!isEditMode && <RequiredFieldsLegend />}
+
       {renderRoleSelector()}
 
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
@@ -649,6 +727,14 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
           <h2 className={sectionTitle}>{counterpartyLabel}</h2>
           <p className={sectionSubtitle}>{counterpartySubtitle}</p>
         </div>
+
+        {!isEditMode && (
+          <RecentChips
+            items={partySuggestions(counterpartyType)}
+            renderLabel={partySuggestionLabel}
+            onSelect={(p) => setCounterparty(partyHistoryToForm(p))}
+          />
+        )}
 
         <PartyFields data={counterparty} onChange={setCounterparty} />
       </div>
@@ -674,7 +760,16 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
       </div>
 
       {!originSameAsShipper ? (
-        <PartyFields data={origin} onChange={setOrigin} nombreRequired={false} nifRequired={false} />
+        <>
+          {!isEditMode && (
+            <RecentChips
+              items={partySuggestions('origin')}
+              renderLabel={partySuggestionLabel}
+              onSelect={(p) => setOrigin(partyHistoryToForm(p))}
+            />
+          )}
+          <PartyFields data={origin} onChange={setOrigin} nombreRequired={false} nifRequired={false} />
+        </>
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
           <p className="font-bold text-slate-900">{cargadorContractual.nombre || '\u2014'}</p>
@@ -700,7 +795,16 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
       </div>
 
       {!destinationSameAsShipper ? (
-        <PartyFields data={destination} onChange={setDestination} nombreRequired={false} nifRequired={false} />
+        <>
+          {!isEditMode && (
+            <RecentChips
+              items={partySuggestions('destination')}
+              renderLabel={partySuggestionLabel}
+              onSelect={(p) => setDestination(partyHistoryToForm(p))}
+            />
+          )}
+          <PartyFields data={destination} onChange={setDestination} nombreRequired={false} nifRequired={false} />
+        </>
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
           <p className="font-bold text-slate-900">{cargadorContractual.nombre || '\u2014'}</p>
@@ -723,8 +827,23 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
       </div>
 
       <div className="space-y-5">
+        {!isEditMode && (
+          <RecentChips
+            items={vehicleSuggestions}
+            renderLabel={vehicleSuggestionLabel}
+            onSelect={(v) =>
+              setVehicle({
+                ...vehicle,
+                tractor_plate: v.tractor_plate,
+                trailer_plate_1: v.trailer_plate_1,
+                trailer_plate_2: v.trailer_plate_2,
+              })
+            }
+          />
+        )}
+
         <div>
-          <label className={fieldLabel}>Matricula de la cabeza tractora *</label>
+          <FieldLabel text="Matricula de la cabeza tractora" required />
           <input
             type="text"
             value={vehicle.tractor_plate}
@@ -736,7 +855,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className={fieldLabel}>Matricula del remolque</label>
+            <FieldLabel text="Matricula del remolque" required={false} />
             <input
               type="text"
               value={vehicle.trailer_plate_1}
@@ -746,7 +865,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
             />
           </div>
           <div>
-            <label className={fieldLabel}>Matricula del remolque 2</label>
+            <FieldLabel text="Matricula del remolque 2" required={false} />
             <input
               type="text"
               value={vehicle.trailer_plate_2}
@@ -759,7 +878,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
         {isAdmin && (
           <div className="relative" ref={driverDropdownRef}>
-            <label className={fieldLabel}>Conductor *</label>
+            <FieldLabel text="Conductor" required />
             <button
               type="button"
               onClick={() => { setDriverDropdownOpen(!driverDropdownOpen); setDriverSearch(''); }}
@@ -836,7 +955,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
       <div className="space-y-5">
         <div>
-          <label className={fieldLabel}>Descripcion de la mercancia *</label>
+          <FieldLabel text="Descripcion de la mercancia" required />
           <input
             type="text"
             value={cargo.description}
@@ -848,7 +967,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className={fieldLabel}>Peso de la mercancia *</label>
+            <FieldLabel text="Peso de la mercancia" required />
             <input
               type="number"
               value={cargo.weight_kg || ''}
@@ -860,7 +979,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
             />
           </div>
           <div>
-            <label className={fieldLabel}>Reflejado en *</label>
+            <FieldLabel text="Reflejado en" required />
             <div className="relative">
               <select
                 value={cargo.weight_unit}
@@ -877,7 +996,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
         </div>
 
         <div>
-          <label className={fieldLabel}>Autorizacion especial de circulacion</label>
+          <FieldLabel text="Autorizacion especial de circulacion" required={false} />
           <input
             type="text"
             value={vehicle.special_authorization}
@@ -923,6 +1042,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
       <div className="mb-4">
         <h2 className={sectionTitle}>OBSERVACIONES</h2>
+        <p className="text-xs font-medium text-slate-400 mt-1">(opcional, puedes dejarlo en blanco)</p>
       </div>
 
       <textarea
@@ -975,7 +1095,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
           </div>
 
           <div>
-            <label className={fieldLabel}>Motivo de la modificacion *</label>
+            <FieldLabel text="Motivo de la modificacion" required />
             <textarea
               value={modifyReason}
               onChange={(e) => setModifyReason(e.target.value)}
@@ -1105,7 +1225,14 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
         {step === 5 && renderStep5()}
         {step === 6 && isEditMode && renderStep6()}
 
-        <div className="flex items-center justify-end gap-3 mt-6">
+        {step < lastStep && !canProceed() && (
+          <p className="flex items-center justify-end gap-1.5 text-xs font-semibold text-red-600 mt-3">
+            <AlertCircle size={14} />
+            Completa los campos marcados como &quot;Obligatorio&quot; para poder continuar
+          </p>
+        )}
+
+        <div className="flex items-center justify-end gap-3 mt-3">
           {step > 1 && (
             <button
               onClick={handleBack}
