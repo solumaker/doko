@@ -20,7 +20,7 @@ import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { supabase, Document, DocumentContent, DocumentFieldChange, PartyHistory, PartyType, Profile, VehicleHistory } from '../lib/supabase';
+import { supabase, Document, DocumentContent, DocumentFieldChange, ObservationHistory, PartyHistory, PartyType, Profile, VehicleHistory } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
@@ -287,7 +287,7 @@ function PartyFields({
 }
 
 export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDocument }: CrearDocumentoProps) {
-  const { addDocument, amendDocument, partyHistory, vehicleHistory } = useData();
+  const { addDocument, amendDocument, partyHistory, vehicleHistory, observationHistory } = useData();
   const { isAdmin, profile, company, isCargador } = useAuth();
   const { canCreateDocument, purchaseDocumentPack } = useSubscription();
 
@@ -468,6 +468,10 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
   const vehicleSuggestions: VehicleHistory[] = vehicleHistory.slice(0, 5);
   const vehicleSuggestionLabel = (v: VehicleHistory) =>
     v.trailer_plate_1 ? `${v.tractor_plate} + ${v.trailer_plate_1}` : v.tractor_plate;
+
+  const observationSuggestions: ObservationHistory[] = observationHistory.slice(0, 5);
+  const observationSuggestionLabel = (o: ObservationHistory) =>
+    o.text.length > 45 ? `${o.text.slice(0, 45)}…` : o.text;
 
   const canProceed = () => {
     switch (step) {
@@ -1044,6 +1048,14 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
         <h2 className={sectionTitle}>OBSERVACIONES</h2>
         <p className="text-xs font-medium text-slate-400 mt-1">(opcional, puedes dejarlo en blanco)</p>
       </div>
+
+      {!isEditMode && (
+        <RecentChips
+          items={observationSuggestions}
+          renderLabel={observationSuggestionLabel}
+          onSelect={(o) => setObservations(o.text)}
+        />
+      )}
 
       <textarea
         value={observations}
