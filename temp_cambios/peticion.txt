@@ -1,0 +1,489 @@
+/**
+ * generate-document-pdf/index.ts
+ *
+ * Genera el "Documento de Control" en pdf-lib siguiendo exactamente el diseño
+ * de DOKO_solución.pdf: minimalista, blanco y negro, dos separadores con borde,
+ * layout de dos columnas, wrapping real de texto, paginación automática y
+ * QR + fecha en el pie.
+ *
+ * Dependencias:
+ *   - pdf-lib            (generación del PDF)
+ *   - qrcode             (generación del QR como PNG embebible)
+ *
+ * En Supabase Edge Functions (Deno):
+ *   import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from 'npm:pdf-lib'
+ *   import QRCode from 'npm:qrcode'
+ */
+
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from 'pdf-lib';
+import QRCode from 'qrcode';
+
+// ─────────────────────────────────────────────────────────────────────────
+// CONSTANTES DE LAYOUT (A4 en puntos, 1pt = 1px a 72dpi, igual que pdf-lib)
+// ─────────────────────────────────────────────────────────────────────────
+
+const PAGE_WIDTH = 595.28;
+const PAGE_HEIGHT = 841.89;
+const MARGIN = 50;
+const MARGIN_BOTTOM = 80;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2; // 495.28
+const COLUMN_GAP = 24;
+const COLUMN_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2; // ≈ 235.64
+
+const BLACK = rgb(0, 0, 0);
+const GRAY_TEXT = rgb(0.45, 0.45, 0.45);
+const BORDER_GRAY = rgb(0.75, 0.75, 0.75);
+
+const SIZE_TITLE = 20;
+const SIZE_SECTION_DIVIDER = 11.5;
+const SIZE_COLUMN_HEADER = 10;
+const SIZE_BODY = 9.5;
+const SIZE_FOOTER = 8;
+
+const LINE_HEIGHT_BODY = 13;
+const LINE_HEIGHT_HEADER = 16;
+
+// ─────────────────────────────────────────────────────────────────────────
+// TIPOS DE DATOS DEL DOCUMENTO
+// ─────────────────────────────────────────────────────────────────────────
+
+interface Empresa {
+  nombre: string;
+  identificador?: string; // NIF/CIF
+  direccion?: string;
+  cp?: string;
+  localidad?: string;
+}
+
+interface Amendment {
+  date: string;
+  reason: string;
+  changes?: string;
+}
+
+interface ControlDocumentData {
+  documentId: string;
+  cargador: Empresa;
+  transportista: Empresa;
+  origen: Empresa;
+  destino: Empresa;
+  mercancia: {
+    descripcion: string;
+    pesoBruto: string;
+    autorizacionEspecial?: string;
+  };
+  fechas: { carga: string; descarga?: string };
+  matriculas: { tractora?: string; remolque1?: string; remolque2?: string };
+  observations?: string;
+  amendments?: Amendment[];
+  generatedAt: string;
+  verificationUrl: string; // para el QR
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HELPERS DE TEXTO
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Divide un texto en líneas que caben en maxWidth, midiendo con la fuente real. */
+function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+  const lines: string[] = [];
+  const paragraphs = text.split('\n');
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      lines.push('');
+      continue;
+    }
+    const words = paragraph.split(' ');
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+
+      if (testWidth > maxWidth && currentLine !== '') {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine !== '') lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+/** Devuelve true si el valor tiene contenido real (no vacío/null/undefined). */
+function hasValue(v: unknown): v is string {
+  return typeof v === 'string' && v.trim() !== '';
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PAGINACIÓN
+// ─────────────────────────────────────────────────────────────────────────
+
+interface Cursor {
+  page: PDFPage;
+  y: number;
+}
+
+function checkPageBreak(
+  pdfDoc: PDFDocument,
+  cursor: Cursor,
+  neededHeight: number,
+): Cursor {
+  if (cursor.y - neededHeight < MARGIN_BOTTOM) {
+    const newPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    return { page: newPage, y: PAGE_HEIGHT - MARGIN };
+  }
+  return cursor;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// BLOQUES DE DIBUJO
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Caja con borde fino y texto centrado en mayúsculas (separador de sección). */
+function drawSectionDivider(cursor: Cursor, text: string, font: PDFFont): Cursor {
+  const boxHeight = 22;
+  const textWidth = font.widthOfTextAtSize(text, SIZE_SECTION_DIVIDER);
+  const boxWidth = textWidth + 40;
+  const boxX = PAGE_WIDTH / 2 - boxWidth / 2;
+  const boxY = cursor.y - boxHeight;
+
+  cursor.page.drawRectangle({
+    x: boxX,
+    y: boxY,
+    width: boxWidth,
+    height: boxHeight,
+    borderColor: BORDER_GRAY,
+    borderWidth: 1,
+  });
+
+  cursor.page.drawText(text, {
+    x: PAGE_WIDTH / 2 - textWidth / 2,
+    y: boxY + boxHeight / 2 - SIZE_SECTION_DIVIDER / 2 + 1,
+    size: SIZE_SECTION_DIVIDER,
+    font,
+    color: BLACK,
+  });
+
+  return { page: cursor.page, y: boxY - 18 };
+}
+
+/** Dibuja una columna (cabecera en negrita + líneas de texto) y devuelve la altura consumida. */
+function drawColumn(
+  page: PDFPage,
+  x: number,
+  startY: number,
+  header: string,
+  lines: (string | undefined)[],
+  fontBold: PDFFont,
+  fontRegular: PDFFont,
+  maxWidth: number,
+): number {
+  let y = startY;
+
+  page.drawText(header, { x, y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK });
+  y -= LINE_HEIGHT_HEADER;
+
+  for (const line of lines) {
+    if (!hasValue(line)) continue;
+    const wrapped = wrapText(line, fontRegular, SIZE_BODY, maxWidth);
+    for (const wLine of wrapped) {
+      page.drawText(wLine, { x, y, size: SIZE_BODY, font: fontRegular, color: BLACK });
+      y -= LINE_HEIGHT_BODY;
+    }
+  }
+
+  return startY - y; // altura total consumida por esta columna
+}
+
+/**
+ * Dibuja una sección de dos columnas lado a lado. Antes de dibujar, calcula
+ * la altura real de cada columna (con wrapping ya aplicado) para reservar
+ * el espacio correcto en la paginación.
+ */
+function drawTwoColumnSection(
+  pdfDoc: PDFDocument,
+  cursor: Cursor,
+  left: { header: string; lines: (string | undefined)[] },
+  right: { header: string; lines: (string | undefined)[] },
+  fontBold: PDFFont,
+  fontRegular: PDFFont,
+): Cursor {
+  // Altura estimada = la mayor de las dos columnas, calculada con un dry-run
+  // de wrapText (sin dibujar) para decidir si hace falta salto de página.
+  const estimate = (lines: (string | undefined)[]) => {
+    let lineCount = 1; // cabecera
+    for (const line of lines) {
+      if (!hasValue(line)) continue;
+      lineCount += wrapText(line, fontRegular, SIZE_BODY, COLUMN_WIDTH).length;
+    }
+    return LINE_HEIGHT_HEADER + lineCount * LINE_HEIGHT_BODY;
+  };
+
+  const neededHeight = Math.max(estimate(left.lines), estimate(right.lines));
+  cursor = checkPageBreak(pdfDoc, cursor, neededHeight);
+
+  const leftHeight = drawColumn(
+    cursor.page, MARGIN, cursor.y, left.header, left.lines, fontBold, fontRegular, COLUMN_WIDTH,
+  );
+  const rightHeight = drawColumn(
+    cursor.page, MARGIN + COLUMN_WIDTH + COLUMN_GAP, cursor.y, right.header, right.lines,
+    fontBold, fontRegular, COLUMN_WIDTH,
+  );
+
+  return { page: cursor.page, y: cursor.y - Math.max(leftHeight, rightHeight) - 18 };
+}
+
+/** Bloque OBSERVACIONES / motivo de modificación: título + texto largo con wrap real. */
+function drawWrappedBlock(
+  pdfDoc: PDFDocument,
+  cursor: Cursor,
+  title: string,
+  body: string,
+  fontBold: PDFFont,
+  fontRegular: PDFFont,
+): Cursor {
+  const wrapped = wrapText(body, fontRegular, SIZE_BODY, CONTENT_WIDTH);
+  const titleHeight = LINE_HEIGHT_HEADER;
+  const neededHeight = titleHeight + wrapped.length * LINE_HEIGHT_BODY;
+
+  cursor = checkPageBreak(pdfDoc, cursor, neededHeight);
+
+  cursor.page.drawText(title, {
+    x: MARGIN, y: cursor.y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK,
+  });
+  let y = cursor.y - titleHeight;
+
+  for (const line of wrapped) {
+    cursor = checkPageBreak(pdfDoc, { page: cursor.page, y }, LINE_HEIGHT_BODY);
+    y = cursor.y;
+    cursor.page.drawText(line, {
+      x: MARGIN, y, size: SIZE_BODY, font: fontRegular, color: BLACK,
+    });
+    y -= LINE_HEIGHT_BODY;
+  }
+
+  return { page: cursor.page, y: y - 12 };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// GENERADOR PRINCIPAL
+// ─────────────────────────────────────────────────────────────────────────
+
+export async function generatePdf(data: ControlDocumentData): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  let cursor: Cursor = {
+    page: pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]),
+    y: PAGE_HEIGHT - MARGIN,
+  };
+
+  // ── Bloque 1: Título ──────────────────────────────────────────────────
+  const titleText = 'DOCUMENTO DE CONTROL';
+  const titleWidth = fontBold.widthOfTextAtSize(titleText, SIZE_TITLE);
+  cursor.page.drawText(titleText, {
+    x: PAGE_WIDTH / 2 - titleWidth / 2,
+    y: cursor.y,
+    size: SIZE_TITLE,
+    font: fontBold,
+    color: BLACK,
+  });
+  cursor.y -= 26;
+
+  // ── Bloque 2: Separador "DATOS FACILITADOS POR EL CARGADOR CONTRACTUAL" ─
+  cursor = drawSectionDivider(cursor, 'DATOS FACILITADOS POR EL CARGADOR CONTRACTUAL', fontRegular);
+
+  // ── Cargador / Transportista (dos columnas) ─────────────────────────────
+  cursor = drawTwoColumnSection(
+    pdfDoc,
+    cursor,
+    {
+      header: 'CARGADOR CONTRACTUAL',
+      lines: [
+        data.cargador.nombre,
+        data.cargador.identificador,
+        data.cargador.direccion,
+        [data.cargador.cp, data.cargador.localidad].filter(hasValue).join(' '),
+      ],
+    },
+    {
+      header: 'TRANSPORTISTA EFECTIVO',
+      lines: [
+        data.transportista.nombre,
+        data.transportista.identificador,
+        data.transportista.direccion,
+        [data.transportista.cp, data.transportista.localidad].filter(hasValue).join(' '),
+      ],
+    },
+    fontBold,
+    fontRegular,
+  );
+
+  // ── Bloque 3: Origen / Destino (dos columnas) ───────────────────────────
+  cursor = drawTwoColumnSection(
+    pdfDoc,
+    cursor,
+    {
+      header: 'ORIGEN',
+      lines: [
+        data.origen.nombre,
+        data.origen.direccion,
+        [data.origen.cp, data.origen.localidad].filter(hasValue).join(' '),
+      ],
+    },
+    {
+      header: 'DESTINO',
+      lines: [
+        data.destino.nombre,
+        data.destino.direccion,
+        [data.destino.cp, data.destino.localidad].filter(hasValue).join(' '),
+      ],
+    },
+    fontBold,
+    fontRegular,
+  );
+
+  // ── Bloque 4: Mercancía (ancho completo) ────────────────────────────────
+  {
+    const lines = [
+      data.mercancia.descripcion,
+      hasValue(data.mercancia.pesoBruto) ? `Peso bruto: ${data.mercancia.pesoBruto}` : undefined,
+      data.mercancia.autorizacionEspecial,
+    ];
+    const estimateHeight = LINE_HEIGHT_HEADER + lines.filter(hasValue).length * LINE_HEIGHT_BODY;
+    cursor = checkPageBreak(pdfDoc, cursor, estimateHeight);
+    const consumed = drawColumn(
+      cursor.page, MARGIN, cursor.y, 'MERCANCÍA', lines, fontBold, fontRegular, CONTENT_WIDTH,
+    );
+    cursor.y -= consumed + 8;
+  }
+
+  // ── Bloque 5: Separador "DATOS FACILITADOS POR EL TRANSPORTISTA EFECTIVO" ─
+  cursor = drawSectionDivider(cursor, 'DATOS FACILITADOS POR EL TRANSPORTISTA EFECTIVO', fontRegular);
+
+  // ── Bloque 6: Fechas / Matrículas (dos columnas) ────────────────────────
+  cursor = drawTwoColumnSection(
+    pdfDoc,
+    cursor,
+    {
+      header: 'FECHAS DE REALIZACIÓN',
+      lines: [
+        `Carga: ${data.fechas.carga}`,
+        hasValue(data.fechas.descarga) ? `Descarga: ${data.fechas.descarga}` : undefined,
+      ],
+    },
+    {
+      // Las matrículas siempre muestran la etiqueta, aunque el valor esté vacío
+      header: 'MATRÍCULAS',
+      lines: [
+        `Cabeza tractora: ${data.matriculas.tractora ?? ''}`,
+        `Remolque: ${data.matriculas.remolque1 ?? ''}`,
+        `Remolque 2: ${data.matriculas.remolque2 ?? ''}`,
+      ],
+    },
+    fontBold,
+    fontRegular,
+  );
+
+  // ── Bloque 7: línea separadora fina ─────────────────────────────────────
+  cursor = checkPageBreak(pdfDoc, cursor, 20);
+  cursor.page.drawLine({
+    start: { x: MARGIN, y: cursor.y },
+    end: { x: PAGE_WIDTH - MARGIN, y: cursor.y },
+    thickness: 0.5,
+    color: BORDER_GRAY,
+  });
+  cursor.y -= 24;
+
+  // ── Bloque 8: Observaciones (solo si hay contenido) ─────────────────────
+  if (hasValue(data.observations)) {
+    cursor = drawWrappedBlock(pdfDoc, cursor, 'OBSERVACIONES', data.observations!, fontBold, fontRegular);
+  }
+
+  // ── Bloque 9: Historial de modificaciones (si existen) ──────────────────
+  if (data.amendments && data.amendments.length > 0) {
+    cursor = checkPageBreak(pdfDoc, cursor, 20);
+    cursor.page.drawText('HISTORIAL DE MODIFICACIONES', {
+      x: MARGIN, y: cursor.y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK,
+    });
+    cursor.y -= LINE_HEIGHT_HEADER;
+
+    for (const amendment of data.amendments) {
+      cursor = checkPageBreak(pdfDoc, cursor, LINE_HEIGHT_BODY);
+      cursor.page.drawText(amendment.date, {
+        x: MARGIN, y: cursor.y, size: SIZE_BODY, font: fontBold, color: BLACK,
+      });
+      cursor.y -= LINE_HEIGHT_BODY;
+
+      cursor = drawWrappedBlock(pdfDoc, cursor, 'Motivo:', amendment.reason, fontBold, fontRegular);
+
+      if (hasValue(amendment.changes)) {
+        cursor = drawWrappedBlock(pdfDoc, cursor, 'Cambios:', amendment.changes!, fontBold, fontRegular);
+      }
+    }
+  }
+
+  // ── Bloque 10: Pie (QR + fecha de generación + línea + texto legal) ─────
+  {
+    const qrSize = 90;
+    const footerY = MARGIN_BOTTOM - 10;
+    cursor = checkPageBreak(pdfDoc, cursor, footerY + qrSize + 30 - MARGIN_BOTTOM);
+    // En la práctica el pie se fija siempre cerca de MARGIN_BOTTOM en la última página
+
+    const qrPngBytes = await QRCode.toBuffer(data.verificationUrl, { type: 'png', margin: 0 });
+    const qrImage = await pdfDoc.embedPng(qrPngBytes);
+
+    const qrX = PAGE_WIDTH - MARGIN - qrSize;
+    const qrY = footerY;
+
+    cursor.page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+
+    const label = 'Fecha de generación del documento:';
+    const labelWidth = fontRegular.widthOfTextAtSize(label, SIZE_FOOTER);
+    const dateWidth = fontBold.widthOfTextAtSize(data.generatedAt, SIZE_FOOTER + 1);
+
+    const dateY = qrY + 4; // línea inferior, alineada con la base del QR
+    const labelY = dateY + (SIZE_FOOTER + 5); // línea superior, justo encima de la fecha
+
+    cursor.page.drawText(label, {
+      x: qrX - labelWidth - 16,
+      y: labelY,
+      size: SIZE_FOOTER,
+      font: fontRegular,
+      color: GRAY_TEXT,
+    });
+
+    cursor.page.drawText(data.generatedAt, {
+      x: qrX - dateWidth - 16,
+      y: dateY,
+      size: SIZE_FOOTER + 1,
+      font: fontBold,
+      color: BLACK,
+    });
+
+    cursor.page.drawLine({
+      start: { x: MARGIN, y: MARGIN_BOTTOM - 30 },
+      end: { x: PAGE_WIDTH - MARGIN, y: MARGIN_BOTTOM - 30 },
+      thickness: 0.5,
+      color: BORDER_GRAY,
+    });
+
+    const legalText = 'Este documento ha sido generado digitalmente — DOKO';
+    const legalWidth = fontRegular.widthOfTextAtSize(legalText, SIZE_FOOTER);
+    cursor.page.drawText(legalText, {
+      x: PAGE_WIDTH / 2 - legalWidth / 2,
+      y: MARGIN_BOTTOM - 45,
+      size: SIZE_FOOTER,
+      font: fontRegular,
+      color: GRAY_TEXT,
+    });
+  }
+
+  return pdfDoc.save();
+}
