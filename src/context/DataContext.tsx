@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase, Location, Vehicle, Document, DocumentContent, ShipperHistory, SignatureData, VehicleAmendment, DocumentFieldChange, DocumentAmendment } from '../lib/supabase';
+import { supabase, Location, Vehicle, Document, DocumentContent, PartyHistory, PartyType, VehicleHistory, SignatureData, VehicleAmendment, DocumentFieldChange, DocumentAmendment } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 export interface HiddenDocEntry {
@@ -13,7 +13,8 @@ interface DataContextType {
   documents: Document[];
   allDocuments: Document[];
   hiddenDocIds: string[];
-  shipperHistory: ShipperHistory[];
+  partyHistory: PartyHistory[];
+  vehicleHistory: VehicleHistory[];
   loadingLocations: boolean;
   loadingVehicles: boolean;
   loadingDocuments: boolean;
@@ -65,7 +66,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [allDocuments, setAllDocuments] = useState<Document[]>([]);
   const [hiddenDocIds, setHiddenDocIds] = useState<string[]>([]);
-  const [shipperHistory, setShipperHistory] = useState<ShipperHistory[]>([]);
+  const [partyHistory, setPartyHistory] = useState<PartyHistory[]>([]);
+  const [vehicleHistory, setVehicleHistory] = useState<VehicleHistory[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
@@ -113,14 +115,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLoadingDocuments(false);
   }, [profile?.company_id, profile?.id, profile?.role]);
 
-  const fetchShipperHistory = useCallback(async () => {
+  const fetchPartyHistory = useCallback(async () => {
     if (!profile?.company_id) return;
     const { data, error } = await supabase
-      .from('shipper_history')
+      .from('party_history')
       .select('*')
       .order('last_used', { ascending: false });
-    if (error) console.error('Error fetching shipper history:', error);
-    else setShipperHistory(data || []);
+    if (error) console.error('Error fetching party history:', error);
+    else setPartyHistory(data || []);
+  }, [profile?.company_id]);
+
+  const fetchVehicleHistory = useCallback(async () => {
+    if (!profile?.company_id) return;
+    const { data, error } = await supabase
+      .from('vehicle_history')
+      .select('*')
+      .order('last_used', { ascending: false });
+    if (error) console.error('Error fetching vehicle history:', error);
+    else setVehicleHistory(data || []);
   }, [profile?.company_id]);
 
   useEffect(() => {
@@ -128,35 +140,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
       fetchLocations();
       fetchVehicles();
       fetchDocuments();
-      fetchShipperHistory();
+      fetchPartyHistory();
+      fetchVehicleHistory();
     } else {
       setLocations([]);
       setVehicles([]);
       setAllDocuments([]);
       setHiddenDocIds([]);
-      setShipperHistory([]);
+      setPartyHistory([]);
+      setVehicleHistory([]);
       setLoadingLocations(false);
       setLoadingVehicles(false);
       setLoadingDocuments(false);
     }
-  }, [profile?.company_id, fetchLocations, fetchVehicles, fetchDocuments, fetchShipperHistory]);
+  }, [profile?.company_id, fetchLocations, fetchVehicles, fetchDocuments, fetchPartyHistory, fetchVehicleHistory]);
 
-  const upsertShipperToHistory = async (shipper: { nombre: string; nif: string; domicilio: string; poblacion: string }) => {
-    if (!profile?.company_id || !shipper.nif.trim()) return;
+  const upsertPartyToHistory = async (partyType: PartyType, party: { nombre: string; nif: string; domicilio: string; poblacion: string; postal_code?: string }) => {
+    if (!profile?.company_id || !party.domicilio.trim()) return;
     const { data, error } = await supabase
-      .from('shipper_history')
+      .from('party_history')
       .upsert(
         {
           company_id: profile.company_id,
-          nombre: shipper.nombre,
-          nif: shipper.nif,
-          domicilio: shipper.domicilio,
-          poblacion: shipper.poblacion,
+          party_type: partyType,
+          nombre: party.nombre,
+          nif: party.nif,
+          domicilio: party.domicilio,
+          poblacion: party.poblacion,
+          postal_code: party.postal_code || '',
           use_count: 1,
           last_used: new Date().toISOString(),
         },
         {
-          onConflict: 'company_id,nif',
+          onConflict: 'company_id,party_type,nombre,domicilio',
           ignoreDuplicates: false,
         }
       )
@@ -164,14 +180,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     if (!error && data) {
-      setShipperHistory((prev) => {
-        const existing = prev.findIndex((s) => s.nif === shipper.nif);
-        if (existing >= 0) {
-          const updated = [...prev];
-          updated[existing] = data;
-          return updated.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
+      setPartyHistory((prev) => {
+        const existing = prev.findIndex((p) => p.id === data.id);
+        const updated = existing >= 0 ? prev.map((p, i) => (i === existing ? data : p)) : [data, ...prev];
+        return updated.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
+      });
+    }
+  };
+
+  const upsertVehicleToHistory = async (vehicle: { tractor_plate: string; trailer_plate_1?: string; trailer_plate_2?: string }) => {
+    if (!profile?.company_id || !vehicle.tractor_plate.trim()) return;
+    const { data, error } = await supabase
+      .from('vehicle_history')
+      .upsert(
+        {
+          company_id: profile.company_id,
+          tractor_plate: vehicle.tractor_plate,
+          trailer_plate_1: vehicle.trailer_plate_1 || '',
+          trailer_plate_2: vehicle.trailer_plate_2 || '',
+          use_count: 1,
+          last_used: new Date().toISOString(),
+        },
+        {
+          onConflict: 'company_id,tractor_plate',
+          ignoreDuplicates: false,
         }
-        return [data, ...prev];
+      )
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      setVehicleHistory((prev) => {
+        const existing = prev.findIndex((v) => v.id === data.id);
+        const updated = existing >= 0 ? prev.map((v, i) => (i === existing ? data : v)) : [data, ...prev];
+        return updated.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
       });
     }
   };
@@ -263,9 +305,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     setAllDocuments((prev) => [data, ...prev]);
 
-    if (content.contractual_shipper) {
-      upsertShipperToHistory(content.contractual_shipper);
+    if (content.contractual_shipper) upsertPartyToHistory('contractual_shipper', content.contractual_shipper);
+    if (content.transportista_efectivo) upsertPartyToHistory('transportista_efectivo', content.transportista_efectivo);
+    if (content.origin?.domicilio) {
+      upsertPartyToHistory('origin', {
+        nombre: content.origin.empresa || '',
+        nif: content.origin.nif || '',
+        domicilio: content.origin.domicilio,
+        poblacion: content.origin.poblacion || '',
+        postal_code: content.origin.postal_code,
+      });
     }
+    if (content.destination?.domicilio) {
+      upsertPartyToHistory('destination', {
+        nombre: content.destination.empresa || '',
+        nif: content.destination.nif || '',
+        domicilio: content.destination.domicilio,
+        poblacion: content.destination.poblacion || '',
+        postal_code: content.destination.postal_code,
+      });
+    }
+    upsertVehicleToHistory(content.vehicle);
 
     triggerPdfRegen(data.id, (result) => {
       setAllDocuments((prev) =>
@@ -418,7 +478,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments(), fetchShipperHistory()]);
+    await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments(), fetchPartyHistory(), fetchVehicleHistory()]);
   };
 
   const documents = allDocuments.filter((d) => {
@@ -441,7 +501,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         documents,
         allDocuments,
         hiddenDocIds,
-        shipperHistory,
+        partyHistory,
+        vehicleHistory,
         loadingLocations,
         loadingVehicles,
         loadingDocuments,
