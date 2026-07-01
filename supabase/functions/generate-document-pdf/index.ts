@@ -1,8 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "npm:pdf-lib@1.17.1";
 import QRCode from "npm:qrcode@1.5.3";
-import { DOKO_HEADER_BASE64 } from "./logo.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +9,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "Content-Type, Authorization, X-Client-Info, Apikey",
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// TIPOS DE DATOS DEL DOCUMENTO (forma real guardada por la app en Supabase)
+// ─────────────────────────────────────────────────────────────────────────
 
 interface VehicleAmendment {
   tractor_plate?: string;
@@ -34,16 +37,26 @@ interface DocumentAmendment {
 }
 
 interface DocumentContent {
+  acting_as?: "transportista" | "cargador";
   contractual_shipper?: {
     nombre: string;
     nif: string;
     domicilio: string;
     poblacion: string;
+    postal_code?: string;
+  };
+  transportista_efectivo?: {
+    nombre: string;
+    nif: string;
+    domicilio: string;
+    poblacion: string;
+    postal_code?: string;
   };
   origin: {
     empresa?: string;
     domicilio?: string;
     poblacion?: string;
+    nif?: string;
     name?: string;
     address?: string;
     city?: string;
@@ -56,6 +69,7 @@ interface DocumentContent {
     empresa?: string;
     domicilio?: string;
     poblacion?: string;
+    nif?: string;
     name?: string;
     address?: string;
     city?: string;
@@ -70,6 +84,7 @@ interface DocumentContent {
     trailer_plate_2?: string;
     trailer_plate?: string;
     alias?: string;
+    special_authorization?: string;
     amendments?: VehicleAmendment[];
   };
   cargo: {
@@ -78,6 +93,8 @@ interface DocumentContent {
     weight_kg: number;
     weight_unit?: string;
   };
+  observations?: string;
+  unloading_date?: string;
   company: {
     name: string;
     cif: string;
@@ -92,7 +109,6 @@ interface DocumentContent {
     email?: string;
     dni?: string;
   };
-  unloading_date?: string;
   amendments?: DocumentAmendment[];
 }
 
@@ -106,22 +122,9 @@ interface DocumentRecord {
   driver_name?: string;
 }
 
-// Colors
-const TEAL = rgb(0.02, 0.47, 0.55);
-const DARK_TEAL = rgb(0.01, 0.35, 0.42);
-const EMERALD = rgb(0.01, 0.47, 0.35);
-const SLATE_DARK = rgb(0.13, 0.16, 0.22);
-const SLATE_MED = rgb(0.28, 0.33, 0.42);
-const SLATE_LIGHT = rgb(0.58, 0.64, 0.72);
-const AMBER = rgb(0.7, 0.33, 0.04);
-const WHITE = rgb(1, 1, 1);
-const LIGHT_BG = rgb(0.97, 0.98, 0.99);
-const BORDER_GRAY = rgb(0.88, 0.9, 0.92);
-
-const PAGE_W = 595.28;
-const PAGE_H = 841.89;
-const MARGIN_X = 45;
-const CONTENT_W = PAGE_W - MARGIN_X * 2;
+// ─────────────────────────────────────────────────────────────────────────
+// FORMATEO DE FECHAS / PESO (sin cambios respecto a la version anterior)
+// ─────────────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
   const d = new Date(iso.length === 10 ? iso + "T12:00:00" : iso);
@@ -156,409 +159,560 @@ function weightUnitShort(unit?: string): string {
   return WEIGHT_UNIT_SHORT[unit] || unit;
 }
 
-function getOriginText(origin: DocumentContent["origin"]): string[] {
-  const lines: string[] = [];
-  if (origin.empresa) lines.push(origin.empresa);
-  if (origin.domicilio) {
-    lines.push(origin.domicilio);
-    if (origin.poblacion) lines.push(origin.poblacion);
-    return lines;
+// ─────────────────────────────────────────────────────────────────────────
+// CONSTANTES DE LAYOUT (A4 en puntos) — valores tal como los da el diseño
+// resuelto para DOKO_solución.pdf, no reinterpretados.
+// ─────────────────────────────────────────────────────────────────────────
+
+const PAGE_WIDTH = 595.28;
+const PAGE_HEIGHT = 841.89;
+const MARGIN = 50;
+const MARGIN_BOTTOM = 80;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2; // 495.28
+const COLUMN_GAP = 24;
+const COLUMN_WIDTH = (CONTENT_WIDTH - COLUMN_GAP) / 2; // ~235.64
+
+const BLACK = rgb(0, 0, 0);
+const GRAY_TEXT = rgb(0.45, 0.45, 0.45);
+const BORDER_GRAY = rgb(0.75, 0.75, 0.75);
+
+const SIZE_TITLE = 20;
+const SIZE_SECTION_DIVIDER = 11.5;
+const SIZE_COLUMN_HEADER = 10;
+const SIZE_BODY = 9.5;
+const SIZE_FOOTER = 8;
+
+const LINE_HEIGHT_BODY = 13;
+const LINE_HEIGHT_HEADER = 16;
+
+// ─────────────────────────────────────────────────────────────────────────
+// TIPOS INTERNOS PARA EL RENDERIZADO (independientes de la forma de la DB)
+// ─────────────────────────────────────────────────────────────────────────
+
+interface Empresa {
+  nombre: string;
+  identificador?: string; // NIF/CIF
+  direccion?: string;
+  cp?: string;
+  localidad?: string;
+}
+
+interface Amendment {
+  date: string;
+  reason: string;
+  changes?: string;
+}
+
+interface ControlDocumentData {
+  cargador: Empresa;
+  transportista: Empresa;
+  origen: Empresa;
+  destino: Empresa;
+  mercancia: {
+    descripcion: string;
+    pesoBruto: string;
+    autorizacionEspecial?: string;
+  };
+  fechas: { carga: string; descarga?: string };
+  matriculas: { tractora?: string; remolque1?: string; remolque2?: string };
+  observations?: string;
+  amendments?: Amendment[];
+  generatedAt: string;
+  verificationUrl: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ADAPTACION: DocumentRecord (dato real de Supabase) -> ControlDocumentData
+// ─────────────────────────────────────────────────────────────────────────
+
+function resolveContractualShipper(c: DocumentContent): Empresa {
+  const s = c.contractual_shipper;
+  return {
+    nombre: s?.nombre || "",
+    identificador: s?.nif || "",
+    direccion: s?.domicilio || "",
+    cp: s?.postal_code || "",
+    localidad: s?.poblacion || "",
+  };
+}
+
+function resolveTransportistaEfectivo(c: DocumentContent): Empresa {
+  // Documentos creados antes de soportar el rol "cargador" no guardan
+  // transportista_efectivo; en ese caso la propia empresa era el transportista.
+  if (c.transportista_efectivo) {
+    const t = c.transportista_efectivo;
+    return {
+      nombre: t.nombre || "",
+      identificador: t.nif || "",
+      direccion: t.domicilio || "",
+      cp: t.postal_code || "",
+      localidad: t.poblacion || "",
+    };
   }
-  if (origin.name) lines.push(origin.name);
-  if (origin.address) lines.push(origin.address);
-  const loc = [origin.postal_code, origin.city, origin.province ? `(${origin.province})` : ""].filter(Boolean).join(" ");
-  if (loc.trim()) lines.push(loc);
-  if (origin.contact_name) lines.push(`Contacto: ${origin.contact_name}`);
-  if (origin.phone) lines.push(`Tel: ${origin.phone}`);
+  return {
+    nombre: c.company?.name || "",
+    identificador: c.company?.cif || "",
+    direccion: c.company?.address || "",
+    cp: c.company?.postal_code || "",
+    localidad: c.company?.city || "",
+  };
+}
+
+function resolveLocation(loc: DocumentContent["origin"] | DocumentContent["destination"]): Empresa {
+  return {
+    nombre: loc.empresa || loc.name || "",
+    direccion: loc.domicilio || loc.address || "",
+    cp: loc.postal_code || "",
+    localidad: loc.poblacion || loc.city || "",
+  };
+}
+
+function toControlDocumentData(doc: DocumentRecord, verificationUrl: string): ControlDocumentData {
+  const c = doc.content;
+
+  const amendments: Amendment[] | undefined = c.amendments?.map((a) => ({
+    date: `${formatDateTime(a.amended_at)}${a.amended_by ? ` — ${a.amended_by}` : ""}`,
+    reason: a.reason || "",
+    changes: (a.changes || [])
+      .map((ch) => `${ch.label}: ${ch.old_value || "(vacio)"} -> ${ch.new_value || "(vacio)"}`)
+      .join("\n"),
+  }));
+
+  return {
+    cargador: resolveContractualShipper(c),
+    transportista: resolveTransportistaEfectivo(c),
+    origen: resolveLocation(c.origin),
+    destino: resolveLocation(c.destination),
+    mercancia: {
+      descripcion: c.cargo.description || "",
+      pesoBruto: `${formatWeight(c.cargo.weight_kg)} ${weightUnitShort(c.cargo.weight_unit)}`,
+      autorizacionEspecial: c.vehicle.special_authorization,
+    },
+    fechas: {
+      carga: formatDate(doc.departure_date),
+      descarga: c.unloading_date ? formatDate(c.unloading_date) : undefined,
+    },
+    matriculas: {
+      tractora: c.vehicle.tractor_plate || "",
+      remolque1: c.vehicle.trailer_plate_1 || c.vehicle.trailer_plate || "",
+      remolque2: c.vehicle.trailer_plate_2 || "",
+    },
+    observations: c.observations,
+    amendments,
+    generatedAt: formatDateTime(new Date().toISOString()),
+    verificationUrl,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HELPERS DE TEXTO
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Divide un texto en lineas que caben en maxWidth, midiendo con la fuente real. */
+function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+  const lines: string[] = [];
+  const paragraphs = text.split("\n");
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === "") {
+      lines.push("");
+      continue;
+    }
+    const words = paragraph.split(" ");
+    let currentLine = "";
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+
+      if (testWidth > maxWidth && currentLine !== "") {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine !== "") lines.push(currentLine);
+  }
+
   return lines;
 }
 
-function getDestinationText(dest: DocumentContent["destination"]): string[] {
-  const lines: string[] = [];
-  if (dest.empresa) lines.push(dest.empresa);
-  if (dest.domicilio) {
-    lines.push(dest.domicilio);
-    if (dest.poblacion) lines.push(dest.poblacion);
-    return lines;
-  }
-  if (dest.name) lines.push(dest.name);
-  if (dest.address) lines.push(dest.address);
-  const loc = [dest.postal_code, dest.city, dest.province ? `(${dest.province})` : ""].filter(Boolean).join(" ");
-  if (loc.trim()) lines.push(loc);
-  if (dest.contact_name) lines.push(`Contacto: ${dest.contact_name}`);
-  if (dest.phone) lines.push(`Tel: ${dest.phone}`);
-  return lines;
+/** Devuelve true si el valor tiene contenido real (no vacio/null/undefined). */
+function hasValue(v: unknown): v is string {
+  return typeof v === "string" && v.trim() !== "";
 }
 
-function drawSection(
-  page: ReturnType<typeof PDFDocument.prototype.addPage>,
-  x: number,
-  y: number,
-  w: number,
-  title: string,
-  accentColor: ReturnType<typeof rgb>,
-  lines: { text: string; bold?: boolean; size?: number }[],
-  fontRegular: Awaited<ReturnType<typeof PDFDocument.prototype.embedFont>>,
-  fontBold: Awaited<ReturnType<typeof PDFDocument.prototype.embedFont>>,
-): number {
-  const headerH = 20;
-  const lineHeight = 14;
-  const padding = 10;
-  const bodyH = lines.length * lineHeight + padding * 2;
-  const totalH = headerH + bodyH;
+// ─────────────────────────────────────────────────────────────────────────
+// PAGINACION
+// ─────────────────────────────────────────────────────────────────────────
 
-  // Section background
-  page.drawRectangle({ x, y: y - totalH, width: w, height: totalH, color: WHITE });
-  // Border
-  page.drawRectangle({ x, y: y - totalH, width: w, height: totalH, borderColor: BORDER_GRAY, borderWidth: 1 });
-  // Header bar
-  page.drawRectangle({ x, y: y - headerH, width: w, height: headerH, color: accentColor });
-  // Header text
-  page.drawText(title.toUpperCase(), {
-    x: x + 8,
-    y: y - headerH + 6,
-    size: 7.5,
-    font: fontBold,
-    color: WHITE,
+interface Cursor {
+  page: PDFPage;
+  y: number;
+}
+
+function checkPageBreak(
+  pdfDoc: PDFDocument,
+  cursor: Cursor,
+  neededHeight: number,
+): Cursor {
+  if (cursor.y - neededHeight < MARGIN_BOTTOM) {
+    const newPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    return { page: newPage, y: PAGE_HEIGHT - MARGIN };
+  }
+  return cursor;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// BLOQUES DE DIBUJO
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Caja con borde fino y texto centrado en mayusculas (separador de seccion). */
+function drawSectionDivider(cursor: Cursor, text: string, font: PDFFont): Cursor {
+  const boxHeight = 22;
+  const textWidth = font.widthOfTextAtSize(text, SIZE_SECTION_DIVIDER);
+  const boxWidth = textWidth + 40;
+  const boxX = PAGE_WIDTH / 2 - boxWidth / 2;
+  const boxY = cursor.y - boxHeight;
+
+  cursor.page.drawRectangle({
+    x: boxX,
+    y: boxY,
+    width: boxWidth,
+    height: boxHeight,
+    borderColor: BORDER_GRAY,
+    borderWidth: 1,
   });
 
-  // Body lines
-  let lineY = y - headerH - padding - 10;
-  for (const line of lines) {
-    const font = line.bold ? fontBold : fontRegular;
-    const size = line.size || 9;
-    page.drawText(line.text, {
-      x: x + padding,
-      y: lineY,
-      size,
-      font,
-      color: line.bold ? SLATE_DARK : SLATE_MED,
-      maxWidth: w - padding * 2,
-    });
-    lineY -= lineHeight;
-  }
+  cursor.page.drawText(text, {
+    x: PAGE_WIDTH / 2 - textWidth / 2,
+    y: boxY + boxHeight / 2 - SIZE_SECTION_DIVIDER / 2 + 1,
+    size: SIZE_SECTION_DIVIDER,
+    font,
+    color: BLACK,
+  });
 
-  return totalH;
+  return { page: cursor.page, y: boxY - 18 };
 }
 
-async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise<Uint8Array> {
-  const pdfDoc = await PDFDocument.create();
+/** Dibuja una columna (cabecera en negrita + lineas de texto) y devuelve la altura consumida. */
+function drawColumn(
+  page: PDFPage,
+  x: number,
+  startY: number,
+  header: string,
+  lines: (string | undefined)[],
+  fontBold: PDFFont,
+  fontRegular: PDFFont,
+  maxWidth: number,
+): number {
+  let y = startY;
 
+  page.drawText(header, { x, y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK });
+  y -= LINE_HEIGHT_HEADER;
+
+  for (const line of lines) {
+    if (!hasValue(line)) continue;
+    const wrapped = wrapText(line, fontRegular, SIZE_BODY, maxWidth);
+    for (const wLine of wrapped) {
+      page.drawText(wLine, { x, y, size: SIZE_BODY, font: fontRegular, color: BLACK });
+      y -= LINE_HEIGHT_BODY;
+    }
+  }
+
+  return startY - y; // altura total consumida por esta columna
+}
+
+/**
+ * Dibuja una seccion de dos columnas lado a lado. Antes de dibujar, calcula
+ * la altura real de cada columna (con wrapping ya aplicado) para reservar
+ * el espacio correcto en la paginacion.
+ */
+function drawTwoColumnSection(
+  pdfDoc: PDFDocument,
+  cursor: Cursor,
+  left: { header: string; lines: (string | undefined)[] },
+  right: { header: string; lines: (string | undefined)[] },
+  fontBold: PDFFont,
+  fontRegular: PDFFont,
+): Cursor {
+  // Altura estimada = la mayor de las dos columnas, calculada con un dry-run
+  // de wrapText (sin dibujar) para decidir si hace falta salto de pagina.
+  const estimate = (lines: (string | undefined)[]) => {
+    let lineCount = 1; // cabecera
+    for (const line of lines) {
+      if (!hasValue(line)) continue;
+      lineCount += wrapText(line, fontRegular, SIZE_BODY, COLUMN_WIDTH).length;
+    }
+    return LINE_HEIGHT_HEADER + lineCount * LINE_HEIGHT_BODY;
+  };
+
+  const neededHeight = Math.max(estimate(left.lines), estimate(right.lines));
+  cursor = checkPageBreak(pdfDoc, cursor, neededHeight);
+
+  const leftHeight = drawColumn(
+    cursor.page, MARGIN, cursor.y, left.header, left.lines, fontBold, fontRegular, COLUMN_WIDTH,
+  );
+  const rightHeight = drawColumn(
+    cursor.page, MARGIN + COLUMN_WIDTH + COLUMN_GAP, cursor.y, right.header, right.lines,
+    fontBold, fontRegular, COLUMN_WIDTH,
+  );
+
+  return { page: cursor.page, y: cursor.y - Math.max(leftHeight, rightHeight) - 18 };
+}
+
+/** Bloque OBSERVACIONES / motivo de modificacion: titulo + texto largo con wrap real. */
+function drawWrappedBlock(
+  pdfDoc: PDFDocument,
+  cursor: Cursor,
+  title: string,
+  body: string,
+  fontBold: PDFFont,
+  fontRegular: PDFFont,
+): Cursor {
+  const wrapped = wrapText(body, fontRegular, SIZE_BODY, CONTENT_WIDTH);
+  const titleHeight = LINE_HEIGHT_HEADER;
+  const neededHeight = titleHeight + wrapped.length * LINE_HEIGHT_BODY;
+
+  cursor = checkPageBreak(pdfDoc, cursor, neededHeight);
+
+  cursor.page.drawText(title, {
+    x: MARGIN, y: cursor.y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK,
+  });
+  let y = cursor.y - titleHeight;
+
+  for (const line of wrapped) {
+    cursor = checkPageBreak(pdfDoc, { page: cursor.page, y }, LINE_HEIGHT_BODY);
+    y = cursor.y;
+    cursor.page.drawText(line, {
+      x: MARGIN, y, size: SIZE_BODY, font: fontRegular, color: BLACK,
+    });
+    y -= LINE_HEIGHT_BODY;
+  }
+
+  return { page: cursor.page, y: y - 12 };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// GENERADOR PRINCIPAL
+// ─────────────────────────────────────────────────────────────────────────
+
+async function generatePdf(doc: DocumentRecord, verificationUrl: string): Promise<Uint8Array> {
+  const data = toControlDocumentData(doc, verificationUrl);
+
+  const pdfDoc = await PDFDocument.create();
   const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-  const c = doc.content;
-  const docId = doc.id.substring(0, 8).toUpperCase();
+  let cursor: Cursor = {
+    page: pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]),
+    y: PAGE_HEIGHT - MARGIN,
+  };
 
-  // === HEADER BAND ===
-  const headerH = 60;
-  page.drawRectangle({
-    x: 0, y: PAGE_H - headerH,
-    width: PAGE_W, height: headerH,
-    color: TEAL,
-  });
-
-  // Logo
-  let logoEndX = MARGIN_X;
-  try {
-    const logoBytes = Uint8Array.from(atob(DOKO_HEADER_BASE64), (ch) => ch.charCodeAt(0));
-    const logoImg = await pdfDoc.embedJpg(logoBytes);
-    const logoDims = logoImg.scaleToFit(130, 40);
-    page.drawImage(logoImg, {
-      x: MARGIN_X,
-      y: PAGE_H - headerH + (headerH - logoDims.height) / 2,
-      width: logoDims.width,
-      height: logoDims.height,
-    });
-    logoEndX = MARGIN_X + logoDims.width + 15;
-  } catch (e) {
-    console.error("Logo embed failed:", e);
-  }
-
-  // Title
-  page.drawText("DOCUMENTO DE CONTROL", {
-    x: logoEndX,
-    y: PAGE_H - 30,
-    size: 16,
+  // ── Bloque 1: Titulo ──────────────────────────────────────────────────
+  const titleText = "DOCUMENTO DE CONTROL";
+  const titleWidth = fontBold.widthOfTextAtSize(titleText, SIZE_TITLE);
+  cursor.page.drawText(titleText, {
+    x: PAGE_WIDTH / 2 - titleWidth / 2,
+    y: cursor.y,
+    size: SIZE_TITLE,
     font: fontBold,
-    color: WHITE,
+    color: BLACK,
   });
-  page.drawText("Transporte de mercancias por carretera", {
-    x: logoEndX,
-    y: PAGE_H - 45,
-    size: 8,
-    font: fontRegular,
-    color: rgb(0.8, 0.92, 0.95),
-  });
+  cursor.y -= 26;
 
-  // Doc ID badge (right)
-  const idText = `DOC-${docId}`;
-  const idWidth = fontBold.widthOfTextAtSize(idText, 10);
-  page.drawRectangle({
-    x: PAGE_W - MARGIN_X - idWidth - 16,
-    y: PAGE_H - 40,
-    width: idWidth + 16,
-    height: 20,
-    color: DARK_TEAL,
-  });
-  page.drawText(idText, {
-    x: PAGE_W - MARGIN_X - idWidth - 8,
-    y: PAGE_H - 35,
-    size: 10,
-    font: fontBold,
-    color: WHITE,
-  });
+  // ── Bloque 2: Separador "DATOS FACILITADOS POR EL CARGADOR CONTRACTUAL" ─
+  cursor = drawSectionDivider(cursor, "DATOS FACILITADOS POR EL CARGADOR CONTRACTUAL", fontRegular);
 
-  // === META ROW ===
-  let cursorY = PAGE_H - headerH - 18;
-  const driverName = c.driver?.name || doc.driver_name || "";
-  const metaLeft = `Salida: ${formatDate(doc.departure_date)}`;
-  const metaRight = driverName ? `Conductor: ${driverName}` : `Generado: ${formatDateTime(doc.created_at)}`;
+  // ── Cargador / Transportista (dos columnas) ─────────────────────────────
+  cursor = drawTwoColumnSection(
+    pdfDoc,
+    cursor,
+    {
+      header: "CARGADOR CONTRACTUAL",
+      lines: [
+        data.cargador.nombre,
+        data.cargador.identificador,
+        data.cargador.direccion,
+        [data.cargador.cp, data.cargador.localidad].filter(hasValue).join(" "),
+      ],
+    },
+    {
+      header: "TRANSPORTISTA EFECTIVO",
+      lines: [
+        data.transportista.nombre,
+        data.transportista.identificador,
+        data.transportista.direccion,
+        [data.transportista.cp, data.transportista.localidad].filter(hasValue).join(" "),
+      ],
+    },
+    fontBold,
+    fontRegular,
+  );
 
-  page.drawText(metaLeft, { x: MARGIN_X, y: cursorY, size: 8, font: fontRegular, color: SLATE_LIGHT });
-  const mrWidth = fontRegular.widthOfTextAtSize(metaRight, 8);
-  page.drawText(metaRight, { x: PAGE_W - MARGIN_X - mrWidth, y: cursorY, size: 8, font: fontRegular, color: SLATE_LIGHT });
+  // ── Bloque 3: Origen / Destino (dos columnas) ───────────────────────────
+  cursor = drawTwoColumnSection(
+    pdfDoc,
+    cursor,
+    {
+      header: "ORIGEN",
+      lines: [
+        data.origen.nombre,
+        data.origen.direccion,
+        [data.origen.cp, data.origen.localidad].filter(hasValue).join(" "),
+      ],
+    },
+    {
+      header: "DESTINO",
+      lines: [
+        data.destino.nombre,
+        data.destino.direccion,
+        [data.destino.cp, data.destino.localidad].filter(hasValue).join(" "),
+      ],
+    },
+    fontBold,
+    fontRegular,
+  );
 
-  cursorY -= 22;
-
-  // === CARGADOR / TRANSPORTISTA (two columns) ===
-  const colW = (CONTENT_W - 12) / 2;
-
-  const shipperName = c.contractual_shipper?.nombre || c.company.name;
-  const shipperNif = c.contractual_shipper ? `NIF: ${c.contractual_shipper.nif}` : `CIF: ${c.company.cif}`;
-  const shipperAddr = c.contractual_shipper
-    ? `${c.contractual_shipper.domicilio}, ${c.contractual_shipper.poblacion}`
-    : `${c.company.address}, ${c.company.postal_code} ${c.company.city}`;
-
-  const shipperLines = [
-    { text: shipperName, bold: true, size: 10 },
-    { text: shipperNif },
-    { text: shipperAddr },
-  ];
-
-  const carrierLines = [
-    { text: c.company.name, bold: true, size: 10 },
-    { text: `CIF: ${c.company.cif}` },
-    { text: `${c.company.address}, ${c.company.postal_code} ${c.company.city}` },
-    ...(c.company.phone ? [{ text: `Tel: ${c.company.phone}` }] : []),
-  ];
-
-  const h1 = drawSection(page, MARGIN_X, cursorY, colW, "Cargador Contractual", TEAL, shipperLines, fontRegular, fontBold);
-  const h2 = drawSection(page, MARGIN_X + colW + 12, cursorY, colW, "Transportista Efectivo", TEAL, carrierLines, fontRegular, fontBold);
-  cursorY -= Math.max(h1, h2) + 12;
-
-  // === ORIGEN / DESTINO (two columns) ===
-  const originTextLines = getOriginText(c.origin);
-  const originLines = originTextLines.map((t, i) => ({ text: t, bold: i === 0, size: i === 0 ? 10 : 9 }));
-  originLines.push({ text: `Salida: ${formatDate(doc.departure_date)}`, bold: true, size: 8.5 });
-
-  const destTextLines = getDestinationText(c.destination);
-  const destLines = destTextLines.map((t, i) => ({ text: t, bold: i === 0, size: i === 0 ? 10 : 9 }));
-  if (c.unloading_date) {
-    destLines.push({ text: `Descarga: ${formatDate(c.unloading_date)}`, bold: true, size: 8.5 });
-  }
-
-  const h3 = drawSection(page, MARGIN_X, cursorY, colW, "Origen", EMERALD, originLines, fontRegular, fontBold);
-  const h4 = drawSection(page, MARGIN_X + colW + 12, cursorY, colW, "Destino", EMERALD, destLines, fontRegular, fontBold);
-  cursorY -= Math.max(h3, h4) + 12;
-
-  // === VEHICULO (full width) ===
-  const trailerPlate1 = c.vehicle.trailer_plate_1 || c.vehicle.trailer_plate || "";
-  const vehicleLines: { text: string; bold?: boolean; size?: number }[] = [
-    { text: `Cabeza Tractora:  ${c.vehicle.tractor_plate}`, bold: true, size: 11 },
-  ];
-  if (trailerPlate1) {
-    vehicleLines.push({ text: `Remolque 1:  ${trailerPlate1}`, bold: true, size: 11 });
-  }
-  if (c.vehicle.trailer_plate_2) {
-    vehicleLines.push({ text: `Remolque 2:  ${c.vehicle.trailer_plate_2}`, bold: true, size: 11 });
-  }
-
-  const h5 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Vehiculo", SLATE_DARK, vehicleLines, fontRegular, fontBold);
-  cursorY -= h5 + 12;
-
-  // === CONDUCTOR (full width, if present) ===
-  if (driverName) {
-    const driverDni = c.driver?.dni || "";
-    const driverLines: { text: string; bold?: boolean; size?: number }[] = [
-      { text: driverName, bold: true, size: 10 },
+  // ── Bloque 4: Mercancia (ancho completo) ────────────────────────────────
+  {
+    const lines = [
+      data.mercancia.descripcion,
+      hasValue(data.mercancia.pesoBruto) ? `Peso bruto: ${data.mercancia.pesoBruto}` : undefined,
+      data.mercancia.autorizacionEspecial,
     ];
-    if (driverDni) driverLines.push({ text: `DNI: ${driverDni}` });
-
-    const h6 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Conductor", SLATE_DARK, driverLines, fontRegular, fontBold);
-    cursorY -= h6 + 12;
+    const estimateHeight = LINE_HEIGHT_HEADER + lines.filter(hasValue).length * LINE_HEIGHT_BODY;
+    cursor = checkPageBreak(pdfDoc, cursor, estimateHeight);
+    const consumed = drawColumn(
+      cursor.page, MARGIN, cursor.y, "MERCANCÍA", lines, fontBold, fontRegular, CONTENT_WIDTH,
+    );
+    cursor.y -= consumed + 8;
   }
 
-  // === MERCANCIA (full width) ===
-  const cargoLines: { text: string; bold?: boolean; size?: number }[] = [
-    { text: c.cargo.description, bold: true, size: 10 },
-  ];
-  if (c.cargo.packages != null && c.cargo.packages > 0) {
-    cargoLines.push({ text: `Bultos: ${c.cargo.packages}` });
-  }
-  cargoLines.push({ text: `Peso bruto: ${formatWeight(c.cargo.weight_kg)} ${weightUnitShort(c.cargo.weight_unit)}`, bold: true, size: 12 });
+  // ── Bloque 5: Separador "DATOS FACILITADOS POR EL TRANSPORTISTA EFECTIVO" ─
+  cursor = drawSectionDivider(cursor, "DATOS FACILITADOS POR EL TRANSPORTISTA EFECTIVO", fontRegular);
 
-  const h7 = drawSection(page, MARGIN_X, cursorY, CONTENT_W, "Mercancia", AMBER, cargoLines, fontRegular, fontBold);
-  cursorY -= h7 + 12;
+  // ── Bloque 6: Fechas / Matriculas (dos columnas) ────────────────────────
+  cursor = drawTwoColumnSection(
+    pdfDoc,
+    cursor,
+    {
+      header: "FECHAS DE REALIZACIÓN",
+      lines: [
+        `Carga: ${data.fechas.carga}`,
+        hasValue(data.fechas.descarga) ? `Descarga: ${data.fechas.descarga}` : undefined,
+      ],
+    },
+    {
+      // Las matriculas siempre muestran la etiqueta, aunque el valor este vacio
+      header: "MATRÍCULAS",
+      lines: [
+        `Cabeza tractora: ${data.matriculas.tractora ?? ""}`,
+        `Remolque: ${data.matriculas.remolque1 ?? ""}`,
+        `Remolque 2: ${data.matriculas.remolque2 ?? ""}`,
+      ],
+    },
+    fontBold,
+    fontRegular,
+  );
 
-  // === HISTORIAL DE MODIFICACIONES ===
-  const amendments = c.amendments;
-  let lastPage = page;
-  if (amendments && amendments.length > 0) {
-    const AMBER_BG = rgb(1, 0.98, 0.94);
-    const AMBER_BORDER = rgb(0.92, 0.82, 0.6);
-    const AMBER_DARK = rgb(0.6, 0.25, 0.02);
-    const RED_TEXT = rgb(0.7, 0.15, 0.1);
-    const GREEN_TEXT = rgb(0.05, 0.45, 0.2);
-
-    const sectionPadding = 10;
-    const lineH = 12;
-
-    let totalLines = 0;
-    for (const amendment of amendments) {
-      totalLines += 2;
-      totalLines += amendment.changes.length;
-      totalLines += 1;
-    }
-
-    const headerHeight = 20;
-    const bodyHeight = totalLines * lineH + sectionPadding * 2;
-    const sectionHeight = headerHeight + bodyHeight;
-
-    if (cursorY - sectionHeight < 80) {
-      lastPage = pdfDoc.addPage([PAGE_W, PAGE_H]);
-      cursorY = PAGE_H - 40;
-    }
-
-    lastPage.drawRectangle({
-      x: MARGIN_X, y: cursorY - sectionHeight,
-      width: CONTENT_W, height: sectionHeight,
-      color: AMBER_BG, borderColor: AMBER_BORDER, borderWidth: 1,
-    });
-    lastPage.drawRectangle({
-      x: MARGIN_X, y: cursorY - headerHeight,
-      width: CONTENT_W, height: headerHeight,
-      color: AMBER,
-    });
-    lastPage.drawText("HISTORIAL DE MODIFICACIONES", {
-      x: MARGIN_X + 8, y: cursorY - headerHeight + 6,
-      size: 7.5, font: fontBold, color: WHITE,
-    });
-
-    let lineY = cursorY - headerHeight - sectionPadding - 10;
-
-    for (const amendment of amendments) {
-      const dateStr = formatDateTime(amendment.amended_at);
-      const authorStr = amendment.amended_by ? ` — ${amendment.amended_by}` : "";
-      lastPage.drawText(`${dateStr}${authorStr}`, {
-        x: MARGIN_X + sectionPadding, y: lineY,
-        size: 7.5, font: fontBold, color: AMBER_DARK,
-        maxWidth: CONTENT_W - sectionPadding * 2,
-      });
-      lineY -= lineH;
-
-      lastPage.drawText(`Motivo: ${amendment.reason}`, {
-        x: MARGIN_X + sectionPadding, y: lineY,
-        size: 7.5, font: fontRegular, color: SLATE_MED,
-        maxWidth: CONTENT_W - sectionPadding * 2,
-      });
-      lineY -= lineH;
-
-      for (const change of amendment.changes) {
-        const oldVal = change.old_value || "(vacio)";
-        const newVal = change.new_value || "(vacio)";
-        const changeText = `${change.label}: `;
-        lastPage.drawText(changeText, {
-          x: MARGIN_X + sectionPadding + 4, y: lineY,
-          size: 7, font: fontBold, color: SLATE_DARK,
-        });
-        const labelWidth = fontBold.widthOfTextAtSize(changeText, 7);
-        lastPage.drawText(oldVal, {
-          x: MARGIN_X + sectionPadding + 4 + labelWidth, y: lineY,
-          size: 7, font: fontRegular, color: RED_TEXT,
-        });
-        const oldWidth = fontRegular.widthOfTextAtSize(oldVal, 7);
-        lastPage.drawLine({
-          start: { x: MARGIN_X + sectionPadding + 4 + labelWidth, y: lineY + 3 },
-          end: { x: MARGIN_X + sectionPadding + 4 + labelWidth + oldWidth, y: lineY + 3 },
-          thickness: 0.5, color: RED_TEXT,
-        });
-        const arrowText = " -> ";
-        lastPage.drawText(arrowText, {
-          x: MARGIN_X + sectionPadding + 4 + labelWidth + oldWidth, y: lineY,
-          size: 7, font: fontRegular, color: SLATE_LIGHT,
-        });
-        const arrowWidth = fontRegular.widthOfTextAtSize(arrowText, 7);
-        lastPage.drawText(newVal, {
-          x: MARGIN_X + sectionPadding + 4 + labelWidth + oldWidth + arrowWidth, y: lineY,
-          size: 7, font: fontBold, color: GREEN_TEXT,
-        });
-        lineY -= lineH;
-      }
-      lineY -= 4;
-    }
-
-    cursorY -= sectionHeight + 18;
-  } else {
-    cursorY -= 18;
-  }
-
-  // === QR CODE (large, centered) ===
-  try {
-    const qrImg = await pdfDoc.embedPng(qrPngBytes);
-    const qrSize = 140;
-    const qrX = (PAGE_W - qrSize) / 2;
-    const qrY = cursorY - qrSize;
-
-    // Light background behind QR
-    lastPage.drawRectangle({
-      x: qrX - 12,
-      y: qrY - 12,
-      width: qrSize + 24,
-      height: qrSize + 24,
-      color: LIGHT_BG,
-      borderColor: BORDER_GRAY,
-      borderWidth: 1,
-    });
-
-    lastPage.drawImage(qrImg, { x: qrX, y: qrY, width: qrSize, height: qrSize });
-
-    const captionText = "Escanea para verificar la autenticidad";
-    const captionW = fontRegular.widthOfTextAtSize(captionText, 8);
-    lastPage.drawText(captionText, {
-      x: (PAGE_W - captionW) / 2,
-      y: qrY - 16,
-      size: 8,
-      font: fontRegular,
-      color: SLATE_LIGHT,
-    });
-
-    cursorY = qrY - 35;
-  } catch (e) {
-    console.error("QR embed failed:", e);
-  }
-
-  // === FOOTER ===
-  const footerText = "Este documento ha sido generado digitalmente — DOKO";
-  const footerW = fontRegular.widthOfTextAtSize(footerText, 7.5);
-  lastPage.drawText(footerText, {
-    x: (PAGE_W - footerW) / 2,
-    y: 30,
-    size: 7.5,
-    font: fontRegular,
-    color: SLATE_LIGHT,
-  });
-
-  // Thin line above footer
-  lastPage.drawLine({
-    start: { x: MARGIN_X, y: 45 },
-    end: { x: PAGE_W - MARGIN_X, y: 45 },
+  // ── Bloque 7: linea separadora fina ─────────────────────────────────────
+  cursor = checkPageBreak(pdfDoc, cursor, 20);
+  cursor.page.drawLine({
+    start: { x: MARGIN, y: cursor.y },
+    end: { x: PAGE_WIDTH - MARGIN, y: cursor.y },
     thickness: 0.5,
     color: BORDER_GRAY,
   });
+  cursor.y -= 24;
 
-  // Set metadata
+  // ── Bloque 8: Observaciones (solo si hay contenido) ─────────────────────
+  if (hasValue(data.observations)) {
+    cursor = drawWrappedBlock(pdfDoc, cursor, "OBSERVACIONES", data.observations!, fontBold, fontRegular);
+  }
+
+  // ── Bloque 9: Historial de modificaciones (si existen) ──────────────────
+  if (data.amendments && data.amendments.length > 0) {
+    cursor = checkPageBreak(pdfDoc, cursor, 20);
+    cursor.page.drawText("HISTORIAL DE MODIFICACIONES", {
+      x: MARGIN, y: cursor.y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK,
+    });
+    cursor.y -= LINE_HEIGHT_HEADER;
+
+    for (const amendment of data.amendments) {
+      cursor = checkPageBreak(pdfDoc, cursor, LINE_HEIGHT_BODY);
+      cursor.page.drawText(amendment.date, {
+        x: MARGIN, y: cursor.y, size: SIZE_BODY, font: fontBold, color: BLACK,
+      });
+      cursor.y -= LINE_HEIGHT_BODY;
+
+      cursor = drawWrappedBlock(pdfDoc, cursor, "Motivo:", amendment.reason, fontBold, fontRegular);
+
+      if (hasValue(amendment.changes)) {
+        cursor = drawWrappedBlock(pdfDoc, cursor, "Cambios:", amendment.changes!, fontBold, fontRegular);
+      }
+    }
+  }
+
+  // ── Bloque 10: Pie (QR + fecha de generacion + linea + texto legal) ─────
+  {
+    const qrSize = 90;
+    const footerY = MARGIN_BOTTOM - 10;
+    cursor = checkPageBreak(pdfDoc, cursor, footerY + qrSize + 30 - MARGIN_BOTTOM);
+    // En la practica el pie se fija siempre cerca de MARGIN_BOTTOM en la ultima pagina
+
+    const qrPngBytes = await QRCode.toBuffer(data.verificationUrl, { type: "png", margin: 0 });
+    const qrImage = await pdfDoc.embedPng(qrPngBytes);
+
+    const qrX = PAGE_WIDTH - MARGIN - qrSize;
+    const qrY = footerY;
+
+    cursor.page.drawImage(qrImage, { x: qrX, y: qrY, width: qrSize, height: qrSize });
+
+    const label = "Fecha de generación del documento:";
+    const labelWidth = fontRegular.widthOfTextAtSize(label, SIZE_FOOTER);
+    const dateWidth = fontBold.widthOfTextAtSize(data.generatedAt, SIZE_FOOTER + 1);
+
+    const dateY = qrY + 4; // linea inferior, alineada con la base del QR
+    const labelY = dateY + (SIZE_FOOTER + 5); // linea superior, justo encima de la fecha
+
+    cursor.page.drawText(label, {
+      x: qrX - labelWidth - 16,
+      y: labelY,
+      size: SIZE_FOOTER,
+      font: fontRegular,
+      color: GRAY_TEXT,
+    });
+
+    cursor.page.drawText(data.generatedAt, {
+      x: qrX - dateWidth - 16,
+      y: dateY,
+      size: SIZE_FOOTER + 1,
+      font: fontBold,
+      color: BLACK,
+    });
+
+    cursor.page.drawLine({
+      start: { x: MARGIN, y: MARGIN_BOTTOM - 30 },
+      end: { x: PAGE_WIDTH - MARGIN, y: MARGIN_BOTTOM - 30 },
+      thickness: 0.5,
+      color: BORDER_GRAY,
+    });
+
+    const legalText = "Este documento ha sido generado digitalmente — DOKO";
+    const legalWidth = fontRegular.widthOfTextAtSize(legalText, SIZE_FOOTER);
+    cursor.page.drawText(legalText, {
+      x: PAGE_WIDTH / 2 - legalWidth / 2,
+      y: MARGIN_BOTTOM - 45,
+      size: SIZE_FOOTER,
+      font: fontRegular,
+      color: GRAY_TEXT,
+    });
+  }
+
+  // Metadata del PDF
+  const docId = doc.id.substring(0, 8).toUpperCase();
   pdfDoc.setTitle(`Documento de Control DOC-${docId}`);
   pdfDoc.setAuthor("DOKO - Sistema de Control de Transporte");
   pdfDoc.setSubject("Documento de control de transporte de mercancias por carretera");
@@ -566,7 +720,7 @@ async function generatePdf(doc: DocumentRecord, qrPngBytes: Uint8Array): Promise
   pdfDoc.setProducer("pdf-lib");
   pdfDoc.setCreationDate(new Date(doc.created_at));
 
-  return await pdfDoc.save();
+  return pdfDoc.save();
 }
 
 Deno.serve(async (req: Request) => {
@@ -615,23 +769,12 @@ Deno.serve(async (req: Request) => {
       .from("document-pdfs")
       .getPublicUrl(originalFileName);
 
-    // Generate QR as PNG buffer — URL points to download-pdf Edge Function for forced download
+    // El QR apunta a la funcion download-pdf para forzar la descarga con el nombre correcto
     const qrTargetUrl = `${supabaseUrl}/functions/v1/download-pdf?id=${doc.id}`;
-    let qrPngBytes = new Uint8Array(0);
-    try {
-      const qrBuffer = await QRCode.toBuffer(qrTargetUrl, {
-        width: 400,
-        margin: 1,
-        color: { dark: "#0f172a", light: "#ffffff" },
-      });
-      qrPngBytes = new Uint8Array(qrBuffer);
-    } catch (qrErr) {
-      console.error("QR generation failed:", qrErr);
-    }
 
     let pdfBytes: Uint8Array;
     try {
-      pdfBytes = await generatePdf(doc, qrPngBytes);
+      pdfBytes = await generatePdf(doc, qrTargetUrl);
     } catch (pdfError) {
       const errorMsg = pdfError instanceof Error ? pdfError.message : String(pdfError);
       console.error("PDF generation failed:", errorMsg);
