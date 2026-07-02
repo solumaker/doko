@@ -222,8 +222,13 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
 
   const trailerPlate1 = content.vehicle.trailer_plate_1 || content.vehicle.trailer_plate;
   const downloadUrl = doc.pdf_url || doc.pdf_original_url;
-  const documentUrl = doc.pdf_url || `${window.location.origin}/documento/${doc.id}`;
+  // El QR y el enlace compartido por WhatsApp apuntan siempre a la funcion
+  // download-pdf: resuelve el pdf_url mas reciente directamente en la base
+  // de datos en el momento en que se escanea/abre, asi que nunca lleva a una
+  // version desactualizada aunque el documento se firme o modifique despues
+  // de haber compartido el enlace.
   const qrDownloadUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-pdf?id=${doc.id}`;
+  const documentUrl = qrDownloadUrl;
 
   const handleShare = () => {
     const text = encodeURIComponent(`Documento de Control de Transporte: ${documentUrl}`);

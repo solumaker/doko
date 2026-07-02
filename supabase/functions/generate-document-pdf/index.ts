@@ -120,6 +120,8 @@ interface DocumentRecord {
   departure_date: string;
   created_at: string;
   driver_name?: string;
+  pdf_url?: string | null;
+  pdf_original_url?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -130,16 +132,26 @@ function formatDate(iso: string): string {
   const d = new Date(iso.length === 10 ? iso + "T12:00:00" : iso);
   return d.toLocaleDateString("es-ES", {
     timeZone: "Europe/Madrid",
-    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    month: "long",
-    day: "numeric",
   });
 }
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} ${d.toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })}`;
+  const datePart = d.toLocaleDateString("es-ES", {
+    timeZone: "Europe/Madrid",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const timePart = d.toLocaleTimeString("es-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${datePart} ${timePart}`;
 }
 
 function formatWeight(kg: number): string {
@@ -301,7 +313,10 @@ function toControlDocumentData(doc: DocumentRecord, verificationUrl: string): Co
     },
     observations: c.observations,
     amendments,
-    generatedAt: formatDateTime(new Date().toISOString()),
+    // Fecha de creacion original del documento: se mantiene fija aunque el
+    // documento se firme o modifique despues (esas fechas ya quedan
+    // registradas aparte en HISTORIAL DE MODIFICACIONES).
+    generatedAt: formatDateTime(doc.created_at),
     verificationUrl,
   };
 }
@@ -669,6 +684,16 @@ async function generatePdf(doc: DocumentRecord, verificationUrl: string): Promis
 
   // ── Bloque 9: Historial de modificaciones (si existen) ──────────────────
   if (data.amendments && data.amendments.length > 0) {
+    // Separador fino entre OBSERVACIONES (si la hubo) e HISTORIAL DE MODIFICACIONES
+    cursor = checkPageBreak(pdfDoc, cursor, 20);
+    cursor.page.drawLine({
+      start: { x: MARGIN, y: cursor.y },
+      end: { x: PAGE_WIDTH - MARGIN, y: cursor.y },
+      thickness: 0.5,
+      color: BORDER_GRAY,
+    });
+    cursor.y -= 24;
+
     cursor = checkPageBreak(pdfDoc, cursor, 20);
     cursor.page.drawText("HISTORIAL DE MODIFICACIONES", {
       x: MARGIN, y: cursor.y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK,
@@ -682,11 +707,11 @@ async function generatePdf(doc: DocumentRecord, verificationUrl: string): Promis
       });
       cursor.y -= LINE_HEIGHT_BODY;
 
-      cursor = drawWrappedBlock(pdfDoc, cursor, "Motivo:", amendment.reason, fontBold, fontRegular);
-
       if (hasValue(amendment.changes)) {
         cursor = drawWrappedBlock(pdfDoc, cursor, "Cambios:", amendment.changes!, fontBold, fontRegular);
       }
+
+      cursor = drawWrappedBlock(pdfDoc, cursor, "Motivo:", amendment.reason, fontBold, fontRegular);
     }
   }
 
@@ -758,6 +783,19 @@ async function generatePdf(doc: DocumentRecord, verificationUrl: string): Promis
   return pdfDoc.save();
 }
 
+/** Extrae la ruta dentro del bucket a partir de una URL publica de document-pdfs. */
+function extractStoragePath(pdfUrl: string): string | null {
+  const bucketPrefix = "/storage/v1/object/public/document-pdfs/";
+  try {
+    const parsedUrl = new URL(pdfUrl);
+    const pathIndex = parsedUrl.pathname.indexOf(bucketPrefix);
+    if (pathIndex === -1) return null;
+    return decodeURIComponent(parsedUrl.pathname.slice(pathIndex + bucketPrefix.length));
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -799,12 +837,19 @@ Deno.serve(async (req: Request) => {
 
     const doc = document as DocumentRecord;
 
-    const originalFileName = `${doc.id}_original.pdf`;
-    const { data: origUrlData } = supabase.storage
-      .from("document-pdfs")
-      .getPublicUrl(originalFileName);
+    // Cada regeneracion (firma, correccion de matricula, modificacion) sube
+    // el PDF a una ruta nueva y unica en vez de sobrescribir siempre el mismo
+    // archivo. Reutilizar la misma ruta dejaba el "Ver documento", "Compartir
+    // QR" y el propio archivo servido tras escanear el QR expuestos a
+    // cualquier cache intermedia (CDN, navegador, previsualizacion de
+    // WhatsApp) que sirviera la version anterior. Con una ruta nueva por
+    // generacion, esa URL nunca ha sido vista antes y no puede devolver
+    // contenido obsoleto.
+    const newFileName = `${doc.id}_${Date.now()}.pdf`;
 
-    // El QR apunta a la funcion download-pdf para forzar la descarga con el nombre correcto
+    // El QR apunta a la funcion download-pdf para forzar la descarga con el
+    // nombre correcto y para resolver siempre el pdf_url mas reciente
+    // directamente desde la base de datos en el momento del escaneo.
     const qrTargetUrl = `${supabaseUrl}/functions/v1/download-pdf?id=${doc.id}`;
 
     let pdfBytes: Uint8Array;
@@ -821,9 +866,13 @@ Deno.serve(async (req: Request) => {
 
     const { error: origUploadError } = await supabase.storage
       .from("document-pdfs")
-      .upload(originalFileName, pdfBytes, {
+      .upload(newFileName, pdfBytes, {
         contentType: "application/pdf",
         upsert: true,
+        // El contenido de esta ruta nunca cambia una vez subido (cada
+        // regeneracion usa una ruta nueva), asi que puede cachearse de forma
+        // agresiva y segura.
+        cacheControl: "31536000",
       });
 
     if (origUploadError) {
@@ -833,7 +882,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const pdfUrl = origUrlData.publicUrl;
+    const { data: newUrlData } = supabase.storage
+      .from("document-pdfs")
+      .getPublicUrl(newFileName);
+    const pdfUrl = newUrlData.publicUrl;
 
     const { error: updateError } = await supabase
       .from("documents")
@@ -845,6 +897,16 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: "Failed to update document with PDF URL", details: updateError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Limpieza best-effort del archivo de la generacion anterior (si lo
+    // habia). No debe hacer fallar la peticion si algo sale mal aqui.
+    const previousPdfUrl = doc.pdf_url;
+    if (previousPdfUrl) {
+      const previousPath = extractStoragePath(previousPdfUrl);
+      if (previousPath && previousPath !== newFileName) {
+        await supabase.storage.from("document-pdfs").remove([previousPath]).catch(() => {});
+      }
     }
 
     return new Response(

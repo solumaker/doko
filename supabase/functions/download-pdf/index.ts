@@ -83,7 +83,10 @@ Deno.serve(async (req: Request) => {
       ...corsHeaders,
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "Cache-Control": "public, max-age=3600",
+      // Este endpoint resuelve el pdf_url actual en cada peticion, asi que
+      // nunca debe cachearse: si el documento se firma o modifica, el mismo
+      // enlace/QR debe servir siempre la version mas reciente.
+      "Cache-Control": "no-store, must-revalidate",
     },
   });
 });
