@@ -120,6 +120,8 @@ interface DocumentRecord {
   departure_date: string;
   created_at: string;
   driver_name?: string;
+  pdf_url?: string | null;
+  pdf_original_url?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -781,6 +783,19 @@ async function generatePdf(doc: DocumentRecord, verificationUrl: string): Promis
   return pdfDoc.save();
 }
 
+/** Extrae la ruta dentro del bucket a partir de una URL publica de document-pdfs. */
+function extractStoragePath(pdfUrl: string): string | null {
+  const bucketPrefix = "/storage/v1/object/public/document-pdfs/";
+  try {
+    const parsedUrl = new URL(pdfUrl);
+    const pathIndex = parsedUrl.pathname.indexOf(bucketPrefix);
+    if (pathIndex === -1) return null;
+    return decodeURIComponent(parsedUrl.pathname.slice(pathIndex + bucketPrefix.length));
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -822,12 +837,19 @@ Deno.serve(async (req: Request) => {
 
     const doc = document as DocumentRecord;
 
-    const originalFileName = `${doc.id}_original.pdf`;
-    const { data: origUrlData } = supabase.storage
-      .from("document-pdfs")
-      .getPublicUrl(originalFileName);
+    // Cada regeneracion (firma, correccion de matricula, modificacion) sube
+    // el PDF a una ruta nueva y unica en vez de sobrescribir siempre el mismo
+    // archivo. Reutilizar la misma ruta dejaba el "Ver documento", "Compartir
+    // QR" y el propio archivo servido tras escanear el QR expuestos a
+    // cualquier cache intermedia (CDN, navegador, previsualizacion de
+    // WhatsApp) que sirviera la version anterior. Con una ruta nueva por
+    // generacion, esa URL nunca ha sido vista antes y no puede devolver
+    // contenido obsoleto.
+    const newFileName = `${doc.id}_${Date.now()}.pdf`;
 
-    // El QR apunta a la funcion download-pdf para forzar la descarga con el nombre correcto
+    // El QR apunta a la funcion download-pdf para forzar la descarga con el
+    // nombre correcto y para resolver siempre el pdf_url mas reciente
+    // directamente desde la base de datos en el momento del escaneo.
     const qrTargetUrl = `${supabaseUrl}/functions/v1/download-pdf?id=${doc.id}`;
 
     let pdfBytes: Uint8Array;
@@ -844,13 +866,13 @@ Deno.serve(async (req: Request) => {
 
     const { error: origUploadError } = await supabase.storage
       .from("document-pdfs")
-      .upload(originalFileName, pdfBytes, {
+      .upload(newFileName, pdfBytes, {
         contentType: "application/pdf",
         upsert: true,
-        // El archivo se sobrescribe en la misma ruta en cada regeneracion
-        // (tras firmar/modificar): sin esto, Supabase Storage cachearia la
-        // version anterior durante 1h y el visor/QR mostrarian el PDF viejo.
-        cacheControl: "0",
+        // El contenido de esta ruta nunca cambia una vez subido (cada
+        // regeneracion usa una ruta nueva), asi que puede cachearse de forma
+        // agresiva y segura.
+        cacheControl: "31536000",
       });
 
     if (origUploadError) {
@@ -860,7 +882,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const pdfUrl = origUrlData.publicUrl;
+    const { data: newUrlData } = supabase.storage
+      .from("document-pdfs")
+      .getPublicUrl(newFileName);
+    const pdfUrl = newUrlData.publicUrl;
 
     const { error: updateError } = await supabase
       .from("documents")
@@ -872,6 +897,16 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: "Failed to update document with PDF URL", details: updateError }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Limpieza best-effort del archivo de la generacion anterior (si lo
+    // habia). No debe hacer fallar la peticion si algo sale mal aqui.
+    const previousPdfUrl = doc.pdf_url;
+    if (previousPdfUrl) {
+      const previousPath = extractStoragePath(previousPdfUrl);
+      if (previousPath && previousPath !== newFileName) {
+        await supabase.storage.from("document-pdfs").remove([previousPath]).catch(() => {});
+      }
     }
 
     return new Response(
