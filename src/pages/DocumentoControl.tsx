@@ -74,12 +74,23 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
   const [pdfFailed, setPdfFailed] = useState(false);
   const [retrying, setRetrying] = useState(false);
 
+  const [pdfWaitTrigger, setPdfWaitTrigger] = useState(0);
+
   const resolvePdf = (updatedDoc: Partial<Document>) => {
     if (resolvedRef.current) return;
     resolvedRef.current = true;
     setPdfProgress(100);
     setPdfFailed(false);
     setDoc((prev) => ({ ...prev, ...updatedDoc }));
+  };
+
+  /** Re-arma la espera del PDF tras una accion en la misma pagina (firma, correccion de matricula) que lo invalido. */
+  const rearmPdfWait = (updatedDoc: Document) => {
+    if (updatedDoc.pdf_url || updatedDoc.pdf_original_url) return;
+    resolvedRef.current = false;
+    setPdfFailed(false);
+    setPdfProgress(3);
+    setPdfWaitTrigger((n) => n + 1);
   };
 
   const handleRetryPdf = async () => {
@@ -114,7 +125,7 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
   };
 
   useEffect(() => {
-    if (initialDoc.pdf_url || initialDoc.pdf_original_url) {
+    if (doc.pdf_url || doc.pdf_original_url) {
       resolvedRef.current = true;
       return;
     }
@@ -183,7 +194,8 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
       clearTimeout(failTimeout);
       supabase.removeChannel(channel);
     };
-  }, [doc.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc.id, pdfWaitTrigger]);
 
   const [showSignModal, setShowSignModal] = useState<'origin' | 'destination' | null>(null);
   const [signFirmante, setSignFirmante] = useState('');
@@ -244,7 +256,7 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
     };
     const updated = await signDocument(doc.id, showSignModal, sigData);
     setSignSaving(false);
-    if (updated) { setDoc(updated); setShowSignModal(null); }
+    if (updated) { setDoc(updated); rearmPdfWait(updated); setShowSignModal(null); }
   };
 
   const handleSaveAmendment = async () => {
@@ -258,6 +270,7 @@ export function DocumentoControl({ document: initialDoc, onBack, onLogout, onNav
     setAmendSaving(false);
     if (updated) {
       setDoc(updated);
+      rearmPdfWait(updated);
       setShowAmendModal(false);
       setAmendTractor(''); setAmendTrailer1(''); setAmendTrailer2('');
     }

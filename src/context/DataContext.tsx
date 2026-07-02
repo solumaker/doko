@@ -397,7 +397,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('documents')
-      .update({ content: newContent })
+      .update({ content: newContent, pdf_url: null, pdf_original_url: null })
       .eq('id', id)
       .select()
       .single();
@@ -439,7 +439,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('documents')
-      .update({ content: newContent })
+      .update({ content: newContent, pdf_url: null, pdf_original_url: null })
       .eq('id', id)
       .select()
       .single();
@@ -482,7 +482,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('documents')
-      .update({ content: newContent })
+      .update({ content: newContent, pdf_url: null, pdf_original_url: null })
       .eq('id', id)
       .select()
       .single();
