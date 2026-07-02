@@ -311,7 +311,10 @@ function toControlDocumentData(doc: DocumentRecord, verificationUrl: string): Co
     },
     observations: c.observations,
     amendments,
-    generatedAt: formatDateTime(new Date().toISOString()),
+    // Fecha de creacion original del documento: se mantiene fija aunque el
+    // documento se firme o modifique despues (esas fechas ya quedan
+    // registradas aparte en HISTORIAL DE MODIFICACIONES).
+    generatedAt: formatDateTime(doc.created_at),
     verificationUrl,
   };
 }
