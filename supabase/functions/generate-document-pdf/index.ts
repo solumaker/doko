@@ -286,7 +286,9 @@ function toControlDocumentData(doc: DocumentRecord, verificationUrl: string): Co
     mercancia: {
       descripcion: c.cargo.description || "",
       pesoBruto: `${formatWeight(c.cargo.weight_kg)} ${weightUnitShort(c.cargo.weight_unit)}`,
-      autorizacionEspecial: c.vehicle.special_authorization,
+      autorizacionEspecial: hasValue(c.vehicle.special_authorization)
+        ? c.vehicle.special_authorization!.trim()
+        : "No requiere autorización especial",
     },
     fechas: {
       carga: formatDate(doc.departure_date),
@@ -308,6 +310,28 @@ function toControlDocumentData(doc: DocumentRecord, verificationUrl: string): Co
 // HELPERS DE TEXTO
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * Rompe una palabra/token que por si solo ya excede maxWidth (por ejemplo un
+ * texto pegado sin espacios) en trozos que si caben, caracter a caracter.
+ */
+function breakLongToken(token: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const ch of token) {
+    const test = current + ch;
+    if (font.widthOfTextAtSize(test, fontSize) > maxWidth && current !== "") {
+      chunks.push(current);
+      current = ch;
+    } else {
+      current = test;
+    }
+  }
+  if (current !== "") chunks.push(current);
+
+  return chunks;
+}
+
 /** Divide un texto en lineas que caben en maxWidth, midiendo con la fuente real. */
 function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: number): string[] {
   const lines: string[] = [];
@@ -325,11 +349,22 @@ function wrapText(text: string, font: PDFFont, fontSize: number, maxWidth: numbe
       const testLine = currentLine ? `${currentLine} ${word}` : word;
       const testWidth = font.widthOfTextAtSize(testLine, fontSize);
 
-      if (testWidth > maxWidth && currentLine !== "") {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
+      if (testWidth <= maxWidth) {
         currentLine = testLine;
+        continue;
+      }
+
+      if (currentLine !== "") lines.push(currentLine);
+
+      // La palabra sola (sin nada delante) tambien excede el ancho: no hay
+      // ningun espacio donde partirla, asi que se rompe caracter a caracter
+      // para que nunca se salga del margen de la pagina.
+      if (font.widthOfTextAtSize(word, fontSize) > maxWidth) {
+        const chunks = breakLongToken(word, font, fontSize, maxWidth);
+        for (let i = 0; i < chunks.length - 1; i++) lines.push(chunks[i]);
+        currentLine = chunks[chunks.length - 1] ?? "";
+      } else {
+        currentLine = word;
       }
     }
     if (currentLine !== "") lines.push(currentLine);

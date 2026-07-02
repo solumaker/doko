@@ -360,3 +360,12 @@ export interface VehicleHistory {
   last_used: string;
   created_at: string;
 }
+
+export interface ObservationHistory {
+  id: string;
+  company_id: string;
+  text: string;
+  use_count: number;
+  last_used: string;
+  created_at: string;
+}

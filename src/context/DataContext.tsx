@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase, Location, Vehicle, Document, DocumentContent, PartyHistory, PartyType, VehicleHistory, SignatureData, VehicleAmendment, DocumentFieldChange, DocumentAmendment } from '../lib/supabase';
+import { supabase, Location, Vehicle, Document, DocumentContent, ObservationHistory, PartyHistory, PartyType, VehicleHistory, SignatureData, VehicleAmendment, DocumentFieldChange, DocumentAmendment } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 export interface HiddenDocEntry {
@@ -15,6 +15,7 @@ interface DataContextType {
   hiddenDocIds: string[];
   partyHistory: PartyHistory[];
   vehicleHistory: VehicleHistory[];
+  observationHistory: ObservationHistory[];
   loadingLocations: boolean;
   loadingVehicles: boolean;
   loadingDocuments: boolean;
@@ -68,6 +69,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [hiddenDocIds, setHiddenDocIds] = useState<string[]>([]);
   const [partyHistory, setPartyHistory] = useState<PartyHistory[]>([]);
   const [vehicleHistory, setVehicleHistory] = useState<VehicleHistory[]>([]);
+  const [observationHistory, setObservationHistory] = useState<ObservationHistory[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [loadingDocuments, setLoadingDocuments] = useState(true);
@@ -135,6 +137,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     else setVehicleHistory(data || []);
   }, [profile?.company_id]);
 
+  const fetchObservationHistory = useCallback(async () => {
+    if (!profile?.company_id) return;
+    const { data, error } = await supabase
+      .from('observation_history')
+      .select('*')
+      .order('last_used', { ascending: false });
+    if (error) console.error('Error fetching observation history:', error);
+    else setObservationHistory(data || []);
+  }, [profile?.company_id]);
+
   useEffect(() => {
     if (profile?.company_id) {
       fetchLocations();
@@ -142,6 +154,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       fetchDocuments();
       fetchPartyHistory();
       fetchVehicleHistory();
+      fetchObservationHistory();
     } else {
       setLocations([]);
       setVehicles([]);
@@ -149,11 +162,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setHiddenDocIds([]);
       setPartyHistory([]);
       setVehicleHistory([]);
+      setObservationHistory([]);
       setLoadingLocations(false);
       setLoadingVehicles(false);
       setLoadingDocuments(false);
     }
-  }, [profile?.company_id, fetchLocations, fetchVehicles, fetchDocuments, fetchPartyHistory, fetchVehicleHistory]);
+  }, [profile?.company_id, fetchLocations, fetchVehicles, fetchDocuments, fetchPartyHistory, fetchVehicleHistory, fetchObservationHistory]);
 
   const upsertPartyToHistory = async (partyType: PartyType, party: { nombre: string; nif: string; domicilio: string; poblacion: string; postal_code?: string }) => {
     if (!profile?.company_id || !party.domicilio.trim()) return;
@@ -213,6 +227,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setVehicleHistory((prev) => {
         const existing = prev.findIndex((v) => v.id === data.id);
         const updated = existing >= 0 ? prev.map((v, i) => (i === existing ? data : v)) : [data, ...prev];
+        return updated.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
+      });
+    }
+  };
+
+  const upsertObservationToHistory = async (text: string) => {
+    if (!profile?.company_id || !text.trim()) return;
+    const { data, error } = await supabase
+      .from('observation_history')
+      .upsert(
+        {
+          company_id: profile.company_id,
+          text: text.trim(),
+          use_count: 1,
+          last_used: new Date().toISOString(),
+        },
+        {
+          onConflict: 'company_id,text_hash',
+          ignoreDuplicates: false,
+        }
+      )
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      setObservationHistory((prev) => {
+        const existing = prev.findIndex((o) => o.id === data.id);
+        const updated = existing >= 0 ? prev.map((o, i) => (i === existing ? data : o)) : [data, ...prev];
         return updated.sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime());
       });
     }
@@ -326,6 +368,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       });
     }
     upsertVehicleToHistory(content.vehicle);
+    if (content.observations) upsertObservationToHistory(content.observations);
 
     triggerPdfRegen(data.id, (result) => {
       setAllDocuments((prev) =>
@@ -354,7 +397,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('documents')
-      .update({ content: newContent })
+      .update({ content: newContent, pdf_url: null, pdf_original_url: null })
       .eq('id', id)
       .select()
       .single();
@@ -396,7 +439,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('documents')
-      .update({ content: newContent })
+      .update({ content: newContent, pdf_url: null, pdf_original_url: null })
       .eq('id', id)
       .select()
       .single();
@@ -439,7 +482,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const { data, error } = await supabase
       .from('documents')
-      .update({ content: newContent })
+      .update({ content: newContent, pdf_url: null, pdf_original_url: null })
       .eq('id', id)
       .select()
       .single();
@@ -478,7 +521,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments(), fetchPartyHistory(), fetchVehicleHistory()]);
+    await Promise.all([fetchLocations(), fetchVehicles(), fetchDocuments(), fetchPartyHistory(), fetchVehicleHistory(), fetchObservationHistory()]);
   };
 
   const documents = allDocuments.filter((d) => {
@@ -503,6 +546,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         hiddenDocIds,
         partyHistory,
         vehicleHistory,
+        observationHistory,
         loadingLocations,
         loadingVehicles,
         loadingDocuments,
