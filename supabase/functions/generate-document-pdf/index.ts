@@ -130,16 +130,26 @@ function formatDate(iso: string): string {
   const d = new Date(iso.length === 10 ? iso + "T12:00:00" : iso);
   return d.toLocaleDateString("es-ES", {
     timeZone: "Europe/Madrid",
-    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
     year: "numeric",
-    month: "long",
-    day: "numeric",
   });
 }
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })} ${d.toLocaleTimeString("es-ES", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit" })}`;
+  const datePart = d.toLocaleDateString("es-ES", {
+    timeZone: "Europe/Madrid",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+  const timePart = d.toLocaleTimeString("es-ES", {
+    timeZone: "Europe/Madrid",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${datePart} ${timePart}`;
 }
 
 function formatWeight(kg: number): string {
@@ -669,6 +679,16 @@ async function generatePdf(doc: DocumentRecord, verificationUrl: string): Promis
 
   // ── Bloque 9: Historial de modificaciones (si existen) ──────────────────
   if (data.amendments && data.amendments.length > 0) {
+    // Separador fino entre OBSERVACIONES (si la hubo) e HISTORIAL DE MODIFICACIONES
+    cursor = checkPageBreak(pdfDoc, cursor, 20);
+    cursor.page.drawLine({
+      start: { x: MARGIN, y: cursor.y },
+      end: { x: PAGE_WIDTH - MARGIN, y: cursor.y },
+      thickness: 0.5,
+      color: BORDER_GRAY,
+    });
+    cursor.y -= 24;
+
     cursor = checkPageBreak(pdfDoc, cursor, 20);
     cursor.page.drawText("HISTORIAL DE MODIFICACIONES", {
       x: MARGIN, y: cursor.y, size: SIZE_COLUMN_HEADER, font: fontBold, color: BLACK,
@@ -682,11 +702,11 @@ async function generatePdf(doc: DocumentRecord, verificationUrl: string): Promis
       });
       cursor.y -= LINE_HEIGHT_BODY;
 
-      cursor = drawWrappedBlock(pdfDoc, cursor, "Motivo:", amendment.reason, fontBold, fontRegular);
-
       if (hasValue(amendment.changes)) {
         cursor = drawWrappedBlock(pdfDoc, cursor, "Cambios:", amendment.changes!, fontBold, fontRegular);
       }
+
+      cursor = drawWrappedBlock(pdfDoc, cursor, "Motivo:", amendment.reason, fontBold, fontRegular);
     }
   }
 
@@ -824,6 +844,10 @@ Deno.serve(async (req: Request) => {
       .upload(originalFileName, pdfBytes, {
         contentType: "application/pdf",
         upsert: true,
+        // El archivo se sobrescribe en la misma ruta en cada regeneracion
+        // (tras firmar/modificar): sin esto, Supabase Storage cachearia la
+        // version anterior durante 1h y el visor/QR mostrarian el PDF viejo.
+        cacheControl: "0",
       });
 
     if (origUploadError) {
