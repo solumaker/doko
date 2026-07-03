@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface LoginProps {
@@ -41,6 +41,14 @@ export function Login({ onNavigateToRegister, onNavigateToForgotPassword, onNavi
   return (
     <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
+        <a
+          href="https://www.documentocontroltransporte.com/"
+          className="inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-600 text-sm font-medium mb-4 transition-colors"
+        >
+          <ArrowLeft size={15} />
+          Volver
+        </a>
+
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8">
           <div className="flex flex-col items-center mb-8">
             <a href="https://documentocontroltransporte.com" className="focus:outline-none">
