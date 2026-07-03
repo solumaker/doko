@@ -169,6 +169,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [profile?.company_id, fetchLocations, fetchVehicles, fetchDocuments, fetchPartyHistory, fetchVehicleHistory, fetchObservationHistory]);
 
+  // Cuando se crea un documento con datos de transportista/cargador/origen/destino
+  // que aun no existen como "Lugar", se guardan automaticamente en la tabla
+  // locations para que aparezcan en el menu "Lugares" (consultar/editar/eliminar)
+  // y sirvan de sugerencia en el siguiente documento. `seenKeys` evita crear
+  // duplicados dentro del mismo documento (p. ej. cuando origen es igual al
+  // cargador contractual, o coincide con el destino).
+  const addLocationIfNew = async (
+    party: { nombre: string; nif: string; domicilio: string; poblacion: string; postal_code?: string },
+    seenKeys: Set<string>
+  ) => {
+    if (!profile?.company_id || !party.domicilio.trim()) return;
+    const key = `${party.nombre.trim().toLowerCase()}|${party.domicilio.trim().toLowerCase()}`;
+    if (seenKeys.has(key)) return;
+    seenKeys.add(key);
+
+    const alreadySaved = locations.some(
+      (l) => `${l.name.trim().toLowerCase()}|${l.address.trim().toLowerCase()}` === key
+    );
+    if (alreadySaved) return;
+
+    const { data, error } = await supabase
+      .from('locations')
+      .insert({
+        company_id: profile.company_id,
+        name: party.nombre.trim() || party.domicilio,
+        nif: party.nif || '',
+        address: party.domicilio,
+        city: party.poblacion || '',
+        province: '',
+        postal_code: party.postal_code || '',
+        contact_name: '',
+        phone: '',
+      })
+      .select()
+      .maybeSingle();
+
+    if (error) { console.error('Error auto-saving location:', error); return; }
+    if (data) {
+      setLocations((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+    }
+  };
+
   const upsertPartyToHistory = async (partyType: PartyType, party: { nombre: string; nif: string; domicilio: string; poblacion: string; postal_code?: string }) => {
     if (!profile?.company_id || !party.domicilio.trim()) return;
     const { data, error } = await supabase
@@ -369,6 +411,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     upsertVehicleToHistory(content.vehicle);
     if (content.observations) upsertObservationToHistory(content.observations);
+
+    const newLocationKeys = new Set<string>();
+    if (content.contractual_shipper) addLocationIfNew(content.contractual_shipper, newLocationKeys);
+    if (content.transportista_efectivo) addLocationIfNew(content.transportista_efectivo, newLocationKeys);
+    if (content.origin?.domicilio) {
+      addLocationIfNew(
+        {
+          nombre: content.origin.empresa || '',
+          nif: content.origin.nif || '',
+          domicilio: content.origin.domicilio,
+          poblacion: content.origin.poblacion || '',
+          postal_code: content.origin.postal_code,
+        },
+        newLocationKeys
+      );
+    }
+    if (content.destination?.domicilio) {
+      addLocationIfNew(
+        {
+          nombre: content.destination.empresa || '',
+          nif: content.destination.nif || '',
+          domicilio: content.destination.domicilio,
+          poblacion: content.destination.poblacion || '',
+          postal_code: content.destination.postal_code,
+        },
+        newLocationKeys
+      );
+    }
 
     triggerPdfRegen(data.id, (result) => {
       setAllDocuments((prev) =>
