@@ -86,6 +86,9 @@ export function Lugares({ onBack, onLogout, onNavigate }: LugaresProps) {
       >
         <div className="max-w-lg mx-auto">
           <div className="bg-white rounded-2xl border border-slate-200/80 p-6">
+            <p className="text-sm text-slate-500 mb-5">
+              Estos datos apareceran como sugerencia al escribir el nombre de empresa en el transportista, cargador contractual, origen o destino de un documento.
+            </p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Nombre de empresa</label>
@@ -211,7 +214,9 @@ export function Lugares({ onBack, onLogout, onNavigate }: LugaresProps) {
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h3 className="text-base font-bold text-slate-800">Lugares guardados</h3>
-            <p className="text-sm text-slate-500 mt-0.5">Origenes y destinos frecuentes de tus transportes</p>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Empresas y direcciones que usas como transportista, cargador contractual, origen o destino al crear documentos
+            </p>
           </div>
           <button
             onClick={() => setView('form')}
@@ -232,7 +237,9 @@ export function Lugares({ onBack, onLogout, onNavigate }: LugaresProps) {
               <MapPin size={28} className="text-slate-400" />
             </div>
             <p className="text-base font-semibold text-slate-600">No hay lugares guardados</p>
-            <p className="text-sm text-slate-400 mt-1">Agrega origenes y destinos frecuentes para agilizar la creacion de documentos</p>
+            <p className="text-sm text-slate-400 mt-1">
+              Agrega las empresas y direcciones que usas habitualmente (transportista, cargador contractual, origen o destino) para que aparezcan como sugerencia al crear un documento
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
