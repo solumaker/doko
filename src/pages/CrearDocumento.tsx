@@ -214,6 +214,7 @@ function PartyFields({
   nombreLabel = 'Nombre de empresa',
   nombreRequired = true,
   nifRequired = true,
+  suggestions = [],
 }: {
   data: PartyForm;
   onChange: (next: PartyForm) => void;
@@ -221,19 +222,118 @@ function PartyFields({
   nombreLabel?: string;
   nombreRequired?: boolean;
   nifRequired?: boolean;
+  suggestions?: PartyHistory[];
 }) {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  // Cuando una empresa tiene varias direcciones guardadas (varios centros),
+  // este es el nombre para el que se muestra el sub-listado de centros.
+  const [centrosFor, setCentrosFor] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+        setCentrosFor(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, { nombre: string; rows: PartyHistory[] }>();
+    for (const row of suggestions) {
+      const key = row.nombre.trim().toLowerCase();
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, { nombre: row.nombre, rows: [] });
+      map.get(key)!.rows.push(row);
+    }
+    return Array.from(map.values());
+  }, [suggestions]);
+
+  const query = data.nombre.trim().toLowerCase();
+  const matches = query ? groups.filter((g) => g.nombre.toLowerCase().includes(query)) : groups;
+  const centroRows = centrosFor ? groups.find((g) => g.nombre === centrosFor)?.rows ?? [] : [];
+
+  const pickRow = (row: PartyHistory) => {
+    onChange({ nombre: row.nombre, domicilio: row.domicilio, postal_code: row.postal_code, poblacion: row.poblacion, nif: row.nif });
+    setDropdownOpen(false);
+    setCentrosFor(null);
+  };
+
+  const pickGroup = (g: { nombre: string; rows: PartyHistory[] }) => {
+    if (g.rows.length === 1) pickRow(g.rows[0]);
+    else setCentrosFor(g.nombre);
+  };
+
   return (
     <div className="space-y-5">
       {showNombre && (
-        <div>
+        <div ref={containerRef} className="relative">
           <FieldLabel text={nombreLabel} required={nombreRequired} />
           <input
             type="text"
             value={data.nombre}
-            onChange={(e) => onChange({ ...data, nombre: e.target.value })}
+            onChange={(e) => {
+              onChange({ ...data, nombre: e.target.value });
+              setDropdownOpen(true);
+              setCentrosFor(null);
+            }}
+            onFocus={() => setDropdownOpen(true)}
             className={inputClass}
             placeholder="Ingrese el nombre de la empresa"
+            autoComplete="off"
           />
+          {dropdownOpen && suggestions.length > 0 && (
+            <div className="absolute z-40 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+              {centrosFor ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCentrosFor(null)}
+                    className="w-full text-left px-4 py-2 text-xs font-bold text-blue-700 hover:bg-blue-50 border-b border-slate-100"
+                  >
+                    ← Volver
+                  </button>
+                  <p className="px-4 pt-2 pb-1 text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                    {centrosFor} tiene varios centros — elige uno
+                  </p>
+                  {centroRows.map((row) => (
+                    <button
+                      key={row.id}
+                      type="button"
+                      onClick={() => pickRow(row)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-sm border-b border-slate-50 last:border-b-0"
+                    >
+                      <span className="font-semibold text-slate-900 block">{row.domicilio}</span>
+                      <span className="text-xs text-slate-500">{row.postal_code} {row.poblacion}</span>
+                    </button>
+                  ))}
+                </>
+              ) : matches.length > 0 ? (
+                matches.map((g) => (
+                  <button
+                    key={g.nombre}
+                    type="button"
+                    onClick={() => pickGroup(g)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-sm border-b border-slate-50 last:border-b-0 flex items-center justify-between gap-2"
+                  >
+                    <span className="font-semibold text-slate-900 truncate">{g.nombre}</span>
+                    {g.rows.length > 1 ? (
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 shrink-0">
+                        {g.rows.length} centros
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 truncate shrink-0 max-w-[40%]">{g.rows[0].poblacion}</span>
+                    )}
+                  </button>
+                ))
+              ) : (
+                <p className="px-4 py-3 text-xs text-slate-400">Sin coincidencias — se guardará como nuevo</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -289,7 +389,7 @@ function PartyFields({
 export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDocument }: CrearDocumentoProps) {
   const { addDocument, amendDocument, partyHistory, vehicleHistory, observationHistory } = useData();
   const { isAdmin, profile, company, isCargador } = useAuth();
-  const { canCreateDocument, purchaseDocumentPack } = useSubscription();
+  const { canCreateDocument, purchaseDocumentPack, isFreePlan } = useSubscription();
 
   const isEditMode = !!editingDocument;
   const totalSteps: number = isEditMode ? 6 : 5;
@@ -454,16 +554,11 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
     p.domicilio.trim() !== '' && p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
 
   const counterpartyType: PartyType = actingAs === 'transportista' ? 'contractual_shipper' : 'transportista_efectivo';
-  const partySuggestions = (type: PartyType, limit = 5): PartyHistory[] =>
-    partyHistory.filter((p) => p.party_type === type).slice(0, limit);
-  const partyHistoryToForm = (p: PartyHistory): PartyForm => ({
-    nombre: p.nombre,
-    domicilio: p.domicilio,
-    postal_code: p.postal_code,
-    poblacion: p.poblacion,
-    nif: p.nif,
-  });
-  const partySuggestionLabel = (p: PartyHistory) => `${p.nombre || p.domicilio} — ${p.poblacion}`;
+  // El plan gratuito solo busca entre las entradas mas recientes; los planes
+  // de pago pueden buscar en todo el historial de empresas/centros guardados.
+  const partySuggestionRowLimit = isFreePlan ? 15 : 300;
+  const partySuggestions = (type: PartyType): PartyHistory[] =>
+    partyHistory.filter((p) => p.party_type === type).slice(0, partySuggestionRowLimit);
 
   const vehicleSuggestions: VehicleHistory[] = vehicleHistory.slice(0, 5);
   const vehicleSuggestionLabel = (v: VehicleHistory) =>
@@ -732,15 +827,11 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
           <p className={sectionSubtitle}>{counterpartySubtitle}</p>
         </div>
 
-        {!isEditMode && (
-          <RecentChips
-            items={partySuggestions(counterpartyType)}
-            renderLabel={partySuggestionLabel}
-            onSelect={(p) => setCounterparty(partyHistoryToForm(p))}
-          />
-        )}
-
-        <PartyFields data={counterparty} onChange={setCounterparty} />
+        <PartyFields
+          data={counterparty}
+          onChange={setCounterparty}
+          suggestions={isEditMode ? [] : partySuggestions(counterpartyType)}
+        />
       </div>
     </div>
   );
@@ -765,14 +856,13 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
       {!originSameAsShipper ? (
         <>
-          {!isEditMode && (
-            <RecentChips
-              items={partySuggestions('origin')}
-              renderLabel={partySuggestionLabel}
-              onSelect={(p) => setOrigin(partyHistoryToForm(p))}
-            />
-          )}
-          <PartyFields data={origin} onChange={setOrigin} nombreRequired={false} nifRequired={false} />
+          <PartyFields
+            data={origin}
+            onChange={setOrigin}
+            nombreRequired={false}
+            nifRequired={false}
+            suggestions={isEditMode ? [] : partySuggestions('origin')}
+          />
         </>
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
@@ -800,14 +890,13 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
 
       {!destinationSameAsShipper ? (
         <>
-          {!isEditMode && (
-            <RecentChips
-              items={partySuggestions('destination')}
-              renderLabel={partySuggestionLabel}
-              onSelect={(p) => setDestination(partyHistoryToForm(p))}
-            />
-          )}
-          <PartyFields data={destination} onChange={setDestination} nombreRequired={false} nifRequired={false} />
+          <PartyFields
+            data={destination}
+            onChange={setDestination}
+            nombreRequired={false}
+            nifRequired={false}
+            suggestions={isEditMode ? [] : partySuggestions('destination')}
+          />
         </>
       ) : (
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1 text-sm text-slate-700">
