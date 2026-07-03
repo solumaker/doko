@@ -20,7 +20,7 @@ import { es } from 'date-fns/locale';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
-import { supabase, Document, DocumentContent, DocumentFieldChange, ObservationHistory, PartyHistory, PartyType, Profile, VehicleHistory } from '../lib/supabase';
+import { supabase, Document, DocumentContent, DocumentFieldChange, ObservationHistory, PartyType, Profile, VehicleHistory } from '../lib/supabase';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { DocumentLimitModal } from '../components/DocumentLimitModal';
 
@@ -40,6 +40,20 @@ interface PartyForm {
   postal_code: string;
   poblacion: string;
   nif: string;
+}
+
+// Sugerencia de autorrelleno para los campos de empresa/direccion (transportista,
+// cargador contractual, origen, destino). Puede venir de un Lugar guardado
+// deliberadamente por el usuario (saved=true) o de una direccion usada en un
+// documento anterior y nunca guardada como Lugar (saved=false).
+interface PartySuggestion {
+  id: string;
+  nombre: string;
+  domicilio: string;
+  postal_code: string;
+  poblacion: string;
+  nif: string;
+  saved: boolean;
 }
 
 interface VehicleForm {
@@ -222,7 +236,7 @@ function PartyFields({
   nombreLabel?: string;
   nombreRequired?: boolean;
   nifRequired?: boolean;
-  suggestions?: PartyHistory[];
+  suggestions?: PartySuggestion[];
 }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   // Cuando una empresa tiene varias direcciones guardadas (varios centros),
@@ -242,7 +256,7 @@ function PartyFields({
   }, []);
 
   const groups = useMemo(() => {
-    const map = new Map<string, { nombre: string; rows: PartyHistory[] }>();
+    const map = new Map<string, { nombre: string; rows: PartySuggestion[] }>();
     for (const row of suggestions) {
       const key = row.nombre.trim().toLowerCase();
       if (!key) continue;
@@ -256,13 +270,13 @@ function PartyFields({
   const matches = query ? groups.filter((g) => g.nombre.toLowerCase().includes(query)) : groups;
   const centroRows = centrosFor ? groups.find((g) => g.nombre === centrosFor)?.rows ?? [] : [];
 
-  const pickRow = (row: PartyHistory) => {
+  const pickRow = (row: PartySuggestion) => {
     onChange({ nombre: row.nombre, domicilio: row.domicilio, postal_code: row.postal_code, poblacion: row.poblacion, nif: row.nif });
     setDropdownOpen(false);
     setCentrosFor(null);
   };
 
-  const pickGroup = (g: { nombre: string; rows: PartyHistory[] }) => {
+  const pickGroup = (g: { nombre: string; rows: PartySuggestion[] }) => {
     if (g.rows.length === 1) pickRow(g.rows[0]);
     else setCentrosFor(g.nombre);
   };
@@ -306,7 +320,14 @@ function PartyFields({
                       onClick={() => pickRow(row)}
                       className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-sm border-b border-slate-50 last:border-b-0"
                     >
-                      <span className="font-semibold text-slate-900 block">{row.domicilio}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900 block">{row.domicilio}</span>
+                        {row.saved && (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5 shrink-0">
+                            Lugar guardado
+                          </span>
+                        )}
+                      </span>
                       <span className="text-xs text-slate-500">{row.postal_code} {row.poblacion}</span>
                     </button>
                   ))}
@@ -319,7 +340,14 @@ function PartyFields({
                     onClick={() => pickGroup(g)}
                     className="w-full text-left px-4 py-2.5 hover:bg-blue-50 text-sm border-b border-slate-50 last:border-b-0 flex items-center justify-between gap-2"
                   >
-                    <span className="font-semibold text-slate-900 truncate">{g.nombre}</span>
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-slate-900 truncate">{g.nombre}</span>
+                      {g.rows.some((r) => r.saved) && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-1.5 py-0.5 shrink-0">
+                          Lugar guardado
+                        </span>
+                      )}
+                    </span>
                     {g.rows.length > 1 ? (
                       <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5 shrink-0">
                         {g.rows.length} centros
@@ -330,7 +358,7 @@ function PartyFields({
                   </button>
                 ))
               ) : (
-                <p className="px-4 py-3 text-xs text-slate-400">Sin coincidencias — se guardará como nuevo</p>
+                <p className="px-4 py-3 text-xs text-slate-400">Sin coincidencias — se guardará como sugerencia para la proxima vez</p>
               )}
             </div>
           )}
@@ -387,7 +415,7 @@ function PartyFields({
 }
 
 export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDocument }: CrearDocumentoProps) {
-  const { addDocument, amendDocument, partyHistory, vehicleHistory, observationHistory } = useData();
+  const { addDocument, amendDocument, partyHistory, vehicleHistory, observationHistory, locations } = useData();
   const { isAdmin, profile, company, isCargador } = useAuth();
   const { canCreateDocument, purchaseDocumentPack, isFreePlan } = useSubscription();
 
@@ -554,11 +582,45 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
     p.domicilio.trim() !== '' && p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
 
   const counterpartyType: PartyType = actingAs === 'transportista' ? 'contractual_shipper' : 'transportista_efectivo';
-  // El plan gratuito solo busca entre las entradas mas recientes; los planes
-  // de pago pueden buscar en todo el historial de empresas/centros guardados.
+
+  // Los Lugares son datos de empresa/direccion gestionados deliberadamente por
+  // el usuario en el menu "Lugares", y sirven de sugerencia para los cuatro
+  // roles (transportista, cargador contractual, origen, destino) por igual,
+  // ya que son intrinsecamente los mismos datos de empresa/direccion.
+  const locationSuggestions: PartySuggestion[] = useMemo(
+    () =>
+      locations.map((l) => ({
+        id: `loc-${l.id}`,
+        nombre: l.name,
+        domicilio: l.address,
+        postal_code: l.postal_code,
+        poblacion: l.city,
+        nif: l.nif || '',
+        saved: true,
+      })),
+    [locations]
+  );
+
+  // El plan gratuito solo busca entre las entradas mas recientes del
+  // historial automatico; los planes de pago pueden buscar en todo el
+  // historial. Los Lugares guardados no tienen este limite: son datos que el
+  // usuario ha decidido mantener a proposito, no un cache automatico.
   const partySuggestionRowLimit = isFreePlan ? 15 : 300;
-  const partySuggestions = (type: PartyType): PartyHistory[] =>
-    partyHistory.filter((p) => p.party_type === type).slice(0, partySuggestionRowLimit);
+  const partySuggestions = (type: PartyType): PartySuggestion[] => {
+    const historyRows: PartySuggestion[] = partyHistory
+      .filter((p) => p.party_type === type)
+      .slice(0, partySuggestionRowLimit)
+      .map((p) => ({
+        id: `ph-${p.id}`,
+        nombre: p.nombre,
+        domicilio: p.domicilio,
+        postal_code: p.postal_code,
+        poblacion: p.poblacion,
+        nif: p.nif,
+        saved: false,
+      }));
+    return [...locationSuggestions, ...historyRows];
+  };
 
   const vehicleSuggestions: VehicleHistory[] = vehicleHistory.slice(0, 5);
   const vehicleSuggestionLabel = (v: VehicleHistory) =>
