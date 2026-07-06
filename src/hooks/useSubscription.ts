@@ -8,6 +8,7 @@ export interface SubscriptionUsage {
   documents_used: number;
   document_limit: number;
   documents_extra_remaining: number;
+  documents_extra_purchased: number;
   users_count: number;
   user_limit: number;
   is_trial_active: boolean;

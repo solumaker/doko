@@ -58,7 +58,11 @@ function DocumentsGeneratedCard() {
     label = 'plan gratuito';
   } else if (hasActiveSubscription && usage) {
     used = usage.documents_used;
-    limit = usage.document_limit + usage.documents_extra_remaining;
+    // documents_extra_purchased es el total de packs comprados y vigentes
+    // para el periodo (fijo); documents_extra_remaining baja segun se van
+    // consumiendo, asi que usarlo aqui haria que "N" encogiera con cada
+    // documento generado en vez de reflejar la capacidad total del plan.
+    limit = usage.document_limit + usage.documents_extra_purchased;
     label = 'limite mensual';
   }
 
