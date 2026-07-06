@@ -150,6 +150,8 @@ export interface SubscriptionUsage {
   stripe_price_id: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
+  window_start: string | null;
+  window_end: string | null;
   trial_ends_at: string | null;
   is_trial_active: boolean;
   is_subscription_expired: boolean;

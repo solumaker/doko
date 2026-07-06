@@ -1,4 +1,4 @@
-import { BarChart2, CalendarCheck, FileText, Clock, ShieldCheck, RefreshCw, FilePlus, TrendingUp } from 'lucide-react';
+import { BarChart2, CalendarCheck, FileText, Clock, ShieldCheck, RefreshCw, FilePlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -87,13 +87,7 @@ function DocumentsGeneratedCard() {
 }
 
 function ResetCard() {
-  const { hasActiveSubscription, isFreePlan, usage, resetDate, daysUntilReset } = useSubscription();
-
-  const displayDate = (() => {
-    if (hasActiveSubscription && usage?.current_period_end) return new Date(usage.current_period_end);
-    if (isFreePlan && resetDate) return resetDate;
-    return null;
-  })();
+  const { resetDate, daysUntilReset } = useSubscription();
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col">
@@ -103,27 +97,27 @@ function ResetCard() {
         </div>
         <h3 className="text-sm font-bold text-slate-700">Restablecimiento del uso en</h3>
       </div>
-      <div className="flex-1 flex items-center justify-center gap-3 py-2">
-        <div className="w-14 h-14 rounded-2xl border-2 border-slate-200 flex items-center justify-center">
-          <CalendarCheck size={26} className="text-slate-400" strokeWidth={1.8} />
-        </div>
-        <div>
-          <p className="text-3xl font-extrabold text-slate-800 leading-none">{daysUntilReset}</p>
-          <p className="text-sm font-semibold text-slate-500 mt-1">{daysUntilReset === 1 ? 'dia' : 'dias'}</p>
-        </div>
+      <div className="flex-1 flex items-center justify-center py-2">
+        <p className="text-4xl font-extrabold text-slate-800 text-center leading-tight">
+          {daysUntilReset} {daysUntilReset === 1 ? 'dia' : 'dias'}
+        </p>
       </div>
-      <div className="mt-3 pt-3 border-t-2 border-red-400">
+      <div className="mt-3 pt-3 border-t border-slate-100">
         <p className="text-xs text-slate-500 text-center">
-          {displayDate ? format(displayDate, "dd/MM/yyyy, HH:mm", { locale: es }) : 'Sin fecha'}
+          {resetDate ? format(resetDate, "dd/MM/yyyy, HH:mm", { locale: es }) : 'Sin fecha'}
         </p>
       </div>
     </div>
   );
 }
 
+// Horas ahorradas por cada documento de control generado (admin o
+// conductores asociados) frente a rellenarlo en papel.
+const HOURS_SAVED_PER_DOCUMENT = 0.085;
+
 function TimeSavedCard() {
   const { documents } = useData();
-  const hoursSaved = (documents.length * 0.25 + 3.8).toFixed(1).replace('.', ',');
+  const hoursSaved = (documents.length * HOURS_SAVED_PER_DOCUMENT).toFixed(2).replace('.', ',');
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col">
@@ -136,15 +130,15 @@ function TimeSavedCard() {
       <div className="flex-1 flex items-center justify-center py-2">
         <p className="text-4xl font-extrabold text-slate-800 leading-none">{hoursSaved}h</p>
       </div>
-      <p className="text-xs text-emerald-600 font-semibold text-center mt-3 flex items-center justify-center gap-1">
-        <TrendingUp size={12} />
-        18% vs semana pasada
-      </p>
     </div>
   );
 }
 
 function ComplianceCard() {
+  const { documents } = useData();
+  const compliant = documents.length > 0;
+  const pct = compliant ? 100 : 0;
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 p-5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
@@ -154,11 +148,13 @@ function ComplianceCard() {
         <h3 className="text-sm font-bold text-slate-700">Cumplimiento DeCA</h3>
       </div>
       <div className="flex-1 flex items-center justify-center py-2">
-        <div className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-          <p className="text-2xl font-extrabold text-white leading-none">100%</p>
+        <div className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg ${compliant ? 'bg-emerald-500 shadow-emerald-500/30' : 'bg-slate-300 shadow-slate-300/20'}`}>
+          <p className="text-2xl font-extrabold text-white leading-none">{pct}%</p>
         </div>
       </div>
-      <p className="text-xs text-emerald-600 font-semibold text-center mt-3">En regla</p>
+      <p className={`text-xs font-semibold text-center mt-3 ${compliant ? 'text-emerald-600' : 'text-slate-400'}`}>
+        {compliant ? 'En regla' : 'Sin documentos generados'}
+      </p>
     </div>
   );
 }

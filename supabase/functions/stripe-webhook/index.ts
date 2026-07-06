@@ -59,6 +59,27 @@ function resolvePlanFromSubscription(subscription: Stripe.Subscription): string 
   return subscription.metadata?.plan || "autonomo";
 }
 
+function resolveLimitsFromSubscription(subscription: Stripe.Subscription): { document_limit: number; user_limit: number } {
+  const meta = subscription.metadata || {};
+  if (meta.document_limit) {
+    return {
+      document_limit: parseInt(meta.document_limit, 10) || 100,
+      user_limit: parseInt(meta.user_limit || "0", 10) || 0,
+    };
+  }
+  const plan = resolvePlanFromSubscription(subscription);
+  return PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
+}
+
+function computeNextMonthlyReset(periodStart: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - periodStart.getTime();
+  const monthMs = 30.44 * 24 * 60 * 60 * 1000;
+  const monthsElapsed = Math.floor(diffMs / monthMs);
+  const nextReset = new Date(periodStart.getTime() + (monthsElapsed + 1) * monthMs);
+  return nextReset.toISOString();
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -141,11 +162,24 @@ Deno.serve(async (req: Request) => {
             }
           }
           const totalDocs = packQty * 10;
+
+          // Compute expires_at = next monthly reset
+          let expiresAt: string | null = null;
+          const { data: subRow } = await supabase
+            .from("subscriptions")
+            .select("current_period_start")
+            .eq("company_id", companyId)
+            .maybeSingle();
+          if (subRow?.current_period_start) {
+            expiresAt = computeNextMonthlyReset(new Date(subRow.current_period_start));
+          }
+
           const { error: packError } = await supabase.from("document_packs").insert({
             company_id: companyId,
             stripe_payment_intent_id: session.payment_intent as string,
             documents_purchased: totalDocs,
             documents_remaining: totalDocs,
+            expires_at: expiresAt,
           });
           if (packError) {
             console.error(JSON.stringify({
@@ -165,7 +199,8 @@ Deno.serve(async (req: Request) => {
             session.subscription as string
           );
           const plan = resolvePlanFromSubscription(subscription);
-          const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
+          const limits = resolveLimitsFromSubscription(subscription);
+          const meta = subscription.metadata || {};
 
           const { error: upsertError } = await supabase.from("subscriptions").upsert(
             {
@@ -175,6 +210,9 @@ Deno.serve(async (req: Request) => {
               status: sanitizeStatus(subscription.status, event.id),
               document_limit: limits.document_limit,
               user_limit: limits.user_limit,
+              billing_cycle: meta.billing_cycle || "monthly",
+              document_tier: meta.document_tier ? parseInt(meta.document_tier, 10) : null,
+              stripe_price_id: subscription.items?.data?.[0]?.price?.id || null,
               current_period_start: new Date(
                 subscription.current_period_start * 1000
               ).toISOString(),
@@ -244,7 +282,7 @@ Deno.serve(async (req: Request) => {
           }
 
           const newPlan = resolvePlanFromSubscription(subscription);
-          const newLimits = PLAN_LIMITS[newPlan] || PLAN_LIMITS.autonomo;
+          const newLimits = resolveLimitsFromSubscription(subscription);
           const currentPeriodEnd = new Date(subscription.current_period_end * 1000).toISOString();
 
           const { error: updateError } = await supabase
@@ -363,6 +401,14 @@ Deno.serve(async (req: Request) => {
             })
             .eq("company_id", companyId)
             .eq("stripe_subscription_id", subscription.id);
+
+          // Al volver al plan gratuito, su ventana mensual de reinicio debe
+          // contar desde este momento (fin del plan de pago), no desde la
+          // fecha de alta original de la cuenta.
+          await supabase
+            .from("companies")
+            .update({ free_plan_anchor: new Date().toISOString() })
+            .eq("id", companyId);
         } catch (deletedErr) {
           console.error(JSON.stringify({
             msg: "customer.subscription.deleted handler error (non-fatal)",
@@ -388,7 +434,7 @@ Deno.serve(async (req: Request) => {
         if (!companyId) break;
 
         const appliedPlan = resolvePlanFromSubscription(subscription);
-        const appliedLimits = PLAN_LIMITS[appliedPlan] || PLAN_LIMITS.autonomo;
+        const appliedLimits = resolveLimitsFromSubscription(subscription);
 
         const { error: appliedError } = await supabase
           .from("subscriptions")
@@ -460,7 +506,7 @@ Deno.serve(async (req: Request) => {
           }
 
           const plan = resolvePlanFromSubscription(subscription);
-          const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.autonomo;
+          const limits = resolveLimitsFromSubscription(subscription);
           const preserveSchedule = !!subscription.schedule;
 
           await supabase

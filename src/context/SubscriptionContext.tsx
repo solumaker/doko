@@ -168,7 +168,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const freeDocLimit = usage?.free_doc_limit ?? usage?.trial_doc_limit ?? 50;
   const freeDocsLeft = Math.max(0, freeDocLimit - freeDocsUsed);
 
-  const resetDate = usage?.free_window_end ? new Date(usage.free_window_end) : null;
+  // Para planes de pago, window_end es la fecha del proximo reinicio mensual
+  // ya acotada (nunca la fecha de fin de la suscripcion completa, que puede
+  // ser mucho mas lejana). Para el plan gratuito, free_window_end es esa
+  // misma ventana rotatoria anclada a la fecha de alta/ultimo cambio de plan.
+  // Ambos casos deben usar la misma fuente para los "dias" y la fecha
+  // mostrada, si no quedan inconsistentes entre si.
+  const resetDate = (() => {
+    if (hasActiveSubscription && usage?.window_end) return new Date(usage.window_end);
+    if (usage?.free_window_end) return new Date(usage.free_window_end);
+    return null;
+  })();
   const daysUntilReset = (() => {
     if (!resetDate) return 0;
     const diff = resetDate.getTime() - Date.now();
