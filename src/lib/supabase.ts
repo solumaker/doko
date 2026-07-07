@@ -13,13 +13,8 @@ export async function callEdgeFunction(functionName: string, body: Record<string
   };
   let token = authToken;
   if (!token) {
-    try {
-      const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-      token = refreshed?.access_token ?? undefined;
-    } catch {
-      const { data: { session } } = await supabase.auth.getSession();
-      token = session?.access_token ?? undefined;
-    }
+    const { data: { session } } = await supabase.auth.getSession();
+    token = session?.access_token ?? undefined;
   }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
