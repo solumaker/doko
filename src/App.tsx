@@ -222,6 +222,12 @@ function AppContent() {
       <DriverAccess
         accessToken={driverToken}
         onSuccess={() => {}}
+        onBack={() => {
+          try { localStorage.removeItem('doko_driver_token'); } catch {}
+          setDriverToken(null);
+          setAuthScreen('driver-login');
+          window.history.replaceState({}, '', '/conductor');
+        }}
       />
     );
   }
