@@ -53,8 +53,10 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         supabase.from('extra_pack_config').select('*'),
       ]);
       if (cancelled) return;
-      if (!tiersRes.error && tiersRes.data) setTiers(tiersRes.data as PlanTier[]);
-      if (!extraRes.error && extraRes.data) setExtraConfig(extraRes.data as ExtraPackConfig[]);
+      if (tiersRes.error) console.error('Error fetching plan_tiers:', tiersRes.error);
+      else if (tiersRes.data) setTiers(tiersRes.data as PlanTier[]);
+      if (extraRes.error) console.error('Error fetching extra_pack_config:', extraRes.error);
+      else if (extraRes.data) setExtraConfig(extraRes.data as ExtraPackConfig[]);
     };
     loadCatalog();
     return () => { cancelled = true; };
@@ -203,13 +205,8 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   }, [fetchUsage]);
 
   const getFreshToken = useCallback(async (): Promise<string | null> => {
-    try {
-      const { data: { session } } = await supabase.auth.refreshSession();
-      return session?.access_token ?? null;
-    } catch {
-      const { data: { session: cached } } = await supabase.auth.getSession();
-      return cached?.access_token ?? null;
-    }
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
   }, []);
 
   const callWithRetry = useCallback(async (
