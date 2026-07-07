@@ -2,7 +2,7 @@ import { Check, Crown, ChevronUp, X, CreditCard, FileText, CircleDot, CalendarCh
 import { format } from 'date-fns';
 import { PaidPlanId, BillingCycle, TIER_VALUES, TIER_LABELS } from '../lib/supabase';
 import { useSubscription } from '../context/SubscriptionContext';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AppLayout } from '../components/AppLayout';
 import { QuantityStepper } from '../components/QuantityStepper';
 
@@ -47,6 +47,17 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [loadingPack, setLoadingPack] = useState(false);
   const [packQty, setPackQty] = useState(1);
+  const initializedTierRef = useRef(false);
+
+  useEffect(() => {
+    if (initializedTierRef.current || !usage?.document_tier) return;
+    initializedTierRef.current = true;
+    if (usage.plan === 'basico' || usage.plan === 'autonomo') {
+      setBasicoTier(usage.document_tier);
+    } else if (usage.plan === 'pro' || usage.plan === 'pyme' || usage.plan === 'flotas') {
+      setProTier(usage.document_tier);
+    }
+  }, [usage]);
 
   const basicoTiers = useMemo(
     () => TIER_VALUES.filter((t) => quote('basico', t, billingCycle).available),
@@ -92,8 +103,8 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
     : null;
 
   const isFreeActive = !hasActiveSubscription;
-  const isBasicoActive = hasActiveSubscription && (usage?.plan === 'basico' || usage?.plan === 'autonomo');
-  const isProActive = hasActiveSubscription && (usage?.plan === 'pro' || usage?.plan === 'pyme' || usage?.plan === 'flotas');
+  const isBasicoActive = hasActiveSubscription && (usage?.plan === 'basico' || usage?.plan === 'autonomo') && usage?.document_tier === basicoTier;
+  const isProActive = hasActiveSubscription && (usage?.plan === 'pro' || usage?.plan === 'pyme' || usage?.plan === 'flotas') && usage?.document_tier === proTier;
 
   const ctaLabel = billingCycle === 'yearly' ? 'Comprar plan anual' : 'Comprar plan mensual';
   const cycleSubtitle = billingCycle === 'yearly' ? 'Facturacion anual' : 'Facturacion mensual';

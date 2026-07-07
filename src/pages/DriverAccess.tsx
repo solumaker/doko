@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Delete, AlertCircle } from 'lucide-react';
+import { Loader2, Delete, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { callEdgeFunction } from '../lib/supabase';
 
 interface DriverAccessProps {
   accessToken: string;
   onSuccess: () => void;
+  onBack: () => void;
 }
 
 interface LinkInfo {
@@ -14,7 +15,7 @@ interface LinkInfo {
   is_active: boolean;
 }
 
-export function DriverAccess({ accessToken, onSuccess }: DriverAccessProps) {
+export function DriverAccess({ accessToken, onSuccess, onBack }: DriverAccessProps) {
   const { driverLogin } = useAuth();
   const [digits, setDigits] = useState<string[]>(['', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -167,6 +168,14 @@ export function DriverAccess({ accessToken, onSuccess }: DriverAccessProps) {
             <span className="text-blue-300 text-base">Verificando...</span>
           </div>
         )}
+
+        <button
+          onClick={onBack}
+          className="mt-4 text-slate-500 hover:text-slate-300 text-sm font-medium flex items-center gap-1.5 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Volver
+        </button>
       </div>
 
       <div className="px-6 pb-8">
