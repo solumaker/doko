@@ -49,15 +49,20 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
   const [packQty, setPackQty] = useState(1);
   const initializedTierRef = useRef(false);
 
+  // Las suscripciones creadas antes del modelo de precios por tramos (migracion
+  // 037) no tienen document_tier relleno: hay que usar document_limit como
+  // equivalente para no dar por "distinto" un tramo que en realidad coincide.
+  const currentTier = usage?.document_tier ?? usage?.document_limit ?? null;
+
   useEffect(() => {
-    if (initializedTierRef.current || !usage?.document_tier) return;
+    if (initializedTierRef.current || !currentTier || !TIER_VALUES.includes(currentTier)) return;
     initializedTierRef.current = true;
-    if (usage.plan === 'basico' || usage.plan === 'autonomo') {
-      setBasicoTier(usage.document_tier);
-    } else if (usage.plan === 'pro' || usage.plan === 'pyme' || usage.plan === 'flotas') {
-      setProTier(usage.document_tier);
+    if (usage?.plan === 'basico' || usage?.plan === 'autonomo') {
+      setBasicoTier(currentTier);
+    } else if (usage?.plan === 'pro' || usage?.plan === 'pyme' || usage?.plan === 'flotas') {
+      setProTier(currentTier);
     }
-  }, [usage]);
+  }, [usage, currentTier]);
 
   const basicoTiers = useMemo(
     () => TIER_VALUES.filter((t) => quote('basico', t, billingCycle).available),
@@ -103,8 +108,8 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
     : null;
 
   const isFreeActive = !hasActiveSubscription;
-  const isBasicoActive = hasActiveSubscription && (usage?.plan === 'basico' || usage?.plan === 'autonomo') && usage?.document_tier === basicoTier;
-  const isProActive = hasActiveSubscription && (usage?.plan === 'pro' || usage?.plan === 'pyme' || usage?.plan === 'flotas') && usage?.document_tier === proTier;
+  const isBasicoActive = hasActiveSubscription && (usage?.plan === 'basico' || usage?.plan === 'autonomo') && currentTier === basicoTier;
+  const isProActive = hasActiveSubscription && (usage?.plan === 'pro' || usage?.plan === 'pyme' || usage?.plan === 'flotas') && currentTier === proTier;
 
   const ctaLabel = billingCycle === 'yearly' ? 'Comprar plan anual' : 'Comprar plan mensual';
   const cycleSubtitle = billingCycle === 'yearly' ? 'Facturacion anual' : 'Facturacion mensual';
