@@ -177,7 +177,7 @@ export function Planes({ onLogout, onNavigate }: PlanesProps) {
             />
 
             <PremiumCard
-              onContact={() => { window.location.href = 'mailto:ventas@doko.app?subject=Plan%20Premium'; }}
+              onContact={() => { window.location.href = 'mailto:comercial@documentocontroltransporte.com?subject=Plan%20Premium'; }}
             />
           </div>
 
