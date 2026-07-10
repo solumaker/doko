@@ -374,7 +374,7 @@ function FreePlanCard({ isActive }: { isActive: boolean }) {
 
       <p className="text-sm font-bold text-slate-800 mt-6 mb-3">El plan GRATUITO incluye:</p>
       <ul className="space-y-2">
-        {['1 usuario', 'Creacion rapida de documentos', 'Documento accesible y verificable en inspeccion', 'Comparte por enlace, QR o WhatsApp', 'Historial accesible durante 30 dias'].map((f) => (
+        {['1 usuario', 'Creacion rapida de documentos', 'Documento accesible y verificable en inspeccion', 'Comparte por enlace, QR o WhatsApp', 'Historial accesible durante 15 dias'].map((f) => (
           <li key={f} className="flex items-start gap-2 text-sm text-slate-600">
             <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" strokeWidth={3} />
             <span>{f}</span>
