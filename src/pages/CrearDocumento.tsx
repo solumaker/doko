@@ -367,7 +367,7 @@ function PartyFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
-          <FieldLabel text="Domicilio" required />
+          <FieldLabel text="Domicilio" />
           <input
             type="text"
             value={data.domicilio}
@@ -435,6 +435,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
   const [destination, setDestination] = useState<PartyForm>(emptyParty);
   const [vehicle, setVehicle] = useState<VehicleForm>({ tractor_plate: '', trailer_plate_1: '', trailer_plate_2: '', special_authorization: '' });
   const [cargo, setCargo] = useState<CargoForm>({ description: '', weight_kg: 0, weight_unit: 'kilogramos' });
+  const [weightText, setWeightText] = useState('');
   const [departureDate, setDepartureDate] = useState(new Date());
   const [hasUnloadingDate, setHasUnloadingDate] = useState(false);
   const [unloadingDate, setUnloadingDate] = useState(new Date());
@@ -506,6 +507,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
       weight_kg: c.cargo.weight_kg || 0,
       weight_unit: c.cargo.weight_unit || 'kilogramos',
     });
+    setWeightText(c.cargo.weight_kg ? String(c.cargo.weight_kg) : '');
 
     // Dates
     if (editingDocument.departure_date) {
@@ -579,7 +581,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
   const effectiveDestination: PartyForm = destinationSameAsShipper ? cargadorContractual : destination;
 
   const validParty = (p: PartyForm) =>
-    p.domicilio.trim() !== '' && p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
+    p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
 
   const counterpartyType: PartyType = actingAs === 'transportista' ? 'contractual_shipper' : 'transportista_efectivo';
 
@@ -635,7 +637,6 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
       case 1:
         return (
           counterparty.nombre.trim() !== '' &&
-          counterparty.domicilio.trim() !== '' &&
           counterparty.postal_code.trim() !== '' &&
           counterparty.poblacion.trim() !== '' &&
           counterparty.nif.trim() !== ''
@@ -1124,13 +1125,18 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
           <div>
             <FieldLabel text="Peso de la mercancia" required />
             <input
-              type="number"
-              value={cargo.weight_kg || ''}
-              onChange={(e) => setCargo({ ...cargo, weight_kg: parseFloat(e.target.value) || 0 })}
+              type="text"
+              inputMode="decimal"
+              value={weightText}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (!/^\d*[.,]?\d*$/.test(raw)) return;
+                setWeightText(raw);
+                const parsed = parseFloat(raw.replace(',', '.'));
+                setCargo({ ...cargo, weight_kg: isNaN(parsed) ? 0 : parsed });
+              }}
               className={inputClass}
               placeholder="Peso o magnitud de la mercancia"
-              min="0"
-              step="any"
             />
           </div>
           <div>

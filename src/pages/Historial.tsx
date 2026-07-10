@@ -15,12 +15,20 @@ interface HistorialProps {
 }
 
 export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: HistorialProps) {
-  const { documents, loadingDocuments } = useData();
-  const { canCreateDocument, isSubscriptionExpired } = useSubscription();
+  const { documents: allDocuments, loadingDocuments } = useData();
+  const { canCreateDocument, isSubscriptionExpired, isFreePlan } = useSubscription();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+
+  const documents = isFreePlan
+    ? allDocuments.filter((doc) => {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 15);
+        return new Date(doc.created_at) >= cutoff;
+      })
+    : allDocuments;
 
   const filteredDocs = documents.filter((doc) => {
     if (searchQuery.trim() !== '') {
@@ -137,6 +145,12 @@ export function Historial({ onBack, onViewDocument, onLogout, onNavigate }: Hist
       onLogout={onLogout}
     >
       <div className="w-full space-y-5">
+        {isFreePlan && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm text-amber-800">
+            En el plan gratuito el historial solo muestra los documentos de los ultimos 15 dias. Actualiza tu plan para acceder a todo el historial.
+          </div>
+        )}
+
         {/* Filter bar */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-4 lg:p-5">
           {/* Desktop layout */}
