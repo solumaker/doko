@@ -367,7 +367,7 @@ function PartyFields({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
-          <FieldLabel text="Domicilio" required />
+          <FieldLabel text="Domicilio" />
           <input
             type="text"
             value={data.domicilio}
@@ -579,7 +579,7 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
   const effectiveDestination: PartyForm = destinationSameAsShipper ? cargadorContractual : destination;
 
   const validParty = (p: PartyForm) =>
-    p.domicilio.trim() !== '' && p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
+    p.postal_code.trim() !== '' && p.poblacion.trim() !== '';
 
   const counterpartyType: PartyType = actingAs === 'transportista' ? 'contractual_shipper' : 'transportista_efectivo';
 
@@ -635,7 +635,6 @@ export function CrearDocumento({ onBack, onComplete, onNavigatePlanes, editingDo
       case 1:
         return (
           counterparty.nombre.trim() !== '' &&
-          counterparty.domicilio.trim() !== '' &&
           counterparty.postal_code.trim() !== '' &&
           counterparty.poblacion.trim() !== '' &&
           counterparty.nif.trim() !== ''
